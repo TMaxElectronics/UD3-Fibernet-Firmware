@@ -1,0 +1,26 @@
+build/default/debug/FiberComms.o:  \
+FiberComms.c  \
+ FreeRTOS/Core/include/FreeRTOS.h  \
+include/FreeRTOSConfig.h  \
+ FreeRTOS/Core/include/projdefs.h  \
+FreeRTOS/Core/include/portable.h  \
+ FreeRTOS/Core/include/deprecated_definitions.h  \
+ FreeRTOS/Core/portable/MPLAB/PIC32MX/portmacro.h  \
+ FreeRTOS/Core/include/mpu_wrappers.h  \
+ FreeRTOS/TCPIP/include/FreeRTOS_Sockets.h  \
+include/FreeRTOSIPConfig.h  \
+ FreeRTOS/Core/include/event_groups.h  \
+FreeRTOS/Core/include/timers.h  \
+ FreeRTOS/Core/include/task.h  \
+FreeRTOS/Core/include/list.h  \
+ FreeRTOS/TCPIP/include/FreeRTOS_IP.h  \
+FreeRTOS/Core/include/task.h  \
+ FreeRTOS/TCPIP/include/FreeRTOSIPConfigDefaults.h  \
+ FreeRTOS/TCPIP/include/FreeRTOS_errno_TCP.h  \
+ FreeRTOS/TCPIP/include/IPTraceMacroDefaults.h  \
+ FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_start.h  \
+ FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_end.h  \
+ include/FiberComms.h  \
+include/min.h  \
+include/LAN9250.h  \
+include/SPI.h 

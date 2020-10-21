@@ -30,8 +30,14 @@ void ETH_init(){
     xSemaphoreTake(ETH_commsWaitSem, 0);
     
     while(1){
-        ETH_RST = 1;
         uint32_t currResetCount = 0;
+        //wait until we deassert reset after powerup
+        while((currResetCount++) < 250000);
+        currResetCount = 0;
+        ETH_RST = 1;
+        //wait until we can read after reset
+        while((currResetCount++) < 250000);
+        currResetCount = 0;
         
         uint32_t result = 0;
         while(((currResetCount++) < 0x5)){
@@ -42,13 +48,15 @@ void ETH_init(){
         if(!(result & 0x08000000)){
             //UART_print("LAN9250 initialisation failed!\r\n");
             ETH_RST = 0;
-            while((currResetCount++) < 1000000);
+            while((currResetCount++) < 10000000);
             continue;
         }
         break;
     }
     
-    //UART_print("SFP Chip ID & Revision number: 0x%08x\r\n", );
+    SPI_setCLKFreq(24000000);
+    
+    //UART_print("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(LAN9250_ID_REV));
     //UART_print("Phy strap is %s\r\n", (( & 0x400) != 0) ? "on" : "off");
     //UART_print("data size is %d\r\n", sizeof(RX_STATUS_DATA));
     
@@ -84,21 +92,25 @@ void ETH_init(){
 }
 
 unsigned linkState = 0;
+uint8_t linkCheckDivider = 0;
 
 //running task. Checks for interrupts and services any that might have occured
 static void ETH_run( void *pvParameters ){
     while(1){
         if(xSemaphoreTake(ETH_commsSem, 1000)){
             uint32_t intStatus = ETH_readReg(LAN9250_INT_STAT);
-            unsigned currLinkState = ETH_CheckLinkUp();
             
-            if(currLinkState != linkState){
-                linkState = currLinkState;
-                LED_ethLinkStateChangeHook(linkState);
-                UART_print(linkState ? "Ethernet connected\r\n" : "Ethernet lost\r\n");
-                //IPStackEvent_t xNetworkEvent;
-                //xNetworkEvent.eEventType = linkState ? eNoEvent : eNetworkDownEvent;
-                //xSendEventStructToIPTask(&xNetworkEvent, 0);
+            if(!--linkCheckDivider){
+                unsigned currLinkState = ETH_CheckLinkUp();
+
+                if(currLinkState != linkState){
+                    linkState = currLinkState;
+                    LED_ethLinkStateChangeHook(linkState);
+                    UART_print(linkState ? "Ethernet connected\r\n" : "Ethernet lost\r\n");
+                    //IPStackEvent_t xNetworkEvent;
+                    //xNetworkEvent.eEventType = linkState ? eNoEvent : eNetworkDownEvent;
+                    //xSendEventStructToIPTask(&xNetworkEvent, 0);
+                }
             }
             
             if(intStatus == 0xffffffff) intStatus = 0;
@@ -160,16 +172,18 @@ static void ETH_run( void *pvParameters ){
                 //UART_print("processing done\r\n");
             }
             if(intStatus & LAN9250_INTERRUPT_RX_ERROR){
+                configASSERT(0);
                 UART_print("RX Error has occurred\r\n");
             }
             if(intStatus & LAN9250_INTERRUPT_TX_ERROR){
+                configASSERT(0);
                 UART_print("TX Error has occurred\r\n");
             }
             
             ETH_clearIF(0xffffffff);    //clear all int flags
             
             xSemaphoreGive(ETH_commsSem);
-            vTaskDelay(10);
+            vTaskDelay(3);
         }
     }
 }
@@ -201,10 +215,12 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
         return 0;
     }
     
+    LATBCLR = _LATB_LATB3_MASK;
+    
     RX_STATUS_DATA * s = pvPortMalloc(sizeof(RX_STATUS_DATA));
     *((uint32_t *)s) = ETH_readReg(LAN9250_RX_STAT_FIFO);
     
-    if(s->packetSize > 500) UART_print("loading new packet with size %d\r\n", s->packetSize);
+    //if(s->packetSize > 500) UART_print("loading new packet with size %d\r\n", s->packetSize);
     
     NetworkBufferDescriptor_t * ret = pxGetNetworkBufferWithDescriptor(s->packetSize, 0);
     
@@ -225,9 +241,11 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     SPI_send(LAN9250_INSTR_REGREAD_SINGLE);
     SPI_send(LAN9250_RX_DATA_FIFO >> 8); SPI_send(LAN9250_RX_DATA_FIFO);
     
+    configASSERT((DCH1INT & 0xff) == 0);
     DCH1CONSET = _DCH1CON_CHEN_MASK;
     DCH0CONSET = _DCH1CON_CHEN_MASK;
     DCH0ECONSET = _DCH1ECON_CFORCE_MASK;
+    LATBSET = _LATB_LATB3_MASK;
     
     if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
         UART_print("receive dma timeout!\r\n");
@@ -244,9 +262,10 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
         xSemaphoreGive(ETH_commsWaitSem);
         return 0;
     }
+    LATBCLR = _LATB_LATB3_MASK;
         
-    uint8_t remaining = DCH1DSIZ % 4;
-    while(remaining--) SPI_send(0xff);
+    uint8_t remaining = 4 - (DCH0SSIZ % 4);
+    if(remaining != 4) while(remaining--) SPI_send(0xff);
     
     ETH_CS = 1;
         
@@ -254,6 +273,15 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     
     
     vPortFree(s);
+    LATBSET = _LATB_LATB3_MASK;
+    
+    uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
+    if(((fifoStatus >> 16) * 1500) < (fifoStatus & 0xffff)){
+        UART_print("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
+        ETH_forceRXDiscard();
+        return 0;
+    }
+    
     return ret;
 }
 
@@ -263,23 +291,20 @@ void __ISR(_DMA0_VECTOR) ETH_txDmaFinishedCallback(){
     if((DCH0INT & _DCH0INT_CHBCIF_MASK) != 0){
         //data has been sent -> clean up stuff
         DCH0INTCLR = 0xff;
+        //LATBCLR = _LATB_LATB3_MASK;
+        
+        //lastLength = DCH0SPTR;
         
         //because the DMA didn't read out any data there will be an overrun condition here. turning the module off and on again clears that error
         SPI2CONCLR = _SPI2CON_ON_MASK;
         SPI2CONSET = _SPI2CON_ON_MASK;
         
-        uint8_t remaining = DCH0SSIZ % 4;
-        while(remaining--) SPI_send(0xff);
-        
+        uint8_t remaining = 4 - (DCH0SSIZ % 4);
+        if(remaining != 4) while(remaining--) SPI_send(0xff);
         
         ETH_CS = 1;
         
-        uint8_t timeout = 0x5;
-        while(--timeout)
-        {
-            ETH_readReg(LAN9250_BYTE_TEST);
-        }  
-        
+        //LATBSET = _LATB_LATB3_MASK;
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(ETH_commsSem, &xHigherPriorityTaskWoken);
         portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
@@ -290,16 +315,14 @@ void __ISR(_DMA0_VECTOR) ETH_txDmaFinishedCallback(){
 }
 
 unsigned ETH_waitForTXSpace(uint16_t length){
-    //I'm sorry Netzpfuscher but this looks so nice and small...
-    ETH_writeReg(LAN9250_FIFO_INT, (ETH_readReg(LAN9250_FIFO_INT) & ~0xff000000) | (((length / 64) + 1) << 24)); //modify the tx data available level to be (length rounded to 64 bytes) + 64 bytes
+    uint32_t newLength = (((length / 64) + 1) << 24);
+    uint32_t currVal = (ETH_readReg(LAN9250_FIFO_INT) & ~0xff000000);
+    
+    ETH_writeReg(LAN9250_FIFO_INT, currVal | newLength); //modify the tx data available level to be (length rounded to 64 bytes) + 64 bytes
     
     ETH_clearIF(LAN9250_INTERRUPT_TX_DATA_AVAILABLE);
     
-    while((ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_TX_DATA_AVAILABLE) == 0) vTaskDelay(1);    //wait until enough data is free in the FIFO
-    
-    //TODO add timeout
-    //TODO verify that the mac's fifos are large enough to allow for low-ish latency operation
-    return 1;
+    return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_TX_DATA_AVAILABLE);    //wait until enough data is free in the FIFO
 }
 
 BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
@@ -307,8 +330,11 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     
     if(!xSemaphoreTake(ETH_commsSem, 1000)) return pdFALSE; //SPI comms never became available
     
+    //LATBCLR = _LATB_LATB3_MASK;
+    
     if(!ETH_waitForTXSpace(length)){
         xSemaphoreGive(ETH_commsSem);
+        //LATBSET = _LATB_LATB3_MASK;
         return pdFALSE;
     }
     
@@ -317,12 +343,16 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     //ETH_writeReg(LAN9250_TX_DATA_FIFO, 0x2004);    //TX a
     //ETH_writeReg(LAN9250_TX_DATA_FIFO, (((packetCount) << 16) | 0x4000 | (length+4)));
     //ETH_writeReg(LAN9250_TX_DATA_FIFO, (24 << 16) | 14);    //checksum starts at beginning of packet, is inserted at 24 bytes (IP checksum offset)
+    //UART_print("actual length: %d\r\n", DCH0SSIZ);
+    
+    //vTaskEnterCritical();
     
     //set up the TX DMA channel to transfer [length] bytes from [data]
-    IEC1SET = _IEC1_DMA0IE_MASK;
     DCH0SSA = KVA_TO_PA(data);  //convert virtual to physical address
     DCH0SSIZ = length;
-    UART_print("actual length: %d\r\n", DCH0SSIZ);
+    DCH0INTCLR = 0xff;
+    IFS1CLR = _IFS1_DMA0IF_MASK;
+    IEC1SET = _IEC1_DMA0IE_MASK;
     
     uint32_t txstatus;
     uint16_t cmd;
@@ -332,17 +362,24 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     cmd0 = cmd >> 8;
     cmd1 = cmd & 0xFF;
     
-    ETH_writeReg(LAN9250_TX_DATA_FIFO, ((0x00003000) | (length))); 
-    ETH_writeReg(LAN9250_TX_DATA_FIFO, (((packetCount++) << 16) | 0x4000 | (length)));
+    uint32_t txCmdA = ((0x00003000) | (length));
+    uint32_t txCmdB = (((packetCount++) << 16) | 0x4000 | (length));
+    
+    ETH_writeReg(LAN9250_TX_DATA_FIFO, txCmdA); 
+    ETH_writeReg(LAN9250_TX_DATA_FIFO, txCmdB);
 
     ETH_CS = 0;
     SPI_send(LAN9250_INSTR_REGWRITE_SINGLE);
     SPI_send(cmd0);
     SPI_send(cmd1);    
     
+    //vTaskExitCritical();
     DCH0CONSET = _DCH0CON_CHEN_MASK;    //start the transfer
     DCH0ECONSET = _DCH0ECON_CFORCE_MASK;
     
+    configASSERT(DCH0SSIZ == (txCmdB & 0x3ff));
+    
+    //LATBSET = _LATB_LATB3_MASK;
     return pdTRUE;
 }
 
@@ -458,7 +495,7 @@ uint32_t ETH_readPhy(uint8_t index){
 
 void ETH_setupDMA(){
     //TX channel
-    DCH0CON = 0b00000011;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 2
+    DCH0CON = 0b00000010;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 2
     DCH0ECON = (_SPI2_TX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
     //DCH0SSA (source start) is to be set before each transfer
     DCH0DSA = KVA_TO_PA(&SPI2BUF);   //write into the SPI buffer
@@ -473,7 +510,7 @@ void ETH_setupDMA(){
     IPC10bits.DMA0IS = 4;
     
     //RX channel
-    DCH1CON = 0b00000010;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
+    DCH1CON = 0b00000001;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
     DCH1ECON = (_SPI2_RX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
     DCH1SSA = KVA_TO_PA(&SPI2BUF);
     //DCH1DSA (destination start) is to be set before each transfer

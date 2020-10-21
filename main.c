@@ -166,9 +166,9 @@ static void prvSetupHardware( void )
     DMACON = _DMACON_ON_MASK;
     DCRCCON = 0;
     
-    UART_init(19200, &RPA3R, 0b0001);
+    UART_init(460800, &RPA3R, 0b0001);
     
-    SPI_init(24000000);
+    SPI_init(2000000);
 
     LED_init();
 }

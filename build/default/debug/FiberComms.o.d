@@ -23,4 +23,5 @@ FreeRTOS/Core/include/task.h  \
  include/FiberComms.h  \
 include/min.h  \
 include/LAN9250.h  \
-include/SPI.h 
+include/SPI.h  \
+ include/UART.h 

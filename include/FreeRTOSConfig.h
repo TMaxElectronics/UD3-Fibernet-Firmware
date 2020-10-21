@@ -96,7 +96,7 @@ to exclude the API function. */
 #ifdef __DEBUG
 	#define configASSERT( x ) if( ( x ) == 0 ) __builtin_software_breakpoint()
 #else
-	#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled( __FILE__, __LINE__ )
+	#define configASSERT( x ) //if( ( x ) == 0 ) vAssertCalled( __FILE__, __LINE__ )
 #endif
     
 #endif

@@ -151,6 +151,7 @@ struct min_context {
     uint8_t rx_control;                             // Control byte
     uint8_t tx_header_byte_countdown;               // Count out the header bytes
     uint8_t port;                                   // Number of the port associated with the context
+    uint16_t currDataPos;
     uint8_t * forwardBuffer;                          //points to the start of a frame if it is one we need to forward
     uint16_t forwardDataLength;
 };

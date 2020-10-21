@@ -6,6 +6,7 @@
 #include "FiberComms.h"
 #include "include/FreeRTOSConfig.h"
 #include "include/UART.h"
+#include "FreeRTOS/Core/include/portable.h"
 
 #define TRANSPORT_FIFO_SIZE_FRAMES_MASK             ((uint8_t)((1U << TRANSPORT_FIFO_SIZE_FRAMES_BITS) - 1U))
 #define TRANSPORT_FIFO_SIZE_FRAME_DATA_MASK         ((uint16_t)((1U << TRANSPORT_FIFO_SIZE_FRAME_DATA_BITS) - 1U))
@@ -443,6 +444,7 @@ static void valid_frame_received(struct min_context *self)
     if(self->forwardBuffer != 0){
         //if this data needs to be forwarded we tell the handler by using an invalid min ID, and give it the pointer to the buffer
         min_application_handler(0xff, self->forwardBuffer, payload_len, self->port);
+        self->forwardBuffer = pvPortMalloc(MAX_PAYLOAD + 30);
     }else{
         min_application_handler(id_control & (uint8_t)0x3fU, payload, payload_len, self->port);
     }
@@ -467,6 +469,11 @@ static void rx_byte(struct min_context *self, uint8_t * data){
         self->rx_header_bytes_seen = 0;
         if(byte == HEADER_BYTE) {
             self->rx_frame_state = RECEIVING_ID_CONTROL;
+            self->currDataPos = 3;
+            self->forwardBuffer[0] = 0xaa;
+            self->forwardBuffer[1] = 0xaa;
+            self->forwardBuffer[2] = 0xaa;
+            self->rx_frame_id_control = 0x80;   //force the transport bit to one so all the data gets copied until we know if we even need to
             return;
         }
         if(byte == STUFF_BYTE) {
@@ -486,7 +493,14 @@ static void rx_byte(struct min_context *self, uint8_t * data){
     else {
         self->rx_header_bytes_seen = 0;
     }
-    //UART_print("0x%08x\r\n\n", data);
+    
+    if(self->rx_frame_id_control & 0x80) self->forwardBuffer[self->currDataPos++] = byte;
+    
+    //char buff[16];
+    //sprintf(buff, "0x%02x\r\n", byte);
+    //UART_sendString(buff, 1);
+    
+    
     switch(self->rx_frame_state) {
         case SEARCHING_FOR_SOF:
             break;
@@ -498,14 +512,16 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             if(byte & 0x80U) {
                 //if a frame for the transport protocol arrives, it is for the pc, so we can't discard it, even if we don't have the transport active
                 self->rx_frame_state = WAIT_PACKET_LENGTH;
+                //UART_sendString("trans", 1);
                 //UART_print("found packet to forward!\r\n");
                 //we also have to set our current forwarding pointer to the start of this frame (id/control = 4 => frame start = *(id/control) - 3)
-                self->forwardBuffer = (uint8_t*) (((uint32_t) data) - 3);
+                //self->forwardBuffer = (uint8_t*) (((uint32_t) data) - 3);
                 self->rx_frame_length = 4; //skip the four bytes of the sequence count
             }
             else {
                 self->rx_frame_seq = 0;
                 self->rx_frame_state = RECEIVING_LENGTH;
+                //UART_sendString("norm", 1);
                 //set the forward buffer pointer to zero, if it isn't already to signal that we need to deal with this packet
                 //freeing of this is not handled by us
                 self->forwardBuffer = 0;
@@ -590,14 +606,9 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             if(byte == 0x55u) {
                 // Frame received OK, pass up data to handler
                 valid_frame_received(self);
+                //UART_sendString("valid", 1);
             }else{
                 //UART_print("found packet with invalid end : 0x%02x\r\n", byte);
-                if(self->forwardBuffer != 0){
-                    if(self->port == COMMS_UART){
-                        UART_packetEndHandler();
-                        vPortFree(self->forwardBuffer);
-                    }
-                }
             }
             // else discard
             // Look for next frame */
@@ -671,6 +682,7 @@ void min_init_context(struct min_context *self, uint8_t port)
     self->rx_header_bytes_seen = 0;
     self->rx_frame_state = SEARCHING_FOR_SOF;
     self->port = port;
+    self->forwardBuffer = pvPortMalloc(MAX_PAYLOAD + 30);
 
 #ifdef TRANSPORT_PROTOCOL
     // Counters for diagnosis purposes

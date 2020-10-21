@@ -13,6 +13,12 @@
 #include "FiberComms.h"
 #include "min.h"
 #include "include/LAN9250.h"
+#include "include/UART.h"
+
+#define MIN_FRAME_INVALID 0xffff
+#define MIN_NON_TRANSPORT_FRAME 0xfffe
+
+uint16_t min_checkUDPFrame(uint8_t * data);
 
 struct min_context * COMMS_UDP;
 struct min_context * COMMS_UART;
@@ -42,12 +48,21 @@ void COMMS_udpDataHandler(void * params){
 	FreeRTOS_bind( xListeningSocket, &xBindAddress, sizeof( xBindAddress ) );
 
 	while(1){
-		memset( cReceivedString, 0x00, 300);
 		lBytes = FreeRTOS_recvfrom( xListeningSocket, cReceivedString, 512, 0, &lastClient, &xClientLength );
         
         if(lBytes > 0){
             //ETH_dumpPackt(cReceivedString, lBytes);
-            min_poll(COMMS_UDP, cReceivedString, lBytes);
+            
+            //do a quick check on the received data. If it is a valid min frame and has the transport bit set we can immediately forward it without checking anything
+            uint16_t length = min_checkUDPFrame(cReceivedString);
+            
+            if(length <= MAX_PAYLOAD){
+                UART_queBuffer(cReceivedString, lBytes, 1);
+                LED_ethPacketReceivedHook();
+            }else if(length = MIN_NON_TRANSPORT_FRAME){
+                //if it is a non transport min frame we have to deal with it properly
+                min_poll(COMMS_UDP, cReceivedString, lBytes);
+            }
             cReceivedString = pvPortMalloc(300);
         }
 	}
@@ -61,6 +76,12 @@ void COMMS_sendDataToLastClient(uint8_t * data, uint8_t dataLength){
     FreeRTOS_sendto(xListeningSocket, data, dataLength, 0, &lastClient, sizeof(lastClient));
 }
 
+uint16_t min_checkUDPFrame(uint8_t * data){
+    if(data[0] != 0xaa || data[1] != 0xaa || data[2] != 0xaa) return MIN_FRAME_INVALID;
+    if(data[3] & 0x80U) return data[8]; //return length if the frame needs to be forwarded
+    return MIN_NON_TRANSPORT_FRAME;
+}
+
 void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, uint8_t port){
     if(min_id == 0xff){ //frame needs to be forwarded
         if(port == (uint8_t) COMMS_UDP){
@@ -69,7 +90,6 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
             UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
         }else if(port == (uint8_t) COMMS_UART){
-            UART_packetEndHandler();
             COMMS_sendDataToLastClient(min_payload, len_payload);
             LED_minPacketReceivedHook();
             vPortFree(min_payload);

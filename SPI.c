@@ -24,6 +24,7 @@ void SPI_init(uint32_t clkFreq){
     SPI2CONbits.MSTEN = 1;
     
     SPI2CONbits.STXISEL = 0;
+    SPI2CONbits.SRXISEL = 0;
     
     SPI2CONbits.ON = 1;
     

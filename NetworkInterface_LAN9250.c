@@ -15,6 +15,7 @@
 BaseType_t xNetworkInterfaceInitialise( void ){
     ETH_init();
 }
+
 BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxNetworkBuffer, BaseType_t xReleaseAfterSend ){
     //UART_print("sending packet with length %d\r\n", pxNetworkBuffer->xDataLength);
     ETH_writePacket(pxNetworkBuffer->pucEthernetBuffer, pxNetworkBuffer->xDataLength);

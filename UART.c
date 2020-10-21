@@ -36,10 +36,14 @@ QueueHandle_t UART_sendQueue;
 SemaphoreHandle_t UART_txDMA;
 SemaphoreHandle_t UART_rxDMAOverflow;
 
+volatile uint32_t lastScanPosition = 0;
+uint32_t currPackageOffset = 0;
+uint8_t * currBuff;
+
 unsigned freeNextData = 0;
 
 void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
-    U2MODE = 0b1000000000001000;                //UART Module ON, U1RX and U1TX only, Autobaud off, 8bit Data no parity, High Speed mode off
+    U2MODE = 0b0000000000001000;                //UART Module ON, U1RX and U1TX only, Autobaud off, 8bit Data no parity, High Speed mode off
     U2STA = 0b0001010000000000;                 //Tx interrupt when at leasts one byte can be written, Rx & Tx enabled, Rx interrupt when buffer not empty
     if(baud > 250000){
         U2MODEbits.BRGH = 1;
@@ -55,13 +59,7 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     //IEC1SET = _IEC1_U2RXIE_MASK;
     //IPC9bits.U2IP = 3;
     //IPC9bits.U2IS = 3;
-
-    UART_sendString("                                                                                                       ", 1);
-    UART_sendString("                                                                                                       ", 1);
-    UART_sendString("                                                                                                       ", 1);        //clear terminal trash
-    UART_sendString(UART_getVT100Code(_VT100_RESET, 0), 0);
-    UART_sendString("                                                                                                       ", 1);        //clear terminal trash
-   
+    
     UART_sendQueue = xQueueCreate(35, sizeof(UART_SENDQUE_ELEMENT*));
     
     UART_txDMA = xSemaphoreCreateBinary();
@@ -85,23 +83,25 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     IPC10bits.DMA2IP = 4;
     IPC10bits.DMA2IS = 4;
     
-    
+    //rx dma goes into a ring buffer
     //RX channel
-    DCH3CON = 0b00000001;   //channel is off, no chaining, channel auto enable is off, prio 3
-    DCH3ECON = (_UART2_RX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
+    DCH3CON = 0b00000011;   //channel is off, no chaining, channel auto enable is off, prio 3
+    DCH3CONbits.CHAEN = 1;
+    DCH3ECON = (_UART2_RX_IRQ << 8) | 0b10000;       //transmit byte on _UART2_RX_IRQ
     DCH3SSA = KVA_TO_PA(&U2RXREG);
-    DCH3DSA = 0;
+    currBuff = pvPortMalloc(UART_BUFFERSIZE);
+    DCH3DSA = KVA_TO_PA(currBuff);
     
     DCH3SSIZ = 1;   // source size - 1 byte
-    DCH3DSIZ = MIN_MAX_PACKETSIZE + 30; //maximum packet size (data) + sizeof(MIN_HEADER)
+    DCH3DSIZ = UART_BUFFERSIZE; //maximum packet size (data) + sizeof(MIN_HEADER)
     DCH3CSIZ = 1;   // Cell size - copy one byte every time the interrupt fires
     
-    DCH3INT = _DCH1INT_CHBCIE_MASK; //interrupt once the transfer is completed
-    IEC1SET = _IEC1_DMA3IE_MASK;
-    IPC10bits.DMA3IP = 4;
-    IPC10bits.DMA3IS = 4;
+    DCH3INT = 0;//_DCH1INT_CHBCIE_MASK; //interrupt once the transfer is completed
+    //IEC1SET = _IEC1_DMA3IE_MASK;
+    //IPC10bits.DMA3IP = 4;
+    //IPC10bits.DMA3IS = 4;
     
-    xTaskCreate(UART_sendTask, "SendTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(UART_sendTask, "SendTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
     xTaskCreate(UART_receiveTask, "RecvTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
     //xTaskCreate(UART_bufferOverflowHandler, "OfloHndl", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, NULL);
 }
@@ -144,31 +144,31 @@ void UART_bufferOverflowHandler(void *pvParameters){
         //TODO handle overflow
     }
 }
-
-volatile uint32_t lastScanPosition = 0;
-uint32_t currPackageOffset = 0;
-uint8_t * currBuff;
     
 
 void UART_receiveTask(void *pvParameters){
-    currBuff = pvPortMalloc(MIN_MAX_PACKETSIZE + 11);
     DCH3DSA = KVA_TO_PA(currBuff);
     DCH3CONSET = _DCH3CON_CHEN_MASK;
-    
-    //set this after the first detected end sequence
-    unsigned receiverLocked = 0;
+    U2MODEbits.ON = 1;
     
     while(1){
-        uint32_t nextSegmentLength = (DCH3DPTR + currPackageOffset) - lastScanPosition;
-        configASSERT(nextSegmentLength < 0xffff);
-    
-        configASSERT(currPackageOffset || (DCH3DPTR >= lastScanPosition));
-        
-        if(nextSegmentLength > 0){
-            uint8_t * currData = &currBuff[lastScanPosition];
-            lastScanPosition += nextSegmentLength;
-            
-            min_poll(COMMS_UART, currData, nextSegmentLength);
+#ifdef UART_DEBUG_DATA
+        if(lastScanPosition != DCH3DPTR){
+            char * buff = pvPortMalloc(100);
+            uint16_t currPos = 0;
+            while(lastScanPosition != DCH3DPTR){
+                LED_minPacketReceivedHook();
+                buff[currPos++] = *(currBuff + lastScanPosition);
+                min_poll(COMMS_UART, currBuff + lastScanPosition, 1);
+                if(++lastScanPosition >= DCH3DSIZ) lastScanPosition = 0;
+            }
+            COMMS_sendDataToLastClient(buff, currPos);
+            vPortFree(buff);
+        }
+#else
+        while(lastScanPosition != DCH3DPTR){
+            min_poll(COMMS_UART, &currBuff[lastScanPosition], 1);
+            if(++lastScanPosition >= DCH3DSIZ) lastScanPosition = 0;
         }
         
         if(U2STAbits.FERR || U2STAbits.OERR){
@@ -179,35 +179,9 @@ void UART_receiveTask(void *pvParameters){
             U2STAbits.URXEN = 1;
             LED_errorFlashHook();
         }
-        
-        vTaskDelay(5);
+#endif
+        vTaskDelay(2);
     }
-}
-
-void UART_packetEndHandler(){
-    taskENTER_CRITICAL();
-                
-    //disable DMA so we can copy the remaining data without getting any new in
-    DCH3CONCLR = _DCH3CON_CHEN_MASK;
-
-    //the amount of bytes in the buffer, after the packet end
-    uint32_t remainingBytes = DCH3DPTR - lastScanPosition;
-
-    //create the new Buffer, copy the remaining data into it and the n deal with the old one
-    uint8_t * lastBuff = currBuff;
-    currBuff = pvPortMalloc(MIN_MAX_PACKETSIZE + 30);
-    memcpy(currBuff, &lastBuff[lastScanPosition + 1], remainingBytes);
-
-    //set DMA to copy [maxPacketLength - bytesWeAlredyGot] bytes from UART to
-    DCH3DSIZ = (MIN_MAX_PACKETSIZE + 11) - remainingBytes;
-    DCH3DSA = KVA_TO_PA(&currBuff[remainingBytes]);
-    DCH3CONSET = _DCH3CON_CHEN_MASK;
-
-    currPackageOffset = remainingBytes;
-    lastScanPosition = 0;
-    //we are at the beginning of the buffer again (we didn't yet check the bytes we just copied)
-    
-    taskEXIT_CRITICAL();
 }
 
 void UART_sendString(char *data, unsigned newLine){

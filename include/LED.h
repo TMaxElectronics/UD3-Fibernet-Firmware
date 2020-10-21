@@ -7,3 +7,5 @@ void LED_task(void * params);
 void LED_ethLinkStateChangeHook(unsigned newState);
 void LED_ethPacketReceivedHook();
 void LED_minPacketReceivedHook();
+void LED_errorFlashHook();
+void LED_ethDHCPStateChangeHook(unsigned newState);

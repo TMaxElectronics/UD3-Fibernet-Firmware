@@ -19,7 +19,7 @@ BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxNetworkB
     //UART_print("sending packet with length %d\r\n", pxNetworkBuffer->xDataLength);
     ETH_writePacket(pxNetworkBuffer->pucEthernetBuffer, pxNetworkBuffer->xDataLength);
     if(xReleaseAfterSend != pdFALSE){
-         vReleaseNetworkBufferAndDescriptor(pxNetworkBuffer);
+        vReleaseNetworkBufferAndDescriptor(pxNetworkBuffer);
     }
 }
 /* coverity[misra_c_2012_rule_8_6_violation] */
@@ -32,7 +32,7 @@ void vNetworkInterfaceAllocateRAMToBuffers( NetworkBufferDescriptor_t pxNetworkB
 /* "xGetPhyLinkStatus" is provided by the network driver. */
 /* coverity[misra_c_2012_rule_8_6_violation] */
 BaseType_t xGetPhyLinkStatus( void ){
-    UART_print("checked link\r\n");
+    //UART_print("checked link\r\n");
     return ETH_CheckLinkUp() ? pdTRUE : pdFALSE;
 }
 
@@ -46,10 +46,13 @@ static BaseType_t xTasksAlreadyCreated = pdFALSE;
 int8_t cBuffer[ 16 ];
 
     UART_print( "event!\r\n");
+    
+    LED_minPacketReceivedHook();
 
     /* Check this was a network up event, as opposed to a network down event. */
     if( eNetworkEvent == eNetworkUp )
     {
+        LED_ethDHCPStateChangeHook(1);
         /* Create the tasks that use the IP stack if they have not already been
         created. */
         if( xTasksAlreadyCreated == pdFALSE )
@@ -83,6 +86,8 @@ int8_t cBuffer[ 16 ];
         /* Convert the IP address of the DNS server to a string then print it out. */
         FreeRTOS_inet_ntoa( ulDNSServerAddress, cBuffer );
         UART_print( "DNS server IP Address: %s\r\n", cBuffer );
+    }else{
+        LED_ethDHCPStateChangeHook(0);
     }
 }
 

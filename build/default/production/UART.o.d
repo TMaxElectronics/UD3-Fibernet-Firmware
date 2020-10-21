@@ -15,4 +15,14 @@ FreeRTOS/Core/include/list.h  \
 include/LED.h  \
  FreeRTOS/Core/include/semphr.h  \
 FreeRTOS/Core/include/queue.h  \
- include/FiberComms.h 
+ include/FiberComms.h  \
+include/LAN9250.h  \
+ FreeRTOS/TCPIP/include/FreeRTOS_IP.h  \
+FreeRTOS/Core/include/task.h  \
+ include/FreeRTOSIPConfig.h  \
+ FreeRTOS/TCPIP/include/FreeRTOSIPConfigDefaults.h  \
+ FreeRTOS/TCPIP/include/FreeRTOS_errno_TCP.h  \
+ FreeRTOS/TCPIP/include/IPTraceMacroDefaults.h  \
+ FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_start.h  \
+ FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_end.h  \
+include/SPI.h 

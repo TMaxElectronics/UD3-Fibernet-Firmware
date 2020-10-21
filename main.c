@@ -59,7 +59,7 @@
 #pragma config FPLLIDIV = DIV_2         // PLL Input Divider (4x Divider)
 #pragma config FPLLMUL = MUL_24         // PLL Multiplier (24x Multiplier)
 #pragma config UPLLIDIV = DIV_4         // USB PLL Input Divider (4x Divider)
-#pragma config UPLLEN = ON              // USB PLL Enable (Enabled)
+#pragma config UPLLEN = OFF              // USB PLL Enable (Enabled)
 #pragma config FPLLODIV = DIV_2         // System PLL Output Clock Divider (PLL Divide by 2)
 #pragma config FNOSC = FRCPLL           // Oscillator Selection Bits (Primary Osc w/PLL (XT+,HS+,EC+PLL))
 
@@ -166,7 +166,7 @@ static void prvSetupHardware( void )
     DMACON = _DMACON_ON_MASK;
     DCRCCON = 0;
     
-    UART_init(115200, &RPA3R, 0b0001);
+    UART_init(19200, &RPA3R, 0b0001);
     
     SPI_init(24000000);
 
@@ -209,7 +209,8 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 {
 	( void ) pcTaskName;
 	( void ) pxTask;
-
+    UART_sendString("StackOverflow!!!", 1);
+    UART_sendString(pcTaskName, 1);
 	/* Run time task stack overflow checking is performed if
 	configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook	function is 
 	called if a task stack overflow is detected.  Note the system/interrupt

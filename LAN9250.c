@@ -26,20 +26,21 @@ uint16_t packetCount = 0;
 void ETH_init(){
     ETH_commsSem = xSemaphoreCreateBinary();
     ETH_commsWaitSem = xSemaphoreCreateBinary();
-    
+    xSemaphoreTake(ETH_commsSem, 0);
+    xSemaphoreTake(ETH_commsWaitSem, 0);
     
     while(1){
         ETH_RST = 1;
         uint32_t currResetCount = 0;
         
         uint32_t result = 0;
-        while(((currResetCount++) < 0x50)){
+        while(((currResetCount++) < 0x5)){
             result = ETH_readReg(LAN9250_HW_CFG);
             if(result & 0x08000000) break;
         }
 
         if(!(result & 0x08000000)){
-            UART_print("LAN9250 initialisation failed!\r\n");
+            //UART_print("LAN9250 initialisation failed!\r\n");
             ETH_RST = 0;
             while((currResetCount++) < 1000000);
             continue;
@@ -47,10 +48,12 @@ void ETH_init(){
         break;
     }
     
-    UART_print("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(LAN9250_ID_REV));
-    UART_print("Phy strap is %s\r\n", ((ETH_readPhy(LAN9250_PHY_SPECIAL_MODES) & 0x400) != 0) ? "on" : "off");
-    UART_print("data size is %d\r\n", sizeof(RX_STATUS_DATA));
+    //UART_print("SFP Chip ID & Revision number: 0x%08x\r\n", );
+    //UART_print("Phy strap is %s\r\n", (( & 0x400) != 0) ? "on" : "off");
+    //UART_print("data size is %d\r\n", sizeof(RX_STATUS_DATA));
     
+    ETH_readReg(LAN9250_ID_REV);
+    ETH_readPhy(LAN9250_PHY_SPECIAL_MODES);
     
     ETH_writeMacAddress(MAC_ADDRESS);
     
@@ -147,7 +150,6 @@ static void ETH_run( void *pvParameters ){
                             vReleaseNetworkBufferAndDescriptor( currFrame );
                             iptraceETHERNET_RX_EVENT_LOST();
                         }else{
-                            LED_ethPacketReceivedHook();
                             iptraceNETWORK_INTERFACE_RECEIVE();
                         }
                     }else{
@@ -178,9 +180,6 @@ void __ISR(_DMA1_VECTOR) ETH_rxDmaFinishedCallback(){
     if((DCH1INT & _DCH1INT_CHBCIF_MASK) != 0){
         //data has been sent -> clean up stuff
         DCH1INTCLR = 0xff;
-        
-        uint8_t remaining = DCH1DSIZ % 4;
-        while(remaining--) SPI_send(0xff);
         
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(ETH_commsWaitSem, &xHigherPriorityTaskWoken);
@@ -245,9 +244,14 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
         xSemaphoreGive(ETH_commsWaitSem);
         return 0;
     }
-    xSemaphoreGive(ETH_commsWaitSem);
+        
+    uint8_t remaining = DCH1DSIZ % 4;
+    while(remaining--) SPI_send(0xff);
     
     ETH_CS = 1;
+        
+    xSemaphoreGive(ETH_commsWaitSem);
+    
     
     vPortFree(s);
     return ret;
@@ -318,6 +322,7 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     IEC1SET = _IEC1_DMA0IE_MASK;
     DCH0SSA = KVA_TO_PA(data);  //convert virtual to physical address
     DCH0SSIZ = length;
+    UART_print("actual length: %d\r\n", DCH0SSIZ);
     
     uint32_t txstatus;
     uint16_t cmd;
@@ -603,6 +608,7 @@ void ETH_dumpRX(){
     if(!xSemaphoreTake(ETH_commsSem, 100)) return;
     uint32_t info = ETH_readReg(LAN9250_RX_FIFO_INF);
     if(info != 0) UART_print("RX info=0x%08x\r\n", info);
+    UART_print("TX info=0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
     xSemaphoreGive(ETH_commsSem);
 }
 

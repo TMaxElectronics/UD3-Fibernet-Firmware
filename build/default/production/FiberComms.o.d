@@ -20,4 +20,7 @@ FreeRTOS/Core/include/task.h  \
  FreeRTOS/TCPIP/include/IPTraceMacroDefaults.h  \
  FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_start.h  \
  FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_end.h  \
-include/min.h 
+ include/FiberComms.h  \
+include/min.h  \
+include/LAN9250.h  \
+include/SPI.h 

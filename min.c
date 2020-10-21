@@ -4,6 +4,8 @@
 
 #include "min.h"
 #include "FiberComms.h"
+#include "include/FreeRTOSConfig.h"
+#include "include/UART.h"
 
 #define TRANSPORT_FIFO_SIZE_FRAMES_MASK             ((uint8_t)((1U << TRANSPORT_FIFO_SIZE_FRAMES_BITS) - 1U))
 #define TRANSPORT_FIFO_SIZE_FRAME_DATA_MASK         ((uint16_t)((1U << TRANSPORT_FIFO_SIZE_FRAME_DATA_BITS) - 1U))
@@ -342,7 +344,7 @@ static void valid_frame_received(struct min_context *self)
 {
     uint8_t id_control = self->rx_frame_id_control;
     uint8_t *payload = self->rx_frame_payload_buf;
-    uint8_t payload_len = self->rx_control;
+    uint16_t payload_len = self->forwardDataLength;
     
 #ifdef TRANSPORT_PROTOCOL
     uint8_t seq = self->rx_frame_seq;
@@ -449,8 +451,12 @@ static void valid_frame_received(struct min_context *self)
 
 
 //Modified to allow for zero copying on frames that will be forwarded
-static void rx_byte(struct min_context *self, uint8_t byte)
-{
+static void rx_byte(struct min_context *self, uint8_t * data){
+    
+    configASSERT(data > 0xa0000000 && data < 0xa000ffff);
+    
+    uint8_t byte = *data;
+    
     // Regardless of state, three header bytes means "start of frame" and
     // should reset the frame buffer and be ready to receive frame data
     //
@@ -480,7 +486,7 @@ static void rx_byte(struct min_context *self, uint8_t byte)
     else {
         self->rx_header_bytes_seen = 0;
     }
-
+    //UART_print("0x%08x\r\n\n", data);
     switch(self->rx_frame_state) {
         case SEARCHING_FOR_SOF:
             break;
@@ -492,9 +498,10 @@ static void rx_byte(struct min_context *self, uint8_t byte)
             if(byte & 0x80U) {
                 //if a frame for the transport protocol arrives, it is for the pc, so we can't discard it, even if we don't have the transport active
                 self->rx_frame_state = WAIT_PACKET_LENGTH;
-                UART_print("found packet to forward!\r\n");
+                //UART_print("found packet to forward!\r\n");
                 //we also have to set our current forwarding pointer to the start of this frame (id/control = 4 => frame start = *(id/control) - 3)
-                self->forwardBuffer = (uint8_t*) (((uint32_t) &byte) - 3);
+                self->forwardBuffer = (uint8_t*) (((uint32_t) data) - 3);
+                self->rx_frame_length = 4; //skip the four bytes of the sequence count
             }
             else {
                 self->rx_frame_seq = 0;
@@ -556,7 +563,7 @@ static void rx_byte(struct min_context *self, uint8_t byte)
             
         //wait for the data length field (skip the seq)
         case WAIT_PACKET_LENGTH:
-            if(!(self->rx_frame_length--)) self->rx_frame_state = RECEIVING_EOF; 
+            if(!(--self->rx_frame_length)) self->rx_frame_state = RECEIVING_LENGTH_FORWARD; 
             break;
             
         //get the data length
@@ -567,13 +574,16 @@ static void rx_byte(struct min_context *self, uint8_t byte)
             
             //we need to skip until the end of the packet, which is at data-length + sizeof(crc). The rx_frame_length field is modified to hold a 16 bit integer
             self->rx_frame_length += 4; 
+            self->forwardDataLength = byte + 14;
+            
+            //UART_print("found packet length: 0x%02x\r\n", self->rx_frame_length);
             
             self->rx_frame_state = WAIT_PACKET_END;
             break;
             
         //skip the data and crc field
         case WAIT_PACKET_END:
-            if(!(self->rx_frame_length--)) self->rx_frame_state = RECEIVING_EOF; 
+            if(!(--self->rx_frame_length)) self->rx_frame_state = RECEIVING_EOF; 
             break;
             
         case RECEIVING_EOF:
@@ -581,7 +591,7 @@ static void rx_byte(struct min_context *self, uint8_t byte)
                 // Frame received OK, pass up data to handler
                 valid_frame_received(self);
             }else{
-                UART_print("found packet with invalid end!\r\n");
+                //UART_print("found packet with invalid end : 0x%02x\r\n", byte);
                 if(self->forwardBuffer != 0){
                     if(self->port == COMMS_UART){
                         UART_packetEndHandler();
@@ -601,11 +611,12 @@ static void rx_byte(struct min_context *self, uint8_t byte)
 }
 
 // API call: sends received bytes into a MIN context and runs the transport timeouts
-void min_poll(struct min_context *self, uint8_t *buf, uint32_t buf_len)
-{
+void min_poll(struct min_context *self, uint8_t *buf, uint32_t buf_len){
+    configASSERT(buf_len < 0xffff);
+    
     uint32_t i = 0;
     for(; i < buf_len; i++) {
-        rx_byte(self, buf[i]);
+        rx_byte(self, &buf[i]);
     }
 
 #ifdef TRANSPORT_PROTOCOL

@@ -19,4 +19,5 @@ FreeRTOS/TCPIP/include/FreeRTOS_IP.h  \
  FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_start.h  \
  FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_end.h  \
 include/SPI.h  \
- include/LED.h 
+ include/LED.h  \
+include/FiberComms.h 

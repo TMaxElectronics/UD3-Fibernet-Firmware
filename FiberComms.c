@@ -16,6 +16,8 @@
 
 struct min_context * COMMS_UDP;
 struct min_context * COMMS_UART;
+struct freertos_sockaddr lastClient;
+Socket_t xListeningSocket;
 
 void COMMS_init(){
     COMMS_UDP = pvPortMalloc(sizeof(struct min_context));
@@ -28,24 +30,25 @@ void COMMS_init(){
 
 void COMMS_udpDataHandler(void * params){
     int32_t lBytes;
-    uint8_t * cReceivedString = pvPortMalloc(512);
-    struct freertos_sockaddr xClient, xBindAddress;
-    uint32_t xClientLength = sizeof( xClient );
-    Socket_t xListeningSocket;
+    uint8_t * cReceivedString = pvPortMalloc(300);
+    struct freertos_sockaddr xBindAddress;
+    uint32_t xClientLength = sizeof( lastClient );
 
 	xListeningSocket = FreeRTOS_socket( FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP );
+    
 	configASSERT( xListeningSocket != FREERTOS_INVALID_SOCKET );
 
 	xBindAddress.sin_port = FreeRTOS_htons(1337);
 	FreeRTOS_bind( xListeningSocket, &xBindAddress, sizeof( xBindAddress ) );
 
 	while(1){
-		memset( cReceivedString, 0x00, 512);
-		lBytes = FreeRTOS_recvfrom( xListeningSocket, cReceivedString, 512, 0, &xClient, &xClientLength );
+		memset( cReceivedString, 0x00, 300);
+		lBytes = FreeRTOS_recvfrom( xListeningSocket, cReceivedString, 512, 0, &lastClient, &xClientLength );
         
         if(lBytes > 0){
-            ETH_dumpPackt(cReceivedString, lBytes);
+            //ETH_dumpPackt(cReceivedString, lBytes);
             min_poll(COMMS_UDP, cReceivedString, lBytes);
+            cReceivedString = pvPortMalloc(300);
         }
 	}
 }
@@ -54,15 +57,22 @@ void COMMS_udpDiscoverHandler(void * params){
     
 }
 
-void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint8_t len_payload, uint8_t port){
+void COMMS_sendDataToLastClient(uint8_t * data, uint8_t dataLength){
+    FreeRTOS_sendto(xListeningSocket, data, dataLength, 0, &lastClient, sizeof(lastClient));
+}
+
+void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, uint8_t port){
     if(min_id == 0xff){ //frame needs to be forwarded
         if(port == (uint8_t) COMMS_UDP){
             //forward the PC's data
-            UART_queBuffer(min_payload, len_payload);
+            //ETH_dumpPackt(min_payload, len_payload);
+            UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
         }else if(port == (uint8_t) COMMS_UART){
             UART_packetEndHandler();
+            COMMS_sendDataToLastClient(min_payload, len_payload);
             LED_minPacketReceivedHook();
+            vPortFree(min_payload);
         }
     }else{
         //the packet is probably for us -> process its contents

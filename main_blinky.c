@@ -149,7 +149,7 @@ void main_blinky( void )
 	xQueue = xQueueCreate( mainQUEUE_LENGTH, sizeof( unsigned long ) );
     
     //xTaskCreate( prvQueueSendTask, "TX", configMINIMAL_STACK_SIZE, ( void * ) mainQUEUE_SEND_PARAMETER, mainQUEUE_SEND_TASK_PRIORITY, NULL );
-    xTaskCreate( prvTimerCallback, "ethtest", configMINIMAL_STACK_SIZE, ( void * ) mainQUEUE_SEND_PARAMETER, tskIDLE_PRIORITY + 1, NULL );
+    //xTaskCreate( prvTimerCallback, "ethtest", configMINIMAL_STACK_SIZE, ( void * ) mainQUEUE_SEND_PARAMETER, tskIDLE_PRIORITY + 1, NULL );
     //xTaskCreate(prvSimpleServerTask, "udpRecv", configMINIMAL_STACK_SIZE, ( void * ) mainQUEUE_SEND_PARAMETER, tskIDLE_PRIORITY + 2, NULL);
 }
 /*-----------------------------------------------------------*/
@@ -256,8 +256,9 @@ unsigned long ulReceivedValue;
 static void prvTimerCallback( TimerHandle_t xTimer )
 {
     while(1){
-        vTaskDelay(1000);
-        //UART_print("Heap free: %d\r\n", xPortGetFreeHeapSize());
+        vTaskDelay(100);
+        UART_print("Heap free: %d\r\n", xPortGetFreeHeapSize());
+        //UART_print("UART baudrate: %d\r\n", UART_getBaud());
         //ETH_writePacket("Hello World!", 12);
         ETH_dumpRX();
     }

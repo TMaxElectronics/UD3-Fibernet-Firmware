@@ -17,7 +17,9 @@
 
 int32_t minLEDTime = 0;
 int32_t ethLEDTime = 0;
+int32_t errLEDTime = 0;
 unsigned ethError = 1;
+unsigned ethReady = 0;
 
 void LED_init(){
     //IO
@@ -46,16 +48,21 @@ void LED_task(void * params){
             
             if(--ethLEDTime < 0){
                 ethLEDTime = 0;
-                LATBSET = _LATB_LATB2_MASK;
-            }else{
-                LATBCLR = _LATB_LATB2_MASK;
+                if(ethReady){
+                    LATBCLR = _LATB_LATB2_MASK;
+                }else{
+                    LATBSET = _LATB_LATB2_MASK;
+                }
             }
 
             if(--minLEDTime < 0){
                 minLEDTime = 0;
                 LATASET = _LATA_LATA2_MASK;
-            }else{
-                LATACLR = _LATA_LATA2_MASK;
+            }
+
+            if(--errLEDTime < 0){
+                errLEDTime = 0;
+                LATBSET = _LATB_LATB3_MASK;
             }
         }
         vTaskDelay(40);
@@ -66,6 +73,10 @@ void LED_ethLinkStateChangeHook(unsigned newState){
     ethError = !newState;
 }
 
+void LED_ethDHCPStateChangeHook(unsigned newState){
+    ethReady = newState;
+}
+
 void LED_ethPacketReceivedHook(){
     ethLEDTime = LED_BLINK_TIME;
     LATBINV = _LATB_LATB2_MASK;
@@ -74,4 +85,9 @@ void LED_ethPacketReceivedHook(){
 void LED_minPacketReceivedHook(){
     minLEDTime = LED_BLINK_TIME;
     LATAINV = _LATA_LATA2_MASK;
+}
+
+void LED_errorFlashHook(){
+    errLEDTime = LED_BLINK_TIME;
+    LATBINV = _LATB_LATB3_MASK;
 }

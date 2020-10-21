@@ -152,6 +152,7 @@ struct min_context {
     uint8_t tx_header_byte_countdown;               // Count out the header bytes
     uint8_t port;                                   // Number of the port associated with the context
     uint8_t * forwardBuffer;                          //points to the start of a frame if it is one we need to forward
+    uint16_t forwardDataLength;
 };
 
 #ifdef TRANSPORT_PROTOCOL
@@ -174,7 +175,7 @@ void min_poll(struct min_context *self, uint8_t *buf, uint32_t buf_len);
 void min_transport_reset(struct min_context *self, bool inform_other_side);
 
 // CALLBACK. Handle incoming MIN frame
-void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint8_t len_payload, uint8_t port);
+void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint16_t len_payload, uint8_t port);
 
 #ifdef TRANSPORT_PROTOCOL
 // CALLBACK. Must return current time in milliseconds.

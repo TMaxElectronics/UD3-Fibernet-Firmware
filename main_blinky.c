@@ -193,7 +193,7 @@ static void prvSimpleServerTask( void *pvParameters )
 		lBytes = FreeRTOS_recvfrom( xListeningSocket, cReceivedString, 512, 0, &xClient, &xClientLength );
 
         if(lBytes > 0){
-            UART_print("Received data:\r\n%s\r\n------------\r\n", cReceivedString);
+            UART_printDebug("Received data:\r\n%s\r\n------------\r\n", cReceivedString);
         }
 	}
 }
@@ -247,7 +247,7 @@ unsigned long ulReceivedValue;
 		{
 			//vParTestToggleLED( mainTASKS_LED );
 			ulReceivedValue = 0U;
-            UART_print("Hello %s%s%sWorld%s! \r\n", UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_GREEN), UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_BLUE), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
+            UART_printDebug("Hello %s%s%sWorld%s! \r\n", UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_GREEN), UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_BLUE), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
         }
 	}
 }
@@ -256,11 +256,16 @@ unsigned long ulReceivedValue;
 static void prvTimerCallback( TimerHandle_t xTimer )
 {
     while(1){
-        vTaskDelay(100);
+        vTaskDelay(500);
         UART_print("Heap free: %d\r\n", xPortGetFreeHeapSize());
+        
+        char * buff = pvPortMalloc(1024);
+        vTaskGetRunTimeStats(buff);
+        UART_print("\r\nTask stats: \r\n%s\r\n", buff);
+        vPortFree(buff);
         //UART_print("UART baudrate: %d\r\n", UART_getBaud());
         //ETH_writePacket("Hello World!", 12);
-        ETH_dumpRX();
+        //ETH_dumpRX();
     }
 }
 /*-----------------------------------------------------------*/
@@ -283,19 +288,19 @@ static void prvBlinkyTimerCallback( TimerHandle_t xTimer )
 
     /* Convert the IP address to a string then print it out. */
     FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
-    UART_print( "IP Address: %s\r\n", cBuffer );
+    UART_printDebug( "IP Address: %s\r\n", cBuffer );
 
     /* Convert the net mask to a string then print it out. */
     FreeRTOS_inet_ntoa( ulNetMask, cBuffer );
-    UART_print( "Subnet Mask: %s\r\n", cBuffer );
+    UART_printDebug( "Subnet Mask: %s\r\n", cBuffer );
 
     /* Convert the IP address of the gateway to a string then print it out. */
     FreeRTOS_inet_ntoa( ulGatewayAddress, cBuffer );
-    UART_print( "Gateway IP Address: %s\r\n", cBuffer );
+    UART_printDebug( "Gateway IP Address: %s\r\n", cBuffer );
 
     /* Convert the IP address of the DNS server to a string then print it out. */
     FreeRTOS_inet_ntoa( ulDNSServerAddress, cBuffer );
-    UART_print( "DNS server IP Address: %s\r\n", cBuffer );
+    UART_printDebug( "DNS server IP Address: %s\r\n", cBuffer );
     //ETH_dumpConfig();
 }
 

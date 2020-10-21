@@ -30,16 +30,13 @@ void ETH_init(){
     xSemaphoreTake(ETH_commsWaitSem, 0);
     
     while(1){
-        uint32_t currResetCount = 0;
         //wait until we deassert reset after powerup
-        while((currResetCount++) < 250000);
-        currResetCount = 0;
+        vTaskDelay(25);
         ETH_RST = 1;
-        //wait until we can read after reset
-        while((currResetCount++) < 250000);
-        currResetCount = 0;
+        vTaskDelay(25);
         
         uint32_t result = 0;
+        uint32_t currResetCount = 0;
         while(((currResetCount++) < 0x5)){
             result = ETH_readReg(LAN9250_HW_CFG);
             if(result & 0x08000000) break;
@@ -48,7 +45,7 @@ void ETH_init(){
         if(!(result & 0x08000000)){
             //UART_print("LAN9250 initialisation failed!\r\n");
             ETH_RST = 0;
-            while((currResetCount++) < 10000000);
+            vTaskDelay(25);
             continue;
         }
         break;
@@ -106,7 +103,7 @@ static void ETH_run( void *pvParameters ){
                 if(currLinkState != linkState){
                     linkState = currLinkState;
                     LED_ethLinkStateChangeHook(linkState);
-                    UART_print(linkState ? "Ethernet connected\r\n" : "Ethernet lost\r\n");
+                    UART_printDebug(linkState ? "Ethernet connected\r\n" : "Ethernet lost\r\n");
                     //IPStackEvent_t xNetworkEvent;
                     //xNetworkEvent.eEventType = linkState ? eNoEvent : eNetworkDownEvent;
                     //xSendEventStructToIPTask(&xNetworkEvent, 0);
@@ -140,7 +137,7 @@ static void ETH_run( void *pvParameters ){
                 ETH_dumpTX();
             }
             if(intStatus & LAN9250_INTERRUPT_RX_DROPPED_FRAME){
-                UART_print("RX Frames were dropped\r\n");
+                UART_printDebug("RX Frames were dropped\r\n");
                 ETH_forceRXDiscard();
             }
             if(intStatus & LAN9250_INTERRUPT_RX_STATUS_LEVEL){
@@ -173,11 +170,11 @@ static void ETH_run( void *pvParameters ){
             }
             if(intStatus & LAN9250_INTERRUPT_RX_ERROR){
                 configASSERT(0);
-                UART_print("RX Error has occurred\r\n");
+                UART_printDebug("RX Error has occurred\r\n");
             }
             if(intStatus & LAN9250_INTERRUPT_TX_ERROR){
                 configASSERT(0);
-                UART_print("TX Error has occurred\r\n");
+                UART_printDebug("TX Error has occurred\r\n");
             }
             
             ETH_clearIF(0xffffffff);    //clear all int flags
@@ -206,7 +203,7 @@ void __ISR(_DMA1_VECTOR) ETH_rxDmaFinishedCallback(){
 
 NetworkBufferDescriptor_t * ETH_readFrame(){
     if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
-        UART_print("failed to load new packet!\r\n");
+        UART_printDebug("failed to load new packet!\r\n");
         return 0;
     }
         
@@ -226,7 +223,7 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     
     if(ret == 0){ 
         xSemaphoreGive(ETH_commsWaitSem);
-        UART_print("buffer allocation failed!\r\n");
+        UART_printDebug("buffer allocation failed!\r\n");
         return 0;
     }
     
@@ -241,14 +238,13 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     SPI_send(LAN9250_INSTR_REGREAD_SINGLE);
     SPI_send(LAN9250_RX_DATA_FIFO >> 8); SPI_send(LAN9250_RX_DATA_FIFO);
     
-    configASSERT((DCH1INT & 0xff) == 0);
     DCH1CONSET = _DCH1CON_CHEN_MASK;
     DCH0CONSET = _DCH1CON_CHEN_MASK;
     DCH0ECONSET = _DCH1ECON_CFORCE_MASK;
     LATBSET = _LATB_LATB3_MASK;
     
     if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
-        UART_print("receive dma timeout!\r\n");
+        UART_printDebug("receive dma timeout!\r\n");
         
         DCH1CONCLR = _DCH1CON_CHEN_MASK;
         DCH0CONCLR = _DCH0CON_CHEN_MASK;
@@ -277,7 +273,7 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     
     uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
     if(((fifoStatus >> 16) * 1500) < (fifoStatus & 0xffff)){
-        UART_print("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
+        UART_printDebug("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
         ETH_forceRXDiscard();
         return 0;
     }
@@ -390,7 +386,7 @@ void ETH_reset(){
 unsigned ETH_rxDataAvailable(){
     uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
     if(((fifoStatus >> 16) * 1500) < (fifoStatus & 0xffff)){
-        UART_print("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
+        UART_printDebug("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
         ETH_forceRXDiscard();
         return 0;
     }
@@ -495,7 +491,7 @@ uint32_t ETH_readPhy(uint8_t index){
 
 void ETH_setupDMA(){
     //TX channel
-    DCH0CON = 0b00000010;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 2
+    DCH0CON = 0b00000001;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 2
     DCH0ECON = (_SPI2_TX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
     //DCH0SSA (source start) is to be set before each transfer
     DCH0DSA = KVA_TO_PA(&SPI2BUF);   //write into the SPI buffer
@@ -510,7 +506,7 @@ void ETH_setupDMA(){
     IPC10bits.DMA0IS = 4;
     
     //RX channel
-    DCH1CON = 0b00000001;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
+    DCH1CON = 0b00000011;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
     DCH1ECON = (_SPI2_RX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
     DCH1SSA = KVA_TO_PA(&SPI2BUF);
     //DCH1DSA (destination start) is to be set before each transfer
@@ -623,7 +619,7 @@ void ETH_setInterruptConfiguration(uint8_t deAssertTime, unsigned enableInterrup
 void ETH_setAutoFlowcontrol(uint8_t fcRisingThreshold, uint8_t fcFallingThreshold, unsigned fcAnyFrame){
     uint32_t writeVal = (fcRisingThreshold << 16) | (fcFallingThreshold << 8) | (4 << 4) | fcAnyFrame;
     ETH_writeReg(LAN9250_AFC_CFG, writeVal);
-    UART_print("\r\nAFC_CFG written: 0x%08x => 0x%08x\r\n", writeVal, ETH_readReg(LAN9250_AFC_CFG));
+    UART_printDebug("\r\nAFC_CFG written: 0x%08x => 0x%08x\r\n", writeVal, ETH_readReg(LAN9250_AFC_CFG));
 }
 
 void ETH_setHWConf(uint8_t txFifoSizeKB){
@@ -634,69 +630,69 @@ void ETH_setHWConf(uint8_t txFifoSizeKB){
 void ETH_writeMacAddress(uint8_t * macAddr){
     uint32_t addrL = macAddr[0] | (macAddr[1] << 8) | (macAddr[2] << 16) | (macAddr[3] << 24);
     uint32_t addrH = macAddr[4] | (macAddr[5] << 8);
-    UART_print("mac address is %08x       ", addrH);
+    UART_printDebug("mac address is %08x       ", addrH);
     ETH_writeMac(LAN9250_MAC_ADDR_H, addrH);
     ETH_writeMac(LAN9250_MAC_ADDR_L, addrL);
-    UART_print("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
-    UART_print("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
+    UART_printDebug("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
+    UART_printDebug("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
 }
 
 void ETH_dumpRX(){
     if(!xSemaphoreTake(ETH_commsSem, 100)) return;
     uint32_t info = ETH_readReg(LAN9250_RX_FIFO_INF);
-    if(info != 0) UART_print("RX info=0x%08x\r\n", info);
-    UART_print("TX info=0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
+    if(info != 0) UART_printDebug("RX info=0x%08x\r\n", info);
+    UART_printDebug("TX info=0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
     xSemaphoreGive(ETH_commsSem);
 }
 
 void ETH_dumpTX(){
     uint16_t count = ETH_getTXStatusCount();
-    UART_print("TX info=0x%08x (%d available)\r\n", ETH_readReg(LAN9250_TX_FIFO_INF), count);
+    UART_printDebug("TX info=0x%08x (%d available)\r\n", ETH_readReg(LAN9250_TX_FIFO_INF), count);
     if(count < 0xfff){
         for(;count > 0; count --){
-            UART_print("\t next status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_STAT_FIFO));
+            UART_printDebug("\t next status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_STAT_FIFO));
         }
     }
 }
 
 void ETH_dumpPackt(uint8_t * data, uint16_t length){
     uint16_t currPos = 0;
-    UART_print("\r\nPacket dump:\r\n");
+    UART_printDebug("\r\nPacket dump:\r\n");
     for(;currPos < length; currPos++){
-        UART_print(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
+        UART_printDebug(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
     }
-    UART_print("\r\n---------\r\n");
+    UART_printDebug("\r\n---------\r\n");
 }
 
 void ETH_dumpConfig(){
     if(!xSemaphoreTake(ETH_commsSem, 1000)) return; //SPI comms never became available
-    UART_print("HW_CFG=0x%08x\r\n", ETH_readReg(LAN9250_HW_CFG));
-    UART_print("AFC_CFG=0x%08x\r\n", ETH_readReg(LAN9250_AFC_CFG));
-    UART_print("IRQ_CFG=0x%08x\r\n", ETH_readReg(LAN9250_IRQ_CFG));
-    UART_print("INT_STS=0x%08x\r\n", ETH_readReg(LAN9250_INT_STAT));
-    UART_print("INT_EN=0x%08x\r\n", ETH_readReg(LAN9250_INT_EN));
-    UART_print("FIFO_INT=0x%08x\r\n", ETH_readReg(LAN9250_FIFO_INT));
-    UART_print("RX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_RX_CFG));
-    UART_print("TX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_TX_CFG));
-    UART_print("PMT_CTRL=0x%08x\r\n", ETH_readReg(LAN9250_PMT_CTRL));
-    UART_print("HMAC_CR=0x%08x\r\n", ETH_readMac(LAN9250_MAC_CR));
-    UART_print("PHY_BASIC_CONTROL=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_CONTROL));
-    UART_print("PHY_BASIC_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_STATUS));
-    UART_print("PHY_AN_ADV=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_AN_ADV));
-    UART_print("PHY_SPECIAL_MODES=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_MODES));
-    UART_print("PHY_SPECIAL_CONTROL_STATUS_IND=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS_IND));
-    UART_print("PHY_INTERRUPT_MASK=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_INTERRUPT_MASK));
-    UART_print("PHY_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
-    UART_print("PHY_SPECIAL_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS));
-    UART_print("PHY_SYM_ERR_COUNTER=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SYM_ERR_COUNTER));
-    UART_print("PHY_MODE_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
-    UART_print("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
-    UART_print("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
-    UART_print("\r\n\n\nRX Fifo status: 0x%08x (dropped: %d)\r\n", ETH_readReg(LAN9250_RX_FIFO_INF), ETH_readReg(LAN9250_RX_DROP));
-    UART_print("\r\n\n\nTX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
-    UART_print("\r\n\n\nCount: 0x%08x\r\n", ETH_readReg(LAN9250_25MHZ_COUNTER));
+    UART_printDebug("HW_CFG=0x%08x\r\n", ETH_readReg(LAN9250_HW_CFG));
+    UART_printDebug("AFC_CFG=0x%08x\r\n", ETH_readReg(LAN9250_AFC_CFG));
+    UART_printDebug("IRQ_CFG=0x%08x\r\n", ETH_readReg(LAN9250_IRQ_CFG));
+    UART_printDebug("INT_STS=0x%08x\r\n", ETH_readReg(LAN9250_INT_STAT));
+    UART_printDebug("INT_EN=0x%08x\r\n", ETH_readReg(LAN9250_INT_EN));
+    UART_printDebug("FIFO_INT=0x%08x\r\n", ETH_readReg(LAN9250_FIFO_INT));
+    UART_printDebug("RX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_RX_CFG));
+    UART_printDebug("TX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_TX_CFG));
+    UART_printDebug("PMT_CTRL=0x%08x\r\n", ETH_readReg(LAN9250_PMT_CTRL));
+    UART_printDebug("HMAC_CR=0x%08x\r\n", ETH_readMac(LAN9250_MAC_CR));
+    UART_printDebug("PHY_BASIC_CONTROL=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_CONTROL));
+    UART_printDebug("PHY_BASIC_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_STATUS));
+    UART_printDebug("PHY_AN_ADV=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_AN_ADV));
+    UART_printDebug("PHY_SPECIAL_MODES=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_MODES));
+    UART_printDebug("PHY_SPECIAL_CONTROL_STATUS_IND=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS_IND));
+    UART_printDebug("PHY_INTERRUPT_MASK=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_INTERRUPT_MASK));
+    UART_printDebug("PHY_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
+    UART_printDebug("PHY_SPECIAL_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS));
+    UART_printDebug("PHY_SYM_ERR_COUNTER=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SYM_ERR_COUNTER));
+    UART_printDebug("PHY_MODE_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
+    UART_printDebug("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
+    UART_printDebug("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
+    UART_printDebug("\r\n\n\nRX Fifo status: 0x%08x (dropped: %d)\r\n", ETH_readReg(LAN9250_RX_FIFO_INF), ETH_readReg(LAN9250_RX_DROP));
+    UART_printDebug("\r\n\n\nTX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
+    UART_printDebug("\r\n\n\nCount: 0x%08x\r\n", ETH_readReg(LAN9250_25MHZ_COUNTER));
     //UART_print("\r\n\n\nRX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_RX_STAT_FIFO_PORT));
-    UART_print("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(HMAC_RX_LPI_TRANSITION));
-    UART_print("\r\n\n\n\n");
+    UART_printDebug("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(HMAC_RX_LPI_TRANSITION));
+    UART_printDebug("\r\n\n\n\n");
     xSemaphoreGive(ETH_commsSem);
 }

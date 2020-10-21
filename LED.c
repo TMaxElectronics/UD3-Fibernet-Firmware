@@ -42,7 +42,7 @@ void LED_task(void * params){
             LATASET = _LATA_LATA2_MASK;
             LATBSET = _LATB_LATB2_MASK;
             
-            //LATBCLR = _LATB_LATB3_MASK;
+            LATBCLR = _LATB_LATB3_MASK;
         }else{
             if(--ethLEDTime < 0){
                 ethLEDTime = 0;
@@ -58,13 +58,13 @@ void LED_task(void * params){
                 LATASET = _LATA_LATA2_MASK;
             }
 
-            /*if(--errLEDTime < 0){
+            if(--errLEDTime < 0){
                 errLEDTime = 0;
                 LATBSET = _LATB_LATB3_MASK;
             }else{
                 LATASET = _LATA_LATA2_MASK;
                 LATBSET = _LATB_LATB2_MASK;
-            }*/
+            }
         }
         vTaskDelay(40);
     }
@@ -90,7 +90,7 @@ void LED_minPacketReceivedHook(){
 
 void LED_errorFlashHook(){
     errLEDTime = LED_BLINK_TIME;
-    //LATBCLR = _LATB_LATB3_MASK;
+    LATBCLR = _LATB_LATB3_MASK;
     LATASET = _LATA_LATA2_MASK;
     LATBSET = _LATB_LATB2_MASK;
 }

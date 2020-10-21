@@ -43,8 +43,9 @@
 #include <stdint.h>
 
 //Allow the UART driver to send printf text to the serial port
-#define UART_ALLOW_DEBUG
+//#define UART_ALLOW_DEBUG
 #define MIN_MAX_PACKETSIZE 255
+#define MIN_DEBUG 42
 
 #define UART_BUFFERSIZE 2048
 
@@ -66,5 +67,6 @@ void UART_sendTask( void *pvParameters );
 void UART_receiveTask( void *pvParameters );
 
 void UART_print(char * format, ...);
+void UART_printDebug(char * format, ...);
 void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend);
 void UART_sendBytes(uint8_t * data, uint32_t length, unsigned freeAfterSend);

@@ -90,6 +90,7 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
             UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
         }else if(port == (uint8_t) COMMS_UART){
+            configASSERT(min_payload[len_payload - 1] == 0x55);
             COMMS_sendDataToLastClient(min_payload, len_payload);
             LED_minPacketReceivedHook();
             vPortFree(min_payload);
@@ -112,14 +113,27 @@ uint16_t min_tx_space(uint8_t port){
     return xPortGetFreeHeapSize();
 }
 
+uint8_t * currMinBuffer = 0;
+uint16_t currMinBufferLength = 0;
+
 void min_tx_byte(uint8_t port, uint8_t byte){
-    
+    if(port == (uint8_t) COMMS_UART){
+        currMinBuffer[currMinBufferLength] = byte;
+        currMinBufferLength++;
+    }
 }
 
 void min_tx_start(uint8_t port){
-    
+    if(currMinBuffer) return;
+    if(port == (uint8_t) COMMS_UART){
+        currMinBuffer = pvPortMalloc(300);
+    }
 }
 
 void min_tx_finished(uint8_t port){
-    
+    if(port == (uint8_t) COMMS_UART && currMinBuffer != 0){
+        UART_queBuffer(currMinBuffer, currMinBufferLength, 1);
+        currMinBufferLength = 0;
+        currMinBuffer = 0;
+    }
 }

@@ -38,7 +38,7 @@ BaseType_t xGetPhyLinkStatus( void ){
 }
 
 void vLoggingPrintf( const char *pcFormatString, ... ){
-    UART_print(pcFormatString);
+    UART_printDebug(pcFormatString);
 }
 
 void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent ){
@@ -46,7 +46,7 @@ uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
 static BaseType_t xTasksAlreadyCreated = pdFALSE;
 int8_t cBuffer[ 16 ];
 
-    UART_print( "event!\r\n");
+    UART_printDebug( "event!\r\n");
     
     LED_minPacketReceivedHook();
 
@@ -74,19 +74,19 @@ int8_t cBuffer[ 16 ];
 
         /* Convert the IP address to a string then print it out. */
         FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
-        UART_print( "IP Address: %s\r\n", cBuffer );
+        UART_printDebug( "IP Address: %s\r\n", cBuffer );
 
         /* Convert the net mask to a string then print it out. */
         FreeRTOS_inet_ntoa( ulNetMask, cBuffer );
-        UART_print( "Subnet Mask: %s\r\n", cBuffer );
+        UART_printDebug( "Subnet Mask: %s\r\n", cBuffer );
 
         /* Convert the IP address of the gateway to a string then print it out. */
         FreeRTOS_inet_ntoa( ulGatewayAddress, cBuffer );
-        UART_print( "Gateway IP Address: %s\r\n", cBuffer );
+        UART_printDebug( "Gateway IP Address: %s\r\n", cBuffer );
 
         /* Convert the IP address of the DNS server to a string then print it out. */
         FreeRTOS_inet_ntoa( ulDNSServerAddress, cBuffer );
-        UART_print( "DNS server IP Address: %s\r\n", cBuffer );
+        UART_printDebug( "DNS server IP Address: %s\r\n", cBuffer );
     }else{
         LED_ethDHCPStateChangeHook(0);
     }

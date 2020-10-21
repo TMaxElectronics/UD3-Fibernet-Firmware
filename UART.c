@@ -18,6 +18,7 @@
 #include "FreeRTOS/Core/include/semphr.h"
 #include "FiberComms.h"
 #include "include/LAN9250.h"
+#include "include/min.h"
 
 // Special protocol bytes
 enum {
@@ -85,7 +86,7 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     
     //rx dma goes into a ring buffer
     //RX channel
-    DCH3CON = 0b00000011;   //channel is off, no chaining, channel auto enable is off, prio 3
+    DCH3CON = 0b00000010;   //channel is off, no chaining, channel auto enable is off, prio 3
     DCH3CONbits.CHAEN = 1;
     DCH3ECON = (_UART2_RX_IRQ << 8) | 0b10000;       //transmit byte on _UART2_RX_IRQ
     DCH3SSA = KVA_TO_PA(&U2RXREG);
@@ -112,9 +113,6 @@ void UART_sendTask( void *pvParameters ){
         if(xQueueReceive(UART_sendQueue, &toSendData, 1000)){
             if(toSendData != 0){
                 if(toSendData->dataLength > 0){
-                    if(!toSendData->freeAfterSend){
-                        ETH_dumpPackt(toSendData->data, toSendData->dataLength);
-                    }
                     UART_sendBytes(toSendData->data, toSendData->dataLength, toSendData->freeAfterSend);
                 }else{
                     UART_sendString(toSendData->data, 0);
@@ -172,11 +170,14 @@ void UART_receiveTask(void *pvParameters){
         }
         
         if(U2STAbits.FERR || U2STAbits.OERR){
-            U2MODEbits.ON = 0;
+            U2STAbits.URXEN = 0;
+            DCH3CONCLR = _DCH3CON_CHEN_MASK;
+            DCH3DSA = KVA_TO_PA(currBuff);
             U2STAbits.OERR = 0;
             U2STAbits.FERR = 0;
-            U2MODEbits.ON = 1;
+            DCH3CONSET = _DCH3CON_CHEN_MASK;
             U2STAbits.URXEN = 1;
+            lastScanPosition = 0;
             LED_errorFlashHook();
         }
 #endif
@@ -195,18 +196,32 @@ void UART_sendString(char *data, unsigned newLine){
     }
 }
 
-void UART_print(char * format, ...){
+void UART_printDebug(char * format, ...){
 #ifdef UART_ALLOW_DEBUG
     va_list arg;
     va_start (arg, format);
     
     uint8_t * buff = (uint8_t*) pvPortMalloc(256);
     uint32_t length = vsprintf(buff, format, arg);
-    UART_queBuffer(buff, length, 1);
+    min_send_frame(COMMS_UART, MIN_DEBUG, buff, length);
+    vPortFree(buff);
     //if(!xQueueSend(UART_sendQueue, &buff, 10)) vPortFree(buff);
     
     va_end (arg);
 #endif
+    
+}
+
+void UART_print(char * format, ...){
+    va_list arg;
+    va_start (arg, format);
+    
+    uint8_t * buff = (uint8_t*) pvPortMalloc(256);
+    uint32_t length = vsprintf(buff, format, arg);
+    min_send_frame(COMMS_UART, MIN_DEBUG, buff, length);
+    vPortFree(buff);
+    
+    va_end (arg);
 }
 
 void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend){
@@ -401,5 +416,5 @@ uint32_t UART_getBaud(){
 }
 
 void UART_setCursorPosVT100(uint8_t line, uint8_t col){
-    UART_print("%c[%d;%dH", 0x1b, line, col);
+    UART_printDebug("%c[%d;%dH", 0x1b, line, col);
 }

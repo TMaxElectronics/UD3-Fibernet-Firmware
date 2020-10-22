@@ -657,11 +657,11 @@ void ETH_dumpTX(){
 
 void ETH_dumpPackt(uint8_t * data, uint16_t length){
     uint16_t currPos = 0;
-    UART_printDebug("\r\nPacket dump:\r\n");
+    UART_print("\r\nPacket dump:\r\n");
     for(;currPos < length; currPos++){
-        UART_printDebug(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
+        UART_print(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
     }
-    UART_printDebug("\r\n---------\r\n");
+    UART_print("\r\n---------\r\n");
 }
 
 void ETH_dumpConfig(){

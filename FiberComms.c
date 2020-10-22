@@ -18,8 +18,6 @@
 #define MIN_FRAME_INVALID 0xffff
 #define MIN_NON_TRANSPORT_FRAME 0xfffe
 
-uint16_t min_checkUDPFrame(uint8_t * data);
-
 struct min_context * COMMS_UDP;
 struct min_context * COMMS_UART;
 struct freertos_sockaddr lastClient;
@@ -72,7 +70,7 @@ void COMMS_udpDiscoverHandler(void * params){
     
 }
 
-void COMMS_sendDataToLastClient(uint8_t * data, uint8_t dataLength){
+void COMMS_sendDataToLastClient(uint8_t * data, uint16_t dataLength){
     FreeRTOS_sendto(xListeningSocket, data, dataLength, 0, &lastClient, sizeof(lastClient));
 }
 
@@ -90,7 +88,6 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
             UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
         }else if(port == (uint8_t) COMMS_UART){
-            configASSERT(min_payload[len_payload - 1] == 0x55);
             COMMS_sendDataToLastClient(min_payload, len_payload);
             LED_minPacketReceivedHook();
             vPortFree(min_payload);

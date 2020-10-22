@@ -7,6 +7,7 @@
 #include "include/FreeRTOSConfig.h"
 #include "include/UART.h"
 #include "FreeRTOS/Core/include/portable.h"
+#include "include/LAN9250.h"
 
 #define TRANSPORT_FIFO_SIZE_FRAMES_MASK             ((uint8_t)((1U << TRANSPORT_FIFO_SIZE_FRAMES_BITS) - 1U))
 #define TRANSPORT_FIFO_SIZE_FRAME_DATA_MASK         ((uint16_t)((1U << TRANSPORT_FIFO_SIZE_FRAME_DATA_BITS) - 1U))
@@ -345,7 +346,7 @@ static void valid_frame_received(struct min_context *self)
 {
     uint8_t id_control = self->rx_frame_id_control;
     uint8_t *payload = self->rx_frame_payload_buf;
-    uint16_t payload_len = self->forwardDataLength;
+    uint16_t payload_len = self->currDataPos;
     
 #ifdef TRANSPORT_PROTOCOL
     uint8_t seq = self->rx_frame_seq;
@@ -441,12 +442,12 @@ static void valid_frame_received(struct min_context *self)
     }
 #else // TRANSPORT_PROTOCOL
     
-    if(self->forwardBuffer != 0){
+    if(self->currDataPos != 4){
         //if this data needs to be forwarded we tell the handler by using an invalid min ID, and give it the pointer to the buffer
-        min_application_handler(0xff, self->forwardBuffer, payload_len, self->port);
+        min_application_handler(0xff, self->forwardBuffer, self->currDataPos, self->port);
         self->forwardBuffer = pvPortMalloc(MAX_PAYLOAD + 30);
     }else{
-        min_application_handler(id_control & (uint8_t)0x3fU, payload, payload_len, self->port);
+        min_application_handler(id_control & (uint8_t)0x3fU, payload, self->rx_frame_length, self->port);
     }
 #endif // TRANSPORT_PROTOCOL
 }
@@ -590,11 +591,10 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             
             //we need to skip until the end of the packet, which is at data-length + sizeof(crc). The rx_frame_length field is modified to hold a 16 bit integer
             self->rx_frame_length += 4; 
-            self->forwardDataLength = byte + 14;
             
             //UART_print("found packet length: 0x%02x\r\n", self->rx_frame_length);
             
-            self->rx_frame_state = WAIT_PACKET_END;
+            self->rx_frame_state = WAIT_PACKET_END; 
             break;
             
         //skip the data and crc field

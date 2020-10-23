@@ -57,6 +57,7 @@
       <itemPath>include/LED.h</itemPath>
       <itemPath>min_id.h</itemPath>
       <itemPath>include/System.h</itemPath>
+      <itemPath>include/UD3_Wrapper.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -100,6 +101,7 @@
       <itemPath>FiberComms.c</itemPath>
       <itemPath>min.c</itemPath>
       <itemPath>System.c</itemPath>
+      <itemPath>UD3_Wrapper.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

@@ -101,18 +101,6 @@ static void ETH_run( void *pvParameters ){
         if(xSemaphoreTake(ETH_commsSem, 1000)){
             uint32_t intStatus = ETH_readReg(LAN9250_INT_STAT);
             uint32_t intClear = 0;
-            /*if(!--linkCheckDivider){
-                unsigned currLinkState = ETH_CheckLinkUp();
-
-                if(currLinkState != linkState){
-                    linkState = currLinkState;
-                    LED_ethLinkStateChangeHook(linkState);
-                    UART_printDebug(linkState ? "Ethernet connected\r\n" : "Ethernet lost\r\n");
-                    //IPStackEvent_t xNetworkEvent;
-                    //xNetworkEvent.eEventType = linkState ? eNoEvent : eNetworkDownEvent;
-                    //xSendEventStructToIPTask(&xNetworkEvent, 0);
-                }
-            }*/
             
             if(intStatus == 0xffffffff){ 
                 COMMS_pushAlarm(ALARM_PRIO_WARN, "LAN9250 communications error: could not read INT_STA ", intStatus);
@@ -433,9 +421,8 @@ unsigned ETH_rxDataAvailable(){
     return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_RX_STATUS_LEVEL) != 0;
 }
 
-unsigned ETH_CheckLinkUp(){
-    unsigned state = (ETH_readPhy(LAN9250_PHY_BASIC_STATUS) >> 2) & 1;
-    return state;
+inline unsigned ETH_CheckLinkUp(){
+    return linkState;
 }
 
 uint16_t ETH_getTXStatusCount(){

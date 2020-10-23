@@ -173,7 +173,7 @@ void ETH_init();
 uint32_t ETH_readReg(uint16_t addr);
 void ETH_writeReg(uint32_t addr, uint32_t value);
 
-unsigned ETH_CheckLinkUp();
+inline unsigned ETH_CheckLinkUp();
 void PHY_enableInterrupts(unsigned linkUp, unsigned energyOn, unsigned autoNegotiation, unsigned remoteFault, unsigned linkDown, unsigned autoNegotiationAck, unsigned parallelDetectionFault, unsigned autoNegotioationPageReceived);
 void PHY_setSpecialControlStatus(unsigned overrideStraps, unsigned enableAutoMDIX, unsigned autoMDIXState, unsigned disableSQE, unsigned enableFEFI, unsigned tenBaseTPolarity);
 void PHY_setSpecialMode(uint8_t phyMode);

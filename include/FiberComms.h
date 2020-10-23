@@ -1,8 +1,10 @@
 #include <xc.h>
 #include <stdint.h>
 
+#define FIND_MAX_RESPONSE_SIZE 512
+
 #define COMMS_DATA_PORT 1337
-#define COMMS_DISCOVER_PORT 6077
+#define COMMS_DISCOVER_PORT 50022
 
 #define COMMS_UDP_BUFFER_SIZE 300
 
@@ -29,6 +31,8 @@ typedef struct{
     uint8_t level;
     uint8_t value;
 } MIN_ALARM_PAYLOAD_DESCRIPTOR;
+
+extern char FIND_queryString[];
 
 void COMMS_init();
 void COMMS_udpDataHandler(void * params);

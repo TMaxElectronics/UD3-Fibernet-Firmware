@@ -26,4 +26,5 @@ FreeRTOS/Core/include/task.h  \
  FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_start.h  \
  FreeRTOS/TCPIP/portable/Compiler/GCC/pack_struct_end.h  \
 include/SPI.h  \
- include/min.h 
+ include/min.h  \
+min_id.h 

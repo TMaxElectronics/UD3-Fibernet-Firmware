@@ -11,12 +11,13 @@
 #include "LAN9250.h"
 #include "UART.h"
 #include "LED.h"
+#include "include/FiberComms.h"
 
 const uint8_t MAC_ADDRESS[6] = {MAC_ADDR};
-const uint8_t IP_ADDRESS[4] = {192, 168, 1, 244};
-const uint8_t NETMASK[4] = {255, 255, 255, 0};
-const uint8_t DNSIP[4] = {192, 168, 1, 254};
-const uint8_t GATEWAYIP[4] = {192, 168, 1, 254};
+const uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
+const uint8_t NETMASK[4] = {DEF_NETMASK};
+const uint8_t DNSIP[4] = {DEF_DNSIP};
+const uint8_t GATEWAYIP[4] = {DEF_GATEWAYIP};
 
 static TaskHandle_t TXTask = NULL;
 SemaphoreHandle_t ETH_commsSem;
@@ -33,33 +34,35 @@ void ETH_init(){
         //wait until we deassert reset after powerup
         vTaskDelay(25);
         ETH_RST = 1;
+        //wait for the chip to become ready after reset deassertion
         vTaskDelay(25);
         
+        //poll the HW_CFG register for the ready bit
         uint32_t result = 0;
         uint32_t currResetCount = 0;
         while(((currResetCount++) < 0x5)){
             result = ETH_readReg(LAN9250_HW_CFG);
             if(result & 0x08000000) break;
         }
-
+        
         if(!(result & 0x08000000)){
-            //UART_print("LAN9250 initialisation failed!\r\n");
+            //we didn't get the ready flag. Try again after a little while
             ETH_RST = 0;
+            COMMS_ethEventHook(ETH_INIT_FAIL);
             vTaskDelay(25);
             continue;
         }
         break;
     }
     
+    //set the SPI clock to the maximum possible
     SPI_setCLKFreq(24000000);
     
-    //UART_print("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(LAN9250_ID_REV));
-    //UART_print("Phy strap is %s\r\n", (( & 0x400) != 0) ? "on" : "off");
-    //UART_print("data size is %d\r\n", sizeof(RX_STATUS_DATA));
+    //print debug information that tells us about the state of the chip
+    UART_printDebug("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(LAN9250_ID_REV));
+    UART_printDebug("Phy is in %s mode\r\n", ((ETH_readPhy(LAN9250_PHY_SPECIAL_MODES) & 0x400) != 0) ? "fiber" : "copper");
     
-    ETH_readReg(LAN9250_ID_REV);
-    ETH_readPhy(LAN9250_PHY_SPECIAL_MODES);
-    
+    //write config registers
     ETH_writeMacAddress(MAC_ADDRESS);
     
     ETH_setHWConf(5);
@@ -72,17 +75,18 @@ void ETH_init(){
     ETH_setTxConf(0, 1);
     ETH_setPowermanagement(0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0);
     ETH_setMacControl(0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1);
-    //ETH_setMacChcksmControl(1, 0, 1);
     
     PHY_setBasicControl(0, 1, 0, 0, 0, 1, 0);
     PHY_setSpecialMode(0b011);
     PHY_setSpecialControlStatus(0, 0, 0, 1, 1, 0);
-    PHY_enableInterrupts(0,0,0,0,0,0,0,0);
+    PHY_enableInterrupts(1,0,0,0,1,0,0,0);
     ETH_writePhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS, 0x0040); 
     ETH_writeReg(LAN9250_LED_CTRL, 0b111);
     
+    //setup dma for receive and transmit
     ETH_setupDMA();
     
+    //create RTOS task for polling the LAN's registers
     xTaskCreate(ETH_run, "ethTask", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL );
     xSemaphoreGive(ETH_commsSem);
     xSemaphoreGive(ETH_commsWaitSem);
@@ -96,8 +100,8 @@ static void ETH_run( void *pvParameters ){
     while(1){
         if(xSemaphoreTake(ETH_commsSem, 1000)){
             uint32_t intStatus = ETH_readReg(LAN9250_INT_STAT);
-            
-            if(!--linkCheckDivider){
+            uint32_t intClear = 0;
+            /*if(!--linkCheckDivider){
                 unsigned currLinkState = ETH_CheckLinkUp();
 
                 if(currLinkState != linkState){
@@ -108,73 +112,117 @@ static void ETH_run( void *pvParameters ){
                     //xNetworkEvent.eEventType = linkState ? eNoEvent : eNetworkDownEvent;
                     //xSendEventStructToIPTask(&xNetworkEvent, 0);
                 }
+            }*/
+            
+            if(intStatus == 0xffffffff){ 
+                COMMS_pushAlarm(ALARM_PRIO_WARN, "LAN9250 communications error: could not read INT_STA ", intStatus);
+                intStatus = 0;
             }
             
-            if(intStatus == 0xffffffff) intStatus = 0;
-            //if(intStatus != 0x00000200) UART_print("INT_STS=0x%08x\r\n", intStatus);
             if(intStatus & LAN9250_INTERRUPT_DEVICE_READY){
-                
+                intClear |= LAN9250_INTERRUPT_DEVICE_READY;
             }
             if(intStatus & LAN9250_INTERRUPT_PHY_EVENT){
                 uint16_t phyIntStatus = ETH_readPhy(LAN9250_PHY_INTERRUPT_SOURCE);
+                if(phyIntStatus & LAN9250_PHY_INTERRUPT_LINK_UP){
+                    linkState = 1;
+                    LED_ethLinkStateChangeHook(linkState);
+                    COMMS_ethEventHook(ETH_LINK_UP);
+                }else if(phyIntStatus & LAN9250_PHY_INTERRUPT_LINK_DOWN){
+                    linkState = 0;
+                    LED_ethLinkStateChangeHook(linkState);
+                    COMMS_ethEventHook(ETH_LINK_DOWN);
+                }
+                intClear |= LAN9250_INTERRUPT_PHY_EVENT;
             }
+            
+            /* unused, this gets triggered as soon as the MAC loads a frame with the IOC (interrupt on completion) flag set, which we don't use
             if(intStatus & LAN9250_INTERRUPT_TX_IOC){
-                
+            
             }
+            */
+            
             if(intStatus & LAN9250_INTERRUPT_RX_DMA){
-                
+                intClear |= LAN9250_INTERRUPT_RX_DMA;
             }
             if(intStatus & LAN9250_INTERRUPT_TX_STATUS_OVERFLOW){
-                
+                intClear |= LAN9250_INTERRUPT_TX_STATUS_OVERFLOW;
             }
             if(intStatus & LAN9250_INTERRUPT_TX_DATA_OVERRUN){
-                
+                intClear |= LAN9250_INTERRUPT_TX_DATA_OVERRUN;
             }
             if(intStatus & LAN9250_INTERRUPT_TX_DATA_AVAILABLE){
-                //We don't need this here. We check for space when writing a new packet
+                intClear |= LAN9250_INTERRUPT_TX_DATA_AVAILABLE;
             }
             if(intStatus & LAN9250_INTERRUPT_TX_STATUS_LEVEL){
                 ETH_dumpTX();
+                //TODO keep a list of enqueued frames, and clear those that were transmitted successfully, so we can detect any skipped ones
+                intClear |= LAN9250_INTERRUPT_TX_STATUS_LEVEL;
             }
             if(intStatus & LAN9250_INTERRUPT_RX_DROPPED_FRAME){
-                UART_printDebug("RX Frames were dropped\r\n");
+                COMMS_pushAlarm(ALARM_PRIO_WARN, "LAN9250 rx FiFo overflow! Packet FiFo was reset ", intStatus);
                 ETH_forceRXDiscard();
+                
+                //set a software breakpoint if this is a debug build, so we can explore the contents of registers and stuff
+                configASSERT(0);
+                
+                intClear |= LAN9250_INTERRUPT_RX_DROPPED_FRAME;
             }
             if(intStatus & LAN9250_INTERRUPT_RX_STATUS_LEVEL){
+                //there is at least one frame in the RX fifo that we can read, so poll the ETH_readFrame function until it returns NULL which indicates that no more frames can be read
                 NetworkBufferDescriptor_t * currFrame = 0;
-                while((currFrame = ETH_readFrame()) != 0){
-                    IPStackEvent_t xRxEvent;
-                    /*UART_print("WE GOT ONE (MAYBE??); target MAC = %02x:%02x:%02x:%02x:%02x:%02x\r\n", currFrame->pucEthernetBuffer[0], currFrame->pucEthernetBuffer[1], currFrame->pucEthernetBuffer[2], currFrame->pucEthernetBuffer[3], currFrame->pucEthernetBuffer[4], currFrame->pucEthernetBuffer[5]);
-                            UART_print("\r\nReceived packet dump:\r\n");
-                            ETH_dumpPackt(currFrame->pucEthernetBuffer, currFrame->xDataLength);
-                            UART_print("\r\n-------------\r\n");*/
+                
+                while((currFrame = ETH_readFrame()) != NULL){
+                    //check if the frame is for us and needs processing
                     if(eConsiderFrameForProcessing(currFrame->pucEthernetBuffer) == eProcessBuffer){
-                        //UART_print("WE GOT ONE!!!!!\r\n");
+                        //if it is, then send an IPStackEvent to the stack
+                        IPStackEvent_t xRxEvent;
                         xRxEvent.eEventType = eNetworkRxEvent;
-
                         xRxEvent.pvData = ( void * ) currFrame;
                         
-                        if(xSendEventStructToIPTask(&xRxEvent, 0) == pdFALSE ){
-                            
-                            vReleaseNetworkBufferAndDescriptor( currFrame );
+                        if(xSendEventStructToIPTask(&xRxEvent, 0) == pdFALSE){
+                            //the stack didn't like what we gave it, so we need to free stuff
+                            vReleaseNetworkBufferAndDescriptor(currFrame);
                             iptraceETHERNET_RX_EVENT_LOST();
                         }else{
+                            //the stack was happy, continue
                             iptraceNETWORK_INTERFACE_RECEIVE();
                         }
                     }else{
-                        //UART_print("(not actually though)\r\n");
-                        vReleaseNetworkBufferAndDescriptor( currFrame );
+                        //the frame is not for us, so we release the buffer
+                        vReleaseNetworkBufferAndDescriptor(currFrame);
                     }
                 }
-                //UART_print("processing done\r\n");
+                intClear |= LAN9250_INTERRUPT_RX_STATUS_LEVEL;
             }
+            
+            /* 
+             * these errors occur only if the driver makes a mistake, any other errors are handled be either the RX FiFo status, or the mac itself
+             * so if we get here we fucked something up and either pulled to little or too much data out of the FiFos
+             */
+            
             if(intStatus & LAN9250_INTERRUPT_RX_ERROR){
+                
+                //set a software breakpoint if this is a debug build, so we can explore the contents of registers and stuff
                 configASSERT(0);
+                
                 UART_printDebug("RX Error has occurred\r\n");
+                intClear |= LAN9250_INTERRUPT_RX_ERROR;
             }
             if(intStatus & LAN9250_INTERRUPT_TX_ERROR){
+                
+                //set a software breakpoint if this is a debug build, so we can explore the contents of registers and stuff
                 configASSERT(0);
+                
                 UART_printDebug("TX Error has occurred\r\n");
+                intClear |= LAN9250_INTERRUPT_TX_ERROR;
+            }
+            
+            //check if we have dealt with all interrupts 
+            if((intStatus & (~intClear)) != 0){
+                //set a software breakpoint if this is a debug build, so we can explore the contents of registers and stuff
+                configASSERT(0);
+                COMMS_pushAlarm(ALARM_PRIO_INFO, "LAN9250 interrupts handler error. Unexpected flag ", intStatus & (~intClear));
             }
             
             ETH_clearIF(0xffffffff);    //clear all int flags
@@ -189,94 +237,101 @@ void __ISR(_DMA1_VECTOR) ETH_rxDmaFinishedCallback(){
     IFS1CLR = _IFS1_DMA1IF_MASK;
     
     if((DCH1INT & _DCH1INT_CHBCIF_MASK) != 0){
-        //data has been sent -> clean up stuff
+        //all data was received, return to the receiver task
         DCH1INTCLR = 0xff;
         
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(ETH_commsWaitSem, &xHigherPriorityTaskWoken);
         portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-        
-        //CLEN (imagine meme man here)
     }
-    //TODO handle errors
 }
 
 NetworkBufferDescriptor_t * ETH_readFrame(){
+    //check if there is even a packet in the fifo, if not return NULL so the caller knows that we are done receiving anything
+    if(!ETH_rxDataAvailable()) return NULL;
+    
+    //get the semaphore that signals rx dma operations. This should never block, as we only call this from the same task, and it blocks until the DMA is completed before returning
     if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
         UART_printDebug("failed to load new packet!\r\n");
-        return 0;
-    }
-        
-    if(!ETH_rxDataAvailable()){ 
-        xSemaphoreGive(ETH_commsWaitSem);
-        return 0;
+        return NULL;
     }
     
-    LATBCLR = _LATB_LATB3_MASK;
-    
+    //read the rx status FiFo, to get info on the next packet
     RX_STATUS_DATA * s = pvPortMalloc(sizeof(RX_STATUS_DATA));
-    *((uint32_t *)s) = ETH_readReg(LAN9250_RX_STAT_FIFO);
+    *((uint32_t *)s) = ETH_readReg(LAN9250_RX_STAT_FIFO); //your typecast protection is no match for my pointers old man
     
-    //if(s->packetSize > 500) UART_print("loading new packet with size %d\r\n", s->packetSize);
+    //TODO scheck for errors in the RX_STATUS_DATA 
     
+    //allocate a buffer for the new packet
     NetworkBufferDescriptor_t * ret = pxGetNetworkBufferWithDescriptor(s->packetSize, 0);
-    
     if(ret == 0){ 
         xSemaphoreGive(ETH_commsWaitSem);
-        UART_printDebug("buffer allocation failed!\r\n");
-        return 0;
+        UART_printDebug("RX buffer allocation failed!\r\n");
+        return NULL;
     }
     
-    IEC1CLR = _IEC1_DMA0IE_MASK;
-    DCH0SSA = KVA_TO_PA(ret->pucEthernetBuffer);  //convert virtual to physical address
+    //set up the DMA channels for SPI receive (one needs to write a byte, so the SPI module performs a transaction, the other then the other copies that data to the buffer once the transaction is complete)
+    IEC1CLR = _IEC1_DMA0IE_MASK;                    //clear the DMA0 interrupt, as this is used to signal completion of data transmission and we don't use it here
+    DCH0SSA = KVA_TO_PA(ret->pucEthernetBuffer);    //use the buffer as a dummy data source, what is in here doesn't matter as the LAN ignores any data sent to it in a read operation
     DCH0SSIZ = s->packetSize;
     
     DCH1DSA = KVA_TO_PA(ret->pucEthernetBuffer);
     DCH1DSIZ = s->packetSize;
     
+    //begin pulling in data
     ETH_CS = 0;
+    //write the SPI command to start the read
     SPI_send(LAN9250_INSTR_REGREAD_SINGLE);
     SPI_send(LAN9250_RX_DATA_FIFO >> 8); SPI_send(LAN9250_RX_DATA_FIFO);
     
+    //start the DMA
     DCH1CONSET = _DCH1CON_CHEN_MASK;
     DCH0CONSET = _DCH1CON_CHEN_MASK;
     DCH0ECONSET = _DCH1ECON_CFORCE_MASK;
-    LATBSET = _LATB_LATB3_MASK;
     
+    //wait until the DMA has finished
     if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
         UART_printDebug("receive dma timeout!\r\n");
         
+        //since the DMA never finished properly we need to clear the enable flags, as they are still set. 
+        //Pointer reset occours the next time we write an address anyway so we don't do that here
         DCH1CONCLR = _DCH1CON_CHEN_MASK;
         DCH0CONCLR = _DCH0CON_CHEN_MASK;
         
+        //if we get here then some data was missed and there was probably a SPI ROV (receive overflow) which we'll have to clear
         SPI2CONCLR = _SPI2CON_ON_MASK;
         SPI2CONSET = _SPI2CON_ON_MASK;
         
-        ETH_forceRXDiscard();
+        /*
+         * we do not know how much data there might still be in the RX Data fifo...
+         * The dma might have not copied all data due to a SPI ROV, in which case we transmitted all bytes needed to read the packet
+         * or it might have failed due to something that results in not all bytes being read. So I don't know how to handle this error properly.
+         * What my workaround is, is to check if there are more bytes in the RX fifo than could reasonable be there according to the level of the status fifo
+         * and if there are we just dicard all poackets. Crude and not ideal but better than nothing
+         */
         
+        uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
+        if(((fifoStatus >> 16) * 1600) < (fifoStatus & 0xffff)){
+            UART_printDebug("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
+            ETH_forceRXDiscard();
+            return 0;
+        }
+        
+        //set the CS and return the semaphore
         ETH_CS = 1;
         xSemaphoreGive(ETH_commsWaitSem);
-        return 0;
+        return NULL;
     }
-    LATBCLR = _LATB_LATB3_MASK;
-        
+    
+    //the LAN only accepts communication in entire words, so we need to read any potential padding bytes
     uint8_t remaining = 4 - (DCH0SSIZ % 4);
     if(remaining != 4) while(remaining--) SPI_send(0xff);
     
+    
+    //set the CS, return the semaphore and free the data status data struct
     ETH_CS = 1;
-        
     xSemaphoreGive(ETH_commsWaitSem);
-    
-    
     vPortFree(s);
-    LATBSET = _LATB_LATB3_MASK;
-    
-    uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
-    if(((fifoStatus >> 16) * 1500) < (fifoStatus & 0xffff)){
-        UART_printDebug("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
-        ETH_forceRXDiscard();
-        return 0;
-    }
     
     return ret;
 }
@@ -287,38 +342,45 @@ void __ISR(_DMA0_VECTOR) ETH_txDmaFinishedCallback(){
     if((DCH0INT & _DCH0INT_CHBCIF_MASK) != 0){
         //data has been sent -> clean up stuff
         DCH0INTCLR = 0xff;
-        //LATBCLR = _LATB_LATB3_MASK;
-        
-        //lastLength = DCH0SPTR;
         
         //because the DMA didn't read out any data there will be an overrun condition here. turning the module off and on again clears that error
         SPI2CONCLR = _SPI2CON_ON_MASK;
         SPI2CONSET = _SPI2CON_ON_MASK;
         
+        //the LAN only accepts communication in entire words, so we need to read any potential padding bytes
         uint8_t remaining = 4 - (DCH0SSIZ % 4);
         if(remaining != 4) while(remaining--) SPI_send(0xff);
         
         ETH_CS = 1;
         
-        //LATBSET = _LATB_LATB3_MASK;
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         xSemaphoreGiveFromISR(ETH_commsSem, &xHigherPriorityTaskWoken);
         portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
         
         //CLEN (imagine meme man here)
     }
-    //TODO handle errors
 }
 
 unsigned ETH_waitForTXSpace(uint16_t length){
+    /*
+     * to see if there is enough space for our packet we write the size of it into the TX FiFo data available level field, 
+     * so the chips gives an interrupt once there is enough data free
+     */
+    
+    //the tx data available level is in multiples of 64 bytes, so we set the field to (length rounded to 64 bytes) + 64 bytes
     uint32_t newLength = (((length / 64) + 1) << 24);
+    
+    //read the current value, as there are other settings we might have to preserve, and clear the TX Data Available Level field
     uint32_t currVal = (ETH_readReg(LAN9250_FIFO_INT) & ~0xff000000);
     
-    ETH_writeReg(LAN9250_FIFO_INT, currVal | newLength); //modify the tx data available level to be (length rounded to 64 bytes) + 64 bytes
+    //write the new value
+    ETH_writeReg(LAN9250_FIFO_INT, currVal | newLength); 
     
+    //clear the int flag so we can check it later
     ETH_clearIF(LAN9250_INTERRUPT_TX_DATA_AVAILABLE);
     
-    return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_TX_DATA_AVAILABLE);    //wait until enough data is free in the FIFO
+    //check if the flag is set again, indicating that enough space is available
+    return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_TX_DATA_AVAILABLE);
 }
 
 BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
@@ -326,81 +388,53 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     
     if(!xSemaphoreTake(ETH_commsSem, 1000)) return pdFALSE; //SPI comms never became available
     
-    //LATBCLR = _LATB_LATB3_MASK;
-    
+    //return if no space is available
     if(!ETH_waitForTXSpace(length)){
         xSemaphoreGive(ETH_commsSem);
-        //LATBSET = _LATB_LATB3_MASK;
         return pdFALSE;
     }
-    
-    //UART_print("Checksum in packet: 0x%02x%02x", data[24], data[25]);
-    //prepare the checksum offload engine
-    //ETH_writeReg(LAN9250_TX_DATA_FIFO, 0x2004);    //TX a
-    //ETH_writeReg(LAN9250_TX_DATA_FIFO, (((packetCount) << 16) | 0x4000 | (length+4)));
-    //ETH_writeReg(LAN9250_TX_DATA_FIFO, (24 << 16) | 14);    //checksum starts at beginning of packet, is inserted at 24 bytes (IP checksum offset)
-    //UART_print("actual length: %d\r\n", DCH0SSIZ);
-    
-    //vTaskEnterCritical();
+    //TODO make sure that we never return here as we might drop frames if that happens
     
     //set up the TX DMA channel to transfer [length] bytes from [data]
-    DCH0SSA = KVA_TO_PA(data);  //convert virtual to physical address
+    DCH0SSA = KVA_TO_PA(data);
     DCH0SSIZ = length;
+    
+    //reset interrupt flags before enabling the interrupt again, as the DMA operation pulling data in from the LAN will leave these set
     DCH0INTCLR = 0xff;
     IFS1CLR = _IFS1_DMA0IF_MASK;
+    
+    //re enable the interrupt
     IEC1SET = _IEC1_DMA0IE_MASK;
     
-    uint32_t txstatus;
-    uint16_t cmd;
-    uint8_t cmd0;
-    uint8_t cmd1;
-    cmd = LAN9250_TX_DATA_FIFO;
-    cmd0 = cmd >> 8;
-    cmd1 = cmd & 0xFF;
-    
-    uint32_t txCmdA = ((0x00003000) | (length));
-    uint32_t txCmdB = (((packetCount++) << 16) | 0x4000 | (length));
-    
-    ETH_writeReg(LAN9250_TX_DATA_FIFO, txCmdA); 
-    ETH_writeReg(LAN9250_TX_DATA_FIFO, txCmdB);
+    //write the two TX Commands
+    ETH_writeReg(LAN9250_TX_DATA_FIFO, LAN9250_TXCMD_A_FIRST_DATA | LAN9250_TXCMD_A_LAST_DATA | length); 
+    ETH_writeReg(LAN9250_TX_DATA_FIFO, ((packetCount++) << 16) | length);
 
+    //start the data write
     ETH_CS = 0;
     SPI_send(LAN9250_INSTR_REGWRITE_SINGLE);
-    SPI_send(cmd0);
-    SPI_send(cmd1);    
+    SPI_send(LAN9250_TX_DATA_FIFO >> 8); SPI_send(LAN9250_TX_DATA_FIFO & 0xff);    
     
-    //vTaskExitCritical();
-    DCH0CONSET = _DCH0CON_CHEN_MASK;    //start the transfer
+    //start the DMA transfer
+    DCH0CONSET = _DCH0CON_CHEN_MASK;    
     DCH0ECONSET = _DCH0ECON_CFORCE_MASK;
     
-    configASSERT(DCH0SSIZ == (txCmdB & 0x3ff));
-    
-    //LATBSET = _LATB_LATB3_MASK;
     return pdTRUE;
 }
 
+//software reset
 void ETH_reset(){
     ETH_writeReg(LAN9250_RESET_CTL, 0x00000001);
 }
 
 unsigned ETH_rxDataAvailable(){
-    uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
-    if(((fifoStatus >> 16) * 1500) < (fifoStatus & 0xffff)){
-        UART_printDebug("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
-        ETH_forceRXDiscard();
-        return 0;
-    }
+    //check if the RX_STATUS_LEVEL interrupt is active (which occurs when at least one packet is in the FiFo) 
     ETH_clearIF(LAN9250_INTERRUPT_RX_STATUS_LEVEL);
     return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_RX_STATUS_LEVEL) != 0;
 }
 
-unsigned ETH_txSpaceAvailable(){
-    return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_TX_STATUS_LEVEL) != 0;
-}
-
 unsigned ETH_CheckLinkUp(){
     unsigned state = (ETH_readPhy(LAN9250_PHY_BASIC_STATUS) >> 2) & 1;
-    if(state == 0xffffffff) return 0;
     return state;
 }
 
@@ -422,7 +456,6 @@ uint32_t ETH_readReg(uint16_t addr){
 }
 
 void ETH_writeReg(uint32_t addr, uint32_t value){
-    //if(uxSemaphoreGetCount(ETH_commsSem)) return; // the coms were never properly reserved
     ETH_CS = 0;
     SPI_send(LAN9250_INSTR_REGWRITE_SINGLE);
     SPI_send(addr >> 8); SPI_send(addr);
@@ -433,13 +466,14 @@ void ETH_writeReg(uint32_t addr, uint32_t value){
     ETH_CS = 1;
 }
 
+//check if we can communicate with the mac
 unsigned ETH_CSRBusy(){
     return ETH_readReg(LAN9250_CSR_CMD) & 0x80000000;
 }
 
 void ETH_writeMac(uint32_t addr, uint32_t value){
     uint32_t timeout = 100;
-    while(--timeout && ETH_CSRBusy());//return 0xffffffff;
+    while(--timeout && ETH_CSRBusy());
     if(!timeout) return;
     
     ETH_writeReg(LAN9250_CSR_DATA, value);
@@ -449,14 +483,15 @@ void ETH_writeMac(uint32_t addr, uint32_t value){
 
 uint32_t ETH_readMac(uint32_t addr){
     uint32_t timeout = 100;
-    while(--timeout && ETH_CSRBusy());//return 0xffffffff;
+    while(--timeout && ETH_CSRBusy());
     if(!timeout) return 0xffffffff;
-    ETH_writeReg(LAN9250_CSR_CMD, 0x80000000 | 0x40000000 | addr); //start a read operation
-    while(--timeout && ETH_CSRBusy());//return 0xffffffff;
+    ETH_writeReg(LAN9250_CSR_CMD, 0x80000000 | 0x40000000 | addr);
+    while(--timeout && ETH_CSRBusy());
     if(!timeout) return 0xffffffff;
     return ETH_readReg(LAN9250_CSR_DATA);
 }
 
+//Check if we can communicate with the PHY
 unsigned ETH_MIIBusy(){
     return ETH_readMac(LAN9250_MAC_MII_ACC) & 1;
 }
@@ -466,7 +501,7 @@ void ETH_writePhy(uint16_t index, uint16_t data){
     cmd = ((LAN9250_PHY_ADDRESS & 0x1F) << 11) | ((index & 0x1F)<< 6) | 2;
     
     uint32_t timeout = 100;
-    while(--timeout && ETH_MIIBusy());//return 0xffffffff;
+    while(--timeout && ETH_MIIBusy());
     if(!timeout) return;
     
     ETH_writeMac(LAN9250_MAC_MII_DATA, data);
@@ -477,13 +512,13 @@ uint32_t ETH_readPhy(uint8_t index){
     uint32_t cmd = ((LAN9250_PHY_ADDRESS & 0x1F) << 11) | ((index & 0x1F) << 6);
     
     uint32_t timeout = 100;
-    while(--timeout && ETH_MIIBusy());//return 0xffffffff;
+    while(--timeout && ETH_MIIBusy());
     if(!timeout) return 0xffffffff;
     
     ETH_writeMac(LAN9250_MAC_MII_ACC, cmd);
     
     timeout = 100;
-    while(--timeout && ETH_MIIBusy());//return 0xffffffff;
+    while(--timeout && ETH_MIIBusy());
     if(!timeout) return 0xffffffff;
     
     return ETH_readMac(LAN9250_MAC_MII_DATA);   
@@ -491,29 +526,29 @@ uint32_t ETH_readPhy(uint8_t index){
 
 void ETH_setupDMA(){
     //TX channel
-    DCH0CON = 0b00000001;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 2
-    DCH0ECON = (_SPI2_TX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
+    DCH0CON = 0b00000001;                       //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 2
+    DCH0ECON = (_SPI2_TX_IRQ << 8) | 0b10000;   //transmit byte on SPI TX done
     //DCH0SSA (source start) is to be set before each transfer
-    DCH0DSA = KVA_TO_PA(&SPI2BUF);   //write into the SPI buffer
+    DCH0DSA = KVA_TO_PA(&SPI2BUF);              //write into the SPI buffer
     
     //DCH0SSIZ (source size) is to be set before each transfer
-    DCH0DSIZ = 1;   // destination size - 1 byte
-    DCH0CSIZ = 1;   // Cell size - copy one byte every time the interrupt fires
+    DCH0DSIZ = 1;                               // destination size - 1 byte
+    DCH0CSIZ = 1;                               // Cell size - copy one byte every time the interrupt fires
     
-    DCH0INT = _DCH0INT_CHBCIE_MASK; //interrupt once the transfer is completed
+    DCH0INT = _DCH0INT_CHBCIE_MASK;             //interrupt once the transfer is completed
     IEC1SET = _IEC1_DMA0IE_MASK;
     IPC10bits.DMA0IP = 4;
     IPC10bits.DMA0IS = 4;
     
     //RX channel
-    DCH1CON = 0b00000011;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
-    DCH1ECON = (_SPI2_RX_IRQ << 8) | 0b10000;       //transmit byte on SPI TX done
+    DCH1CON = 0b00000011;                       //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
+    DCH1ECON = (_SPI2_RX_IRQ << 8) | 0b10000;   //transmit byte on SPI TX done
     DCH1SSA = KVA_TO_PA(&SPI2BUF);
     //DCH1DSA (destination start) is to be set before each transfer
     
-    DCH1SSIZ = 1;   // source size - 1 byte
+    DCH1SSIZ = 1;                               // source size - 1 byte
     //DCH1DSIZ (destination size) is to be set before each transfer
-    DCH1CSIZ = 1;   // Cell size - copy one byte every time the interrupt fires
+    DCH1CSIZ = 1;                               // Cell size - copy one byte every time the interrupt fires
     
     DCH1INT = _DCH1INT_CHBCIE_MASK; //interrupt once the transfer is completed
     IEC1SET = _IEC1_DMA1IE_MASK;
@@ -637,6 +672,8 @@ void ETH_writeMacAddress(uint8_t * macAddr){
     UART_printDebug("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
 }
 
+//TODO clean up the following functions
+
 void ETH_dumpRX(){
     if(!xSemaphoreTake(ETH_commsSem, 100)) return;
     uint32_t info = ETH_readReg(LAN9250_RX_FIFO_INF);
@@ -653,46 +690,4 @@ void ETH_dumpTX(){
             UART_printDebug("\t next status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_STAT_FIFO));
         }
     }
-}
-
-void ETH_dumpPackt(uint8_t * data, uint16_t length){
-    uint16_t currPos = 0;
-    UART_print("\r\nPacket dump:\r\n");
-    for(;currPos < length; currPos++){
-        UART_print(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
-    }
-    UART_print("\r\n---------\r\n");
-}
-
-void ETH_dumpConfig(){
-    if(!xSemaphoreTake(ETH_commsSem, 1000)) return; //SPI comms never became available
-    UART_printDebug("HW_CFG=0x%08x\r\n", ETH_readReg(LAN9250_HW_CFG));
-    UART_printDebug("AFC_CFG=0x%08x\r\n", ETH_readReg(LAN9250_AFC_CFG));
-    UART_printDebug("IRQ_CFG=0x%08x\r\n", ETH_readReg(LAN9250_IRQ_CFG));
-    UART_printDebug("INT_STS=0x%08x\r\n", ETH_readReg(LAN9250_INT_STAT));
-    UART_printDebug("INT_EN=0x%08x\r\n", ETH_readReg(LAN9250_INT_EN));
-    UART_printDebug("FIFO_INT=0x%08x\r\n", ETH_readReg(LAN9250_FIFO_INT));
-    UART_printDebug("RX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_RX_CFG));
-    UART_printDebug("TX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_TX_CFG));
-    UART_printDebug("PMT_CTRL=0x%08x\r\n", ETH_readReg(LAN9250_PMT_CTRL));
-    UART_printDebug("HMAC_CR=0x%08x\r\n", ETH_readMac(LAN9250_MAC_CR));
-    UART_printDebug("PHY_BASIC_CONTROL=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_CONTROL));
-    UART_printDebug("PHY_BASIC_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_STATUS));
-    UART_printDebug("PHY_AN_ADV=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_AN_ADV));
-    UART_printDebug("PHY_SPECIAL_MODES=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_MODES));
-    UART_printDebug("PHY_SPECIAL_CONTROL_STATUS_IND=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS_IND));
-    UART_printDebug("PHY_INTERRUPT_MASK=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_INTERRUPT_MASK));
-    UART_printDebug("PHY_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
-    UART_printDebug("PHY_SPECIAL_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS));
-    UART_printDebug("PHY_SYM_ERR_COUNTER=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SYM_ERR_COUNTER));
-    UART_printDebug("PHY_MODE_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
-    UART_printDebug("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
-    UART_printDebug("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
-    UART_printDebug("\r\n\n\nRX Fifo status: 0x%08x (dropped: %d)\r\n", ETH_readReg(LAN9250_RX_FIFO_INF), ETH_readReg(LAN9250_RX_DROP));
-    UART_printDebug("\r\n\n\nTX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
-    UART_printDebug("\r\n\n\nCount: 0x%08x\r\n", ETH_readReg(LAN9250_25MHZ_COUNTER));
-    //UART_print("\r\n\n\nRX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_RX_STAT_FIFO_PORT));
-    UART_printDebug("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(HMAC_RX_LPI_TRANSITION));
-    UART_printDebug("\r\n\n\n\n");
-    xSemaphoreGive(ETH_commsSem);
 }

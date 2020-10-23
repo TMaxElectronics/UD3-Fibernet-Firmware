@@ -115,24 +115,10 @@ int main( void )
     FreeRTOS_IPInit(IP_ADDRESS, NETMASK, GATEWAYIP, DNSIP, MAC_ADDRESS);
     COMMS_init();
     
-	/* The mainCREATE_SIMPLE_BLINKY_DEMO_ONLY setting is described at the top
-	of this file. */
-	#if mainCREATE_SIMPLE_BLINKY_DEMO_ONLY == 1
-	{
-		main_blinky();
-	}
-	#else
-	{
-		main_full();
-	}
-	#endif
-    
     vTaskStartScheduler();
 
 	return 0;
 }
-/*-----------------------------------------------------------*/
-
 
 
 static void prvSetupHardware( void )
@@ -174,6 +160,7 @@ static void prvSetupHardware( void )
 }
 /*-----------------------------------------------------------*/
 
+
 void vApplicationMallocFailedHook( void )
 {
 	/* vApplicationMallocFailedHook() will only be called if
@@ -187,7 +174,7 @@ void vApplicationMallocFailedHook( void )
 	to query the size of free heap space that remains (although it does not
 	provide information on how the remaining heap might be fragmented). */
 	taskDISABLE_INTERRUPTS();
-	for( ;; );
+    LED_showCode(LED_mallocFailedCode);
 }
 /*-----------------------------------------------------------*/
 
@@ -216,7 +203,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 	called if a task stack overflow is detected.  Note the system/interrupt
 	stack is not checked. */
 	taskDISABLE_INTERRUPTS();
-	for( ;; );
+    LED_showCode(LED_stackOverflowCode);
 }
 /*-----------------------------------------------------------*/
 
@@ -234,7 +221,7 @@ void _general_exception_handler( unsigned long ulCause, unsigned long ulStatus )
 {
 	/* This overrides the definition provided by the kernel.  Other exceptions 
 	should be handled here. */
-	for( ;; );
+    LED_showCode(LED_generalExceptionCode);
 }
 /*-----------------------------------------------------------*/
 
@@ -247,12 +234,26 @@ volatile unsigned long ul = 0;
 
 	__asm volatile( "di" );
 	{
-		/* Set ul to a non-zero value using the debugger to step out of this
-		function. */
-		while( ul == 0 )
-		{
-			portNOP();
-		}
+        LED_showCode(LED_assertCode);
 	}
 	__asm volatile( "ei" );
 }
+
+//debug task that I don't know where to put yet. Will probably get its own top command in the console
+/*----------------------------------------------------
+
+static void prvTimerCallback( TimerHandle_t xTimer )
+{
+    while(1){
+        vTaskDelay(500);
+        UART_print("Heap free: %d\r\n", xPortGetFreeHeapSize());
+        
+        char * buff = pvPortMalloc(1024);
+        vTaskGetRunTimeStats(buff);
+        UART_print("\r\nTask stats: \r\n%s\r\n", buff);
+        vPortFree(buff);
+        //UART_print("UART baudrate: %d\r\n", UART_getBaud());
+        //ETH_writePacket("Hello World!", 12);
+        //ETH_dumpRX();
+    }
+}-------*/

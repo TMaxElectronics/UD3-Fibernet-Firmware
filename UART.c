@@ -19,6 +19,7 @@
 #include "FiberComms.h"
 #include "include/LAN9250.h"
 #include "include/min.h"
+#include "min_id.h"
 
 // Special protocol bytes
 enum {
@@ -35,17 +36,19 @@ typedef struct{
 
 QueueHandle_t UART_sendQueue;
 SemaphoreHandle_t UART_txDMA;
-SemaphoreHandle_t UART_rxDMAOverflow;
 
 volatile uint32_t lastScanPosition = 0;
 uint32_t currPackageOffset = 0;
-uint8_t * currBuff;
+uint8_t * UART_rxBuffer;
 
 unsigned freeNextData = 0;
 
 void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
-    U2MODE = 0b0000000000001000;                //UART Module ON, U1RX and U1TX only, Autobaud off, 8bit Data no parity, High Speed mode off
-    U2STA = 0b0001010000000000;                 //Tx interrupt when at leasts one byte can be written, Rx & Tx enabled, Rx interrupt when buffer not empty
+    //basic module initialisation
+    U2MODE = 0b0000000000001000;                    //UART Module OFF, no flow control, Autobaud off, 8bit Data no parity
+    U2STA = 0b0001010000000000;                     //Tx interrupt when at leasts one byte can be written, Rx interrupt when buffer not empty, Rx & Tx enabled
+    
+    //setup the baud rate generator, if the baud rate is over 250000 it is worth switchign to the high speed mode to allow for a higher programming resolution
     if(baud > 250000){
         U2MODEbits.BRGH = 1;
         U2BRG = (configPERIPHERAL_CLOCK_HZ / (4 * baud)) - 1;
@@ -53,111 +56,135 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
         U2MODEbits.BRGH = 0;
         U2BRG = (configPERIPHERAL_CLOCK_HZ / (16 * baud)) - 1;
     }
-
+    
+    
+    //set PPS so the selected pins
     U2RXR = RXPinReg;
     *TXPinReg = 0b0010;
     
-    //IEC1SET = _IEC1_U2RXIE_MASK;
-    //IPC9bits.U2IP = 3;
-    //IPC9bits.U2IS = 3;
     
-    UART_sendQueue = xQueueCreate(35, sizeof(UART_SENDQUE_ELEMENT*));
+    //allocate permanent buffers
+    UART_rxBuffer = pvPortMalloc(UART_BUFFERSIZE);
     
-    UART_txDMA = xSemaphoreCreateBinary();
-    UART_rxDMAOverflow = xSemaphoreCreateBinary();
-    xSemaphoreGive(UART_txDMA);
-    xSemaphoreGive(UART_rxDMAOverflow);
     
     //setup RX & TX DMA
+    
     //TX channel
-    DCH2CON = 0b00000000;   //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
-    DCH2ECON = (_UART2_TX_IRQ << 8) | 0b10000;       //transmit byte on UART TX done
-    DCH2SSA = 0; //(source start) is to be set before each transfer
-    DCH2DSA = KVA_TO_PA(&U2TXREG);   //write into the SPI buffer
+    DCH2CON = 0b00000000;                           //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
+    DCH2ECON = (_UART2_TX_IRQ << 8) | 0b10000;      //transmit byte on UART TX done
     
-    //DCH0SSIZ (source size) is to be set before each transfer
-    DCH2DSIZ = 1;   // destination size - 1 byte
-    DCH2CSIZ = 1;   // Cell size - copy one byte every time the interrupt fires
-    
-    DCH2INT = _DCH2INT_CHBCIE_MASK; //interrupt once the transfer is completed
+    DCH2INT = _DCH2INT_CHBCIE_MASK;                 //interrupt once the transfer is completed
     IEC1SET = _IEC1_DMA2IE_MASK;
     IPC10bits.DMA2IP = 4;
     IPC10bits.DMA2IS = 4;
     
-    //rx dma goes into a ring buffer
-    //RX channel
-    DCH3CON = 0b00000010;   //channel is off, no chaining, channel auto enable is off, prio 3
-    DCH3CONbits.CHAEN = 1;
-    DCH3ECON = (_UART2_RX_IRQ << 8) | 0b10000;       //transmit byte on _UART2_RX_IRQ
+    DCH2SSA = 0;                                    //(source start) is to be set before each transfer
+    DCH2DSA = KVA_TO_PA(&U2TXREG);                  //write into the SPI buffer
+    
+    //DCH0SSIZ (source size) is to be set before each transfer
+    DCH2DSIZ = 1;                                   // destination size - 1 byte
+    DCH2CSIZ = 1;                                   // Cell size - copy one byte every time the interrupt fires
+    
+    
+    //Rx channel goes into a ring buffer
+    DCH3CON = 0b10010010;                           //channel is on, no chaining, channel auto enable is on, priority 2
+    DCH3ECON = (_UART2_RX_IRQ << 8) | 0b10000;      //start cell transfer on byte on _UART2_RX_IRQ
+    DCH3INT = 0;                                    //no interrupts
+    
     DCH3SSA = KVA_TO_PA(&U2RXREG);
-    currBuff = pvPortMalloc(UART_BUFFERSIZE);
-    DCH3DSA = KVA_TO_PA(currBuff);
+    DCH3DSA = KVA_TO_PA(UART_rxBuffer);
     
-    DCH3SSIZ = 1;   // source size - 1 byte
-    DCH3DSIZ = UART_BUFFERSIZE; //maximum packet size (data) + sizeof(MIN_HEADER)
-    DCH3CSIZ = 1;   // Cell size - copy one byte every time the interrupt fires
+    DCH3SSIZ = 1;                                   //source size - 1 byte (UART data register)
+    DCH3DSIZ = UART_BUFFERSIZE;                     //destination size - start over once the entire buffer has been written
+    DCH3CSIZ = 1;                                   //Cell size - copy one byte every time the interrupt fires
     
-    DCH3INT = 0;//_DCH1INT_CHBCIE_MASK; //interrupt once the transfer is completed
-    //IEC1SET = _IEC1_DMA3IE_MASK;
-    //IPC10bits.DMA3IP = 4;
-    //IPC10bits.DMA3IS = 4;
+
+    //init RTOS specific stuff
+    UART_sendQueue = xQueueCreate(35, sizeof(UART_SENDQUE_ELEMENT*));       //contains pointers to the buffer to be send
     
-    xTaskCreate(UART_sendTask, "SendTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
-    xTaskCreate(UART_receiveTask, "RecvTask", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
-    //xTaskCreate(UART_bufferOverflowHandler, "OfloHndl", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 4, NULL);
+    UART_txDMA = xSemaphoreCreateBinary();                                  //semaphore signaling that the TX DMA is currently transmitting data
+    xSemaphoreGive(UART_txDMA); //is this actually necessary?
+    
+    //Serial Send / Receive Tasks
+    xTaskCreate(UART_sendTask, "SSendTsk", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 3, NULL);
+    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 2, NULL);
+    
+    //enable the UART module (we need the RX DMA running before this point to avoid an overflow in the time that we initialize other stuff)
+    U2MODEbits.ON = 1;
 }
 
 void UART_sendTask( void *pvParameters ){
     UART_SENDQUE_ELEMENT * toSendData;
     while(1){
+        //get the pointer to the element to be sent
         if(xQueueReceive(UART_sendQueue, &toSendData, 1000)){
-            if(toSendData != 0){
+            //if this is NULL, then something went wrong, discard this buffer position
+            if(toSendData != NULL){
+                //if the length field has a zero value somebody tried to write the deprecated TYPE_STRING, which we just ignore and free the data
                 if(toSendData->dataLength > 0){
                     UART_sendBytes(toSendData->data, toSendData->dataLength, toSendData->freeAfterSend);
                 }else{
-                    UART_sendString(toSendData->data, 0);
+                    if(toSendData->data != NULL) vPortFree(toSendData->data);
                 }
-                //vPortFree(toSendData->data); //don't free the data pointer yet, as DMA is still transmitting stuff and will do so itself after completion
+                
+                //free the data pointer struct. It is in 
                 vPortFree(toSendData);
             }
         }
     }
 }
 
-void __ISR(_DMA3_VECTOR) UART_rxDmaOverflowHook(){
-    IFS1CLR = _IFS1_DMA3IF_MASK;
+void __ISR(_DMA2_VECTOR) UART_txDmaFinishedCallback(){
+    IFS1CLR = _IFS1_DMA2IF_MASK;
     
-    if((DCH3INT & _DCH3INT_CHBCIF_MASK) != 0){
-        DCH3INTCLR = _DCH3INT_CHBCIF_MASK;
+    if((DCH2INT & _DCH2INT_CHBCIF_MASK) != 0){
+        //the transfer has finished => clear the IF and return the semaphore
+        DCH2INTCLR = _DCH2INT_CHBCIF_MASK;
         
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(UART_rxDMAOverflow, &xHigherPriorityTaskWoken);
+        xSemaphoreGiveFromISR(UART_txDMA, &xHigherPriorityTaskWoken);
         portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
     }
     //TODO handle errors
 }
 
-void UART_bufferOverflowHandler(void *pvParameters){
-    while(1){
-        //TODO handle overflow
+void UART_sendBytes(uint8_t * data, uint32_t length, unsigned freeAfterSend){
+    //wait for the DMA to become available (this should never happen as the only task calling this is the UART_sendTask, but just incase somebody tries to send data directly)
+    if(!xSemaphoreTake(UART_txDMA, 1000)){ 
+        UART_sendString("\r\nUART TX DMA start timeout!\r\n", 1);
+        return;
     }
-}
     
+    //set dma parameters for the current buffer
+    DCH2SSA = KVA_TO_PA(data);
+    DCH2SSIZ = length;
+    
+    //start the transfer
+    DCH2CONSET = _DCH2CON_CHEN_MASK;
+    
+    //wait for the dma to finish
+    if(!xSemaphoreTake(UART_txDMA, 1000)){ 
+        UART_sendString("\r\nUART TX DMA finish timeout!\r\n", 1);
+    }
+    
+    //if the buffer we are transmitting expects to bee freed do so
+    if(freeAfterSend) vPortFree(PA_TO_KVA1(DCH2SSA));
+    
+    //return the DMA state to avaiable
+    xSemaphoreGive(UART_txDMA);
+}
 
 void UART_receiveTask(void *pvParameters){
-    DCH3DSA = KVA_TO_PA(currBuff);
-    DCH3CONSET = _DCH3CON_CHEN_MASK;
-    U2MODEbits.ON = 1;
-    
     while(1){
+//if UART_DEBUG_DATA is defined we just send all of the data in the uart buffer to the last client, without inspecting it for any protocol 
 #ifdef UART_DEBUG_DATA
         if(lastScanPosition != DCH3DPTR){
             char * buff = pvPortMalloc(100);
             uint16_t currPos = 0;
             while(lastScanPosition != DCH3DPTR){
                 LED_minPacketReceivedHook();
-                buff[currPos++] = *(currBuff + lastScanPosition);
-                min_poll(COMMS_UART, currBuff + lastScanPosition, 1);
+                buff[currPos++] = *(UART_rxBuffer + lastScanPosition);
+                min_poll(COMMS_UART, UART_rxBuffer + lastScanPosition, 1);
                 if(++lastScanPosition >= DCH3DSIZ) lastScanPosition = 0;
             }
             COMMS_sendDataToLastClient(buff, currPos);
@@ -165,30 +192,34 @@ void UART_receiveTask(void *pvParameters){
         }
 #else
         while(lastScanPosition != DCH3DPTR){
-            min_poll(COMMS_UART, &currBuff[lastScanPosition], 1);
+            min_poll(COMMS_UART, &UART_rxBuffer[lastScanPosition], 1);
             if(++lastScanPosition >= DCH3DSIZ) lastScanPosition = 0;
         }
+#endif
         
-        if(U2STAbits.FERR || U2STAbits.OERR){
-            U2STAbits.URXEN = 0;
-            DCH3CONCLR = _DCH3CON_CHEN_MASK;
-            DCH3DSA = KVA_TO_PA(currBuff);
-            U2STAbits.OERR = 0;
-            U2STAbits.FERR = 0;
-            DCH3CONSET = _DCH3CON_CHEN_MASK;
-            U2STAbits.URXEN = 1;
-            lastScanPosition = 0;
+        if(UART_isOERR()){
+            //an overrun error has occurred. some bytes will have been lost at this point, which MIN will have to deal with
+            UART_clearOERR();
             LED_errorFlashHook();
         }
-#endif
+        
+        if(UART_isFERR()){
+            //a framing error has occurred, this means that the baud rate is probably set wrong
+            UART_clearFERR();
+            LED_errorFlashHook();
+        }
         vTaskDelay(2);
     }
 }
 
+//support functions:
+
+//sends a string directly to the output buffer, incase there is some dramatic error
+//we don't use the semaphore here as this will only be called from a context where an error prevents the semaphore from being released (tx error, _general_exception_handler, vAssert, etc.)
 void UART_sendString(char *data, unsigned newLine){
-    //return;
     while((*data) != 0){
-        UART_sendChar(*data++);
+        while(U2STAbits.UTXBF);
+        U2TXREG = *data++;
     }
     if(newLine){
         UART_sendChar('\r');
@@ -197,6 +228,7 @@ void UART_sendString(char *data, unsigned newLine){
 }
 
 void UART_printDebug(char * format, ...){
+    //surely the must be a better way to do this
 #ifdef UART_ALLOW_DEBUG
     va_list arg;
     va_start (arg, format);
@@ -209,21 +241,24 @@ void UART_printDebug(char * format, ...){
     
     va_end (arg);
 #endif
-    
 }
 
+//send data to the debug min ID
 void UART_print(char * format, ...){
     va_list arg;
     va_start (arg, format);
     
     uint8_t * buff = (uint8_t*) pvPortMalloc(256);
     uint32_t length = vsprintf(buff, format, arg);
-    min_send_frame(COMMS_UART, MIN_DEBUG, buff, length);
+    
+    min_send_frame(COMMS_UART, MIN_ID_DEBUG, buff, length);
+    
     vPortFree(buff);
     
     va_end (arg);
 }
 
+//write data into the transmit queue
 void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend){
     UART_SENDQUE_ELEMENT * toSendData = pvPortMalloc(sizeof(UART_SENDQUE_ELEMENT));
     toSendData->dataLength = length;
@@ -233,62 +268,6 @@ void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend){
         if(freeAfterSend) vPortFree(toSendData->data);
         vPortFree(toSendData);
     }
-}
-
-void __ISR(_DMA2_VECTOR) UART_txDmaFinishedCallback(){
-    IFS1CLR = _IFS1_DMA2IF_MASK;
-    
-    if((DCH2INT & _DCH2INT_CHBCIF_MASK) != 0){
-        DCH2INTCLR = _DCH2INT_CHBCIF_MASK;
-        
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(UART_txDMA, &xHigherPriorityTaskWoken);
-        portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-    }
-    //TODO handle errors
-}
-
-void UART_sendBytes(uint8_t * data, uint32_t length, unsigned freeAfterSend){
-    if(!xSemaphoreTake(UART_txDMA, 1000)){ 
-        UART_sendString("\r\nUART TX DMA start timeout!\r\n", 1); //write data directly to the UART fifo
-        return;
-    }
-    
-    //If this is non zero, then there is still an allocated buffer for the last message, which we need to free
-    if(DCH2SSA != 0 && freeNextData){
-        vPortFree(PA_TO_KVA1(DCH2SSA));
-    }
-    
-    DCH2SSA = KVA_TO_PA(data);
-    DCH2SSIZ = length;
-    DCH2CONSET = _DCH2CON_CHEN_MASK;
-    freeNextData = freeAfterSend;
-    //DCH2ECONSET = _DCH2ECON_CFORCE_MASK;
-}
-
-void UART_sendChar(char data){
-    while(U2STAbits.UTXBF);
-    U2TXREG = data;
-}
-
-void UART_clearOERR(){
-    U2STAbits.OERR = 0;
-}
-
-inline unsigned UART_dataAvailable(){
-    return U2STAbits.URXDA;
-}
-
-unsigned char UART_getChar(){
-    return U2RXREG;
-}
-
-void UART_disableRX(){
-    U2STAbits.URXEN = 0;
-}
-
-void UART_enableRX(){
-    U2STAbits.URXEN = 1;
 }
 
 void UART_setBaud(uint64_t newBaud){
@@ -301,10 +280,27 @@ void UART_setBaud(uint64_t newBaud){
     }
 }
 
-unsigned UART_isOERR(){
-    return U2STAbits.OERR;
+uint32_t UART_getBaud(){
+    return (configPERIPHERAL_CLOCK_HZ/ (((U2MODEbits.BRGH) ? 4 : 16) * (U2BRG+1)));
 }
 
+inline unsigned UART_isOERR(){
+    return (U2STA & _U2STA_OERR_MASK) != 0;
+}
+
+inline unsigned UART_isFERR(){
+    return (U2STA & _U2STA_FERR_MASK) != 0;
+}
+
+inline void UART_clearOERR(){
+    U2STACLR = _U2STA_OERR_MASK;
+}
+
+inline void UART_clearFERR(){
+    U2STACLR = _U2STA_FERR_MASK;
+}
+
+//returns a static pointer to the requested VT100 code, so it can be used in printf without needing any free() call afterwards
 const char * UART_getVT100Code(uint16_t cmd, uint8_t var){
     switch(cmd){
         case _VT100_RESET:
@@ -411,8 +407,27 @@ const char * UART_getVT100Code(uint16_t cmd, uint8_t var){
     return "";
 }
 
-uint32_t UART_getBaud(){
-    return (configPERIPHERAL_CLOCK_HZ/ (((U2MODEbits.BRGH) ? 4 : 16) * (U2BRG+1)));
+//DEPRECATED LEGACY FUNCTIONS (WILL BE REMOVED SOONER OR LATER)
+
+void UART_sendChar(char data){
+    while(U2STAbits.UTXBF);
+    U2TXREG = data;
+}
+
+inline unsigned UART_dataAvailable(){
+    return U2STAbits.URXDA;
+}
+
+unsigned char UART_getChar(){
+    return U2RXREG;
+}
+
+void UART_disableRX(){
+    U2STAbits.URXEN = 0;
+}
+
+void UART_enableRX(){
+    U2STAbits.URXEN = 1;
 }
 
 void UART_setCursorPosVT100(uint8_t line, uint8_t col){

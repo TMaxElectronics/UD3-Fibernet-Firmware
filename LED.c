@@ -12,6 +12,8 @@
 #include "FreeRTOSConfig.h"
 #include "FreeRTOS.h"
 #include "LED.h"
+#include "FreeRTOS/TCPIP/include/FreeRTOS_Sockets.h"
+#include "include/System.h"
 
 #define LED_BLINK_TIME 1
 
@@ -20,6 +22,11 @@ int32_t ethLEDTime = 0;
 int32_t errLEDTime = 0;
 unsigned ethError = 1;
 unsigned ethReady = 0;
+
+const uint8_t LED_generalExceptionCode[] = {1,1,0,0xfe,0,0xff};
+const uint8_t LED_stackOverflowCode[] = {1,1,0,0xfe,0,0xff};
+const uint8_t LED_mallocFailedCode[] = {1,1,0,0xfe,0,0xff};
+const uint8_t LED_assertCode[] = {0, 1, 0xfe, 0, 0, 0, 0xfe, 0, 0, 0, 0xff};
 
 void LED_init(){
     //IO
@@ -93,4 +100,47 @@ void LED_errorFlashHook(){
     LATBCLR = _LATB_LATB3_MASK;
     LATASET = _LATA_LATA2_MASK;
     LATBSET = _LATB_LATB2_MASK;
+}
+
+void LED_showCode(uint8_t * code){
+    uint8_t currentPos;
+    
+    //turn off all LEDs
+    LATASET = _LATA_LATA2_MASK;
+    LATBSET = _LATB_LATB2_MASK;
+    LATBSET = _LATB_LATB3_MASK;
+    
+    //allows the debugger to skip out of this loop if desired
+    unsigned cont = 1;
+    while(cont){
+        switch(code[currentPos]){
+            case 0:     //short flash
+                LATBCLR = _LATB_LATB3_MASK;
+                SYS_waitCP0(LED_CODE_0_TIME);
+                LATBSET = _LATB_LATB3_MASK;
+                break;
+                
+            case 1:     //long flash
+                LATBCLR = _LATB_LATB3_MASK;
+                SYS_waitCP0(LED_CODE_1_TIME);
+                LATBSET = _LATB_LATB3_MASK;
+                break;
+                
+            case 0xfe:  //inter-character pause
+                SYS_waitCP0(LED_CODE_IC_PAUSE_TIME);
+                currentPos ++;
+                continue;
+                
+            case 0xff:  //sequence end
+                SYS_waitCP0(LED_CODE_END_TIME);
+                currentPos = 0;
+                continue;
+                
+            default:
+                currentPos = 0;
+                continue;
+        }
+        currentPos ++;
+        SYS_waitCP0(LED_CODE_IB_PAUSE_TIME);
+    }
 }

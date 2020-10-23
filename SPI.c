@@ -2,8 +2,6 @@
 #include "UART.h"
 #include "FreeRTOSConfig.h"
 
-
-
 void SPI_init(uint32_t clkFreq){
     SPI2CONbits.FRMEN = 0;
     SPI2CONbits.MSSEN = 0;
@@ -28,14 +26,13 @@ void SPI_init(uint32_t clkFreq){
     
     SPI2CONbits.ON = 1;
     
-    SPI2CON2 = 0;   //no audio stuff and no interrupts (for now)
+    SPI2CON2 = 0;   //no audio stuff
     
     RPB8R = 0b0100; //RB8
     SDI2R = 0b0011; //RB13
     
     //TODO configure interrupts
     
-    //SPI1BRG = (_PB_FREQ/(2*clkFreq1)) - 1;
     SPI2BRG = (configPERIPHERAL_CLOCK_HZ/(2*clkFreq)) - 1;
 }
 
@@ -56,7 +53,7 @@ void SPI_sendBytes(uint8_t * data, uint8_t length, unsigned WE){
 
 void SPI_readBytes(uint8_t * data, uint16_t length){
     uint16_t i = 0;
-    for(;i < length; i++) data[i] = SPI_send(0xff);// UART_sendString("data[0x", 0, _COMS_MODULE); UART_sendHex(i, 0, _COMS_MODULE); UART_sendString("]=", 0, _COMS_MODULE); UART_sendHex((uint8_t) data[i], 1, _COMS_MODULE);}
+    for(;i < length; i++) data[i] = SPI_send(0xff);
 }
 
 void SPI_setCLKFreq(uint32_t freq){

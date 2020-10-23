@@ -151,9 +151,10 @@ struct min_context {
     uint8_t rx_control;                             // Control byte
     uint8_t tx_header_byte_countdown;               // Count out the header bytes
     uint8_t port;                                   // Number of the port associated with the context
-    uint16_t currDataPos;
-    uint8_t * forwardBuffer;                          //points to the start of a frame if it is one we need to forward
-    uint16_t forwardDataLength;
+    uint16_t rx_data_position;                      // current forward buffer position
+    uint8_t * rx_forward_buffer;                    // buffer holding the entire frame, if it is one we need to forward
+    uint16_t tx_data_position;                      // current transmit buffer position
+    uint8_t * tx_data_buffer;                    // buffer holding the data to transmit, allowing an entire frame to be queued for transmission at once
 };
 
 #ifdef TRANSPORT_PROTOCOL

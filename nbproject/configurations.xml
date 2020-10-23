@@ -55,6 +55,8 @@
       <itemPath>include/FiberComms.h</itemPath>
       <itemPath>include/min.h</itemPath>
       <itemPath>include/LED.h</itemPath>
+      <itemPath>min_id.h</itemPath>
+      <itemPath>include/System.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -94,10 +96,10 @@
       <itemPath>SPI.c</itemPath>
       <itemPath>UART.c</itemPath>
       <itemPath>main.c</itemPath>
-      <itemPath>main_blinky.c</itemPath>
       <itemPath>LED.c</itemPath>
       <itemPath>FiberComms.c</itemPath>
       <itemPath>min.c</itemPath>
+      <itemPath>System.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

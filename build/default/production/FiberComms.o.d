@@ -24,4 +24,5 @@ FreeRTOS/Core/include/task.h  \
 include/min.h  \
 include/LAN9250.h  \
 include/SPI.h  \
- include/UART.h 
+ include/UART.h  \
+min_id.h 

@@ -30,4 +30,5 @@ include/SPI.h  \
 include/LAN9250.h  \
  include/SPI.h  \
 include/UART.h  \
-include/LED.h 
+include/LED.h  \
+include/FiberComms.h 

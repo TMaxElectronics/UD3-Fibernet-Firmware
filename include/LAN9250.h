@@ -63,6 +63,10 @@
 #define LAN9250_PHY_INTERRUPT_MASK                      0x1E
 #define LAN9250_PHY_SPECIAL_CONTROL_STATUS              0x1F
 
+
+#define LAN9250_PHY_INTERRUPT_LINK_UP                   0b1000000000
+#define LAN9250_PHY_INTERRUPT_LINK_DOWN                 0b10000
+
 #define LAN9250_CSR_CMD                     0xa4
 #define LAN9250_CSR_DATA                    0xa8
 
@@ -114,7 +118,14 @@
 #define LAN9250_PME_ENERGY_DETECT                   0x0100
 #define LAN9250_PME_WOL_STATUS                      0x0020
 
+#define LAN9250_TXCMD_A_FIRST_DATA                  0x00001000
+#define LAN9250_TXCMD_A_LAST_DATA                   0x00002000
+
 #define MAC_ADDR 0xde,0xad,0xbe,0xef,0xfe,0xed
+#define DEF_IP_ADDRESS 0,0,0,0
+#define DEF_NETMASK 0,0,0,0
+#define DEF_DNSIP 0,0,0,0
+#define DEF_GATEWAYIP 0,0,0,0
 
 extern const uint8_t MAC_ADDRESS[6];
 extern const uint8_t IP_ADDRESS[4];
@@ -190,10 +201,8 @@ uint32_t ETH_readMac(uint32_t addr);
 void ETH_writeMac(uint32_t addr, uint32_t value);
 unsigned ETH_CSRBusy();
 unsigned ETH_rxDataAvailable();
-unsigned ETH_txSpaceAvailable();
 void ETH_dumpConfig();
 void ETH_reset();
-void ETH_dumpPackt(uint8_t * data, uint16_t length);
 NetworkBufferDescriptor_t * ETH_readFrame();
 BaseType_t ETH_writePacket(uint8_t * data, uint16_t length);
 void ETH_setupDMA();

@@ -1,6 +1,8 @@
 // Copyright (c) 2014-2017 JK Energy Ltd.
 //
 // Use authorized under the MIT license.
+//
+// modified to comply with the UD3 implementation and have the ability to forward frames
 
 #include "min.h"
 #include "FiberComms.h"
@@ -346,7 +348,7 @@ static void valid_frame_received(struct min_context *self)
 {
     uint8_t id_control = self->rx_frame_id_control;
     uint8_t *payload = self->rx_frame_payload_buf;
-    uint16_t payload_len = self->currDataPos;
+    uint16_t payload_len = self->rx_data_position;
     
 #ifdef TRANSPORT_PROTOCOL
     uint8_t seq = self->rx_frame_seq;
@@ -442,23 +444,18 @@ static void valid_frame_received(struct min_context *self)
     }
 #else // TRANSPORT_PROTOCOL
     
-    if(self->currDataPos != 4){
-        //if this data needs to be forwarded we tell the handler by using an invalid min ID, and give it the pointer to the buffer
-        min_application_handler(0xff, self->forwardBuffer, self->currDataPos, self->port);
-        self->forwardBuffer = pvPortMalloc(MAX_PAYLOAD + 30);
+    //if the data position os at 4 then we received a non transport frame and stopped incrementing the rx_data_position field
+    if(self->rx_data_position != 4){
+        //if this data needs to be forwarded we call the handler with an ack frame (which would never occur with an actual one), and give it the pointer to the buffer
+        min_application_handler(0xff, self->rx_forward_buffer, self->rx_data_position, self->port);
+        self->rx_forward_buffer = pvPortMalloc(MAX_PAYLOAD + 30);
     }else{
         min_application_handler(id_control & (uint8_t)0x3fU, payload, self->rx_frame_length, self->port);
     }
 #endif // TRANSPORT_PROTOCOL
 }
 
-
-//Modified to allow for zero copying on frames that will be forwarded
-static void rx_byte(struct min_context *self, uint8_t * data){
-    
-    configASSERT(data > 0xa0000000 && data < 0xa000ffff);
-    
-    uint8_t byte = *data;
+static void rx_byte(struct min_context *self, uint8_t byte){
     
     // Regardless of state, three header bytes means "start of frame" and
     // should reset the frame buffer and be ready to receive frame data
@@ -470,11 +467,15 @@ static void rx_byte(struct min_context *self, uint8_t * data){
         self->rx_header_bytes_seen = 0;
         if(byte == HEADER_BYTE) {
             self->rx_frame_state = RECEIVING_ID_CONTROL;
-            self->currDataPos = 3;
-            self->forwardBuffer[0] = 0xaa;
-            self->forwardBuffer[1] = 0xaa;
-            self->forwardBuffer[2] = 0xaa;
-            self->rx_frame_id_control = 0x80;   //force the transport bit to one so all the data gets copied until we know if we even need to
+            
+            //reset the forward buffer position and values
+            self->rx_data_position = 3;
+            self->rx_forward_buffer[0] = 0xaa;
+            self->rx_forward_buffer[1] = 0xaa;
+            self->rx_forward_buffer[2] = 0xaa;
+            
+            //force the transport bit to one so all the data gets copied until we know if we even need to
+            self->rx_frame_id_control = 0x80;   
             return;
         }
         if(byte == STUFF_BYTE) {
@@ -495,12 +496,8 @@ static void rx_byte(struct min_context *self, uint8_t * data){
         self->rx_header_bytes_seen = 0;
     }
     
-    if(self->rx_frame_id_control & 0x80) self->forwardBuffer[self->currDataPos++] = byte;
-    
-    //char buff[16];
-    //sprintf(buff, "0x%02x\r\n", byte);
-    //UART_sendString(buff, 1);
-    
+    //if the frame is a transport frame we need to forward all of its data, so we write it into the rx_forward_buffer
+    if(self->rx_frame_id_control & 0x80) self->rx_forward_buffer[self->rx_data_position++] = byte;
     
     switch(self->rx_frame_state) {
         case SEARCHING_FOR_SOF:
@@ -510,22 +507,14 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             self->rx_frame_payload_bytes = 0;
             crc32_init_context(&self->rx_checksum);
             crc32_step(&self->rx_checksum, byte);
-            if(byte & 0x80U) {
+            if(byte & 0x80U){
                 //if a frame for the transport protocol arrives, it is for the pc, so we can't discard it, even if we don't have the transport active
                 self->rx_frame_state = WAIT_PACKET_LENGTH;
-                //UART_sendString("trans", 1);
-                //UART_print("found packet to forward!\r\n");
-                //we also have to set our current forwarding pointer to the start of this frame (id/control = 4 => frame start = *(id/control) - 3)
-                //self->forwardBuffer = (uint8_t*) (((uint32_t) data) - 3);
-                self->rx_frame_length = 4; //skip the four bytes of the sequence count
-            }
-            else {
+                //we now set the rx_frame_length to sizeof(sequenceNum) so we can skip it and read the lenght
+                self->rx_frame_length = 4;
+            }else{
                 self->rx_frame_seq = 0;
                 self->rx_frame_state = RECEIVING_LENGTH;
-                //UART_sendString("norm", 1);
-                //set the forward buffer pointer to zero, if it isn't already to signal that we need to deal with this packet
-                //freeing of this is not handled by us
-                self->forwardBuffer = 0;
             }
             break;
         
@@ -533,7 +522,7 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             self->rx_frame_length = byte;
             self->rx_control = byte;
             crc32_step(&self->rx_checksum, byte);
-            if(self->rx_frame_length > 0) {
+            if(self->rx_frame_length > 0){
                 // Can reduce the RAM size by compiling limits to frame sizes
                 if(self->rx_frame_length <= MAX_PAYLOAD) {
                     self->rx_frame_state = RECEIVING_PAYLOAD;
@@ -578,12 +567,13 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             }
             break;
             
+            
         //wait for the data length field (skip the seq)
         case WAIT_PACKET_LENGTH:
             if(!(--self->rx_frame_length)) self->rx_frame_state = RECEIVING_LENGTH_FORWARD; 
             break;
             
-        //get the data length
+        //get the data length for a frame we need to forward
         case RECEIVING_LENGTH_FORWARD:
             
             self->rx_frame_length = byte;
@@ -591,8 +581,6 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             
             //we need to skip until the end of the packet, which is at data-length + sizeof(crc). The rx_frame_length field is modified to hold a 16 bit integer
             self->rx_frame_length += 4; 
-            
-            //UART_print("found packet length: 0x%02x\r\n", self->rx_frame_length);
             
             self->rx_frame_state = WAIT_PACKET_END; 
             break;
@@ -606,12 +594,10 @@ static void rx_byte(struct min_context *self, uint8_t * data){
             if(byte == 0x55u) {
                 // Frame received OK, pass up data to handler
                 valid_frame_received(self);
-                //UART_sendString("valid", 1);
             }else{
-                //UART_print("found packet with invalid end : 0x%02x\r\n", byte);
+                COMMS_pushAlarm(ALARM_PRIO_WARN, "Min frame reception error", 0);
             }
-            // else discard
-            // Look for next frame */
+            
             self->rx_frame_state = SEARCHING_FOR_SOF;
             break;
         default:
@@ -627,7 +613,7 @@ void min_poll(struct min_context *self, uint8_t *buf, uint32_t buf_len){
     
     uint32_t i = 0;
     for(; i < buf_len; i++) {
-        rx_byte(self, &buf[i]);
+        rx_byte(self, buf[i]);
     }
 
 #ifdef TRANSPORT_PROTOCOL
@@ -682,7 +668,9 @@ void min_init_context(struct min_context *self, uint8_t port)
     self->rx_header_bytes_seen = 0;
     self->rx_frame_state = SEARCHING_FOR_SOF;
     self->port = port;
-    self->forwardBuffer = pvPortMalloc(MAX_PAYLOAD + 30);
+    
+    //initialize the rx_forward_buffer
+    self->rx_forward_buffer = pvPortMalloc(MAX_PAYLOAD + 30);
 
 #ifdef TRANSPORT_PROTOCOL
     // Counters for diagnosis purposes

@@ -11,7 +11,7 @@
 #include "LAN9250.h"
 #include "UART.h"
 #include "LED.h"
-#include "include/FiberComms.h"
+#include "FiberComms.h"
 
 const uint8_t MAC_ADDRESS[6] = {MAC_ADDR};
 const uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -462,8 +462,9 @@ unsigned ETH_CSRBusy(){
     return ETH_readReg(LAN9250_CSR_CMD) & 0x80000000;
 }
 
+//TODO add proper checks for valid reads and writes
 void ETH_writeMac(uint32_t addr, uint32_t value){
-    uint32_t timeout = 100;
+    uint32_t timeout = 2000;
     while(--timeout && ETH_CSRBusy());
     if(!timeout) return;
     
@@ -473,7 +474,7 @@ void ETH_writeMac(uint32_t addr, uint32_t value){
 }
 
 uint32_t ETH_readMac(uint32_t addr){
-    uint32_t timeout = 100;
+    uint32_t timeout = 2000;
     while(--timeout && ETH_CSRBusy());
     if(!timeout) return 0xffffffff;
     ETH_writeReg(LAN9250_CSR_CMD, 0x80000000 | 0x40000000 | addr);
@@ -491,7 +492,7 @@ void ETH_writePhy(uint16_t index, uint16_t data){
     uint32_t cmd;
     cmd = ((LAN9250_PHY_ADDRESS & 0x1F) << 11) | ((index & 0x1F)<< 6) | 2;
     
-    uint32_t timeout = 100;
+    uint32_t timeout = 2000;
     while(--timeout && ETH_MIIBusy());
     if(!timeout) return;
     
@@ -502,13 +503,13 @@ void ETH_writePhy(uint16_t index, uint16_t data){
 uint32_t ETH_readPhy(uint8_t index){
     uint32_t cmd = ((LAN9250_PHY_ADDRESS & 0x1F) << 11) | ((index & 0x1F) << 6);
     
-    uint32_t timeout = 100;
+    uint32_t timeout = 2000;
     while(--timeout && ETH_MIIBusy());
     if(!timeout) return 0xffffffff;
     
     ETH_writeMac(LAN9250_MAC_MII_ACC, cmd);
     
-    timeout = 100;
+    timeout = 2000;
     while(--timeout && ETH_MIIBusy());
     if(!timeout) return 0xffffffff;
     

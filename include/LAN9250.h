@@ -3,6 +3,7 @@
 #include "sys/attribs.h"
 
 #include "FreeRTOS.h"
+#include "semphr.h"
 #include "FreeRTOS_IP.h"
 
 #include "SPI.h"
@@ -132,6 +133,9 @@ extern const uint8_t IP_ADDRESS[4];
 extern const uint8_t NETMASK[4];
 extern const uint8_t DNSIP[4];
 extern const uint8_t GATEWAYIP[4];
+
+extern SemaphoreHandle_t ETH_commsSem;
+extern SemaphoreHandle_t ETH_commsWaitSem;
 
 typedef struct{
     unsigned reserved3          :1;

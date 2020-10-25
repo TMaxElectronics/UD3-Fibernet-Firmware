@@ -26,10 +26,7 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const cha
         TERM_addCommand(CMD_help, "help", "Displays this help message", 0);
         TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0);
         TERM_addCommand(CMD_top, "top", "shows performance stats", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdasd", "Is just a stupid command to test sorting", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdasdasd", "Is just a stupid command to test sorting", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdhfgasdasd", "Is just a stupid command to test sorting", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdhfgasd", "Is just a stupid command to test sorting", 0);
+        TERM_addCommand(CMD_getMacState, "getMacState", "reads MAC information", 0);
         
         // dump the now sorted list for debugging
         // TODO remove this

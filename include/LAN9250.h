@@ -7,6 +7,9 @@
 #include "FreeRTOS_IP.h"
 
 #include "SPI.h"
+#include "TTerm.h"
+
+#ifndef ETH_CS
 
 #define ETH_CS LATBbits.LATB9
 #define ETH_RST LATBbits.LATB7
@@ -215,3 +218,6 @@ void ETH_dumpTX();
 void ETH_dumpRX();
 unsigned ETH_waitForTXSpace(uint16_t length);
 static void ETH_run( void *pvParameters );
+uint8_t CMD_getMacState(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
+
+#endif

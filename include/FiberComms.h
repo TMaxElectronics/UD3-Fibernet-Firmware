@@ -1,6 +1,8 @@
 #include <xc.h>
 #include <stdint.h>
 
+#include "TTerm.h"
+
 #define FIND_MAX_RESPONSE_SIZE 512
 
 #define COMMS_DATA_PORT 1337
@@ -42,3 +44,7 @@ uint16_t min_checkUDPFrame(uint8_t * data);
 void COMMS_ethEventHook(EthEvent evt);
 void COMMS_pushAlarm(uint8_t level, char* message, int32_t value);
 void COMMS_dumpPacket(uint8_t * data, uint16_t length);
+TermCommandInputHandler CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c);
+void CMD_ioTop_task(TERMINAL_HANDLE * handle);
+uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
+void COMMS_statsHandler(void * params);

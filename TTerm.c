@@ -11,6 +11,7 @@
 
 TermCommandDescriptor ** TERM_cmdList;
 uint8_t TERM_cmdCount = 0;
+unsigned TERM_baseCMDsAdded = 0;
 
 TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const char * usr){
     TERMINAL_HANDLE * ret = pvPortMalloc(sizeof(TERMINAL_HANDLE));
@@ -22,30 +23,18 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const cha
     ret->currEscSeqPos = 0xff;
     
     //if this is the first console we initialize we need to add the static commands
-    if(TERM_cmdCount == 0){
+    if(TERM_baseCMDsAdded == 0){
+        TERM_baseCMDsAdded = 1;
         TERM_addCommand(CMD_help, "help", "Displays this help message", 0);
         TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0);
         TERM_addCommand(CMD_top, "top", "shows performance stats", 0);
-        TERM_addCommand(CMD_getMacState, "getMacState", "reads MAC information", 0);
-        
-        // dump the now sorted list for debugging
-        // TODO remove this
-        uint8_t currPos = 0;
-        for(;currPos < TERM_cmdCount; currPos++){
-            (*printFunction)("pos %d = %s\r\n", currPos, TERM_cmdList[currPos]->command);
-        }
     }
     
 #ifdef TERM_ENABLE_STARTUP_TEXT
     //TODO VT100 reset at boot
     //TODO add min start frame to signal that debugging started and print this again
     //TODO colors in the boot message
-    TERM_sendVT100Code(ret, _VT100_RESET, 0); TERM_sendVT100Code(ret, _VT100_CURSOR_POS1, 0);
-    (*ret->print)("\r\n\n\n%s\r\n", TERM_startupText1);
-    (*ret->print)("%s\r\n", TERM_startupText2);
-    (*ret->print)("%s\r\n", TERM_startupText3);
-    (*ret->print)("\r\n%s%sDISCLAIMER%s: This is only a POC. All commands will call the test handler at the moment\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
-    (*ret->print)("\r\n\r\n%s@%s>", ret->currUserName, TERM_DEVICE_NAME);
+    TERM_printBootMessage(ret);
 #endif
     return ret;
 }
@@ -166,6 +155,22 @@ uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * ha
 
 unsigned isACIILetter(char c){
     return (c > 64 && c < 91) || (c > 96 && c < 122);
+}
+
+void TERM_printBootMessage(TERMINAL_HANDLE * handle){
+    TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
+    (*handle->print)("\r\n\n\n%s\r\n", TERM_startupText1);
+    (*handle->print)("%s\r\n", TERM_startupText2);
+    (*handle->print)("%s\r\n", TERM_startupText3);
+    (*handle->print)("\r\n%s%sWARNING%s: You are now in the FiberNet console\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
+    (*handle->print)("\r\n\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+    
+    if(handle->currBufferLength == 0){
+        (*handle->print)("%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+    }else{
+        (*handle->print)("%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
+        if(handle->inputBuffer[handle->currBufferPosition] != 0) TERM_sendVT100Code(handle, _VT100_CURSOR_BACK_BY, handle->currBufferLength - handle->currBufferPosition);
+    }
 }
 
 uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
@@ -384,12 +389,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             break;
             
         case _VT100_RESET:
-            TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-            (*handle->print)("\r\n\n\n%s\r\n", TERM_startupText1);
-            (*handle->print)("%s\r\n", TERM_startupText2);
-            (*handle->print)("%s\r\n", TERM_startupText3);
-            (*handle->print)("\r\n%s%sDISCLAIMER%s: This is only a POC. All commands will call the test handler at the moment\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
-            (*handle->print)("\r\n\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+            TERM_printBootMessage(handle);
             break;
            
         case 32 ... 126:

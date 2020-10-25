@@ -15,8 +15,8 @@
 #include "LAN9250.h"
 #include "UART.h"
 #include "min_id.h"
-#include "include/UD3_Wrapper.h"
-#include "include/TTerm.h"
+#include "UD3_Wrapper.h"
+#include "TTerm.h"
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;
@@ -25,6 +25,27 @@ struct freertos_sockaddr lastClient;
 uint32_t clientLength = sizeof(lastClient);
 Socket_t dataSocket;
 TERMINAL_HANDLE * term;
+
+struct{
+    uint32_t findPacketsTotal;
+    
+    uint32_t rxPacketsTotal;
+    uint32_t rxPacketsLast;
+    uint32_t rxBytesLast;
+    uint32_t rxDataRateLast;
+    uint32_t rxDataRateAVG;
+    uint32_t rxPacketRateLast;
+    uint32_t rxPacketRateAVG;
+    
+    uint32_t txPacketsTotal;
+    uint32_t txPacketsLast;
+    uint32_t txBytesLast;
+    uint32_t txDataRateLast;
+    uint32_t txDataRateAVG;
+    uint32_t txPacketRateLast;
+    uint32_t txPacketRateAVG;
+} ConnectionStats;
+
 
 void COMMS_init(){
     //initialize min contexts
@@ -36,8 +57,34 @@ void COMMS_init(){
     //start the listener task
     xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
+    
+    TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
     
     term = TERM_createNewHandle(UART_print, "root");
+}
+
+void COMMS_statsHandler(void * params){
+    
+    while(1){
+        ConnectionStats.rxDataRateLast = ConnectionStats.rxBytesLast * 2;
+        ConnectionStats.rxBytesLast = 0;
+        ConnectionStats.rxDataRateAVG = ((ConnectionStats.rxDataRateAVG * 75) + (ConnectionStats.rxDataRateLast * 25)) / 100;
+        
+        ConnectionStats.txDataRateLast = ConnectionStats.txBytesLast * 2;
+        ConnectionStats.txBytesLast = 0;
+        ConnectionStats.txDataRateAVG = ((ConnectionStats.txDataRateAVG * 75) + (ConnectionStats.txDataRateLast * 25)) / 100;
+        
+        ConnectionStats.rxPacketRateLast = (ConnectionStats.rxPacketsTotal - ConnectionStats.rxPacketsLast) * 2;
+        ConnectionStats.rxPacketsLast = ConnectionStats.rxPacketsTotal;
+        ConnectionStats.rxPacketRateAVG = ((ConnectionStats.rxPacketRateAVG * 75) + (ConnectionStats.rxPacketRateLast * 25)) / 100;
+        
+        ConnectionStats.txPacketRateLast = (ConnectionStats.txPacketsTotal - ConnectionStats.txPacketsLast) * 2;
+        ConnectionStats.txPacketsLast = ConnectionStats.txPacketsTotal;
+        ConnectionStats.txPacketRateAVG = ((ConnectionStats.txPacketRateAVG * 75) + (ConnectionStats.txPacketRateLast * 25)) / 100;
+        
+        vTaskDelay(500);
+    }
 }
 
 void COMMS_udpDataHandler(void * params){
@@ -61,6 +108,8 @@ void COMMS_udpDataHandler(void * params){
             
             //do a quick check on the received data. If it is a valid min frame and has the transport bit set we can immediately forward it without checking anything
             uint16_t length = min_checkUDPFrame(udpData);
+            ConnectionStats.rxPacketsTotal++;
+            ConnectionStats.rxBytesLast += receivedDataLength;
             
             if(length <= MAX_PAYLOAD){
                 UART_queBuffer(udpData, receivedDataLength, 1);
@@ -99,6 +148,8 @@ void COMMS_udpDiscoverHandler(void * params){
         //check if we have received data or are here because of a timeout
         if(receivedDataLength == sizeof(FIND_queryString)){
             if(memcmp(udpData, FIND_queryString, sizeof(FIND_queryString)) == 0){
+                ConnectionStats.findPacketsTotal ++;
+                
                 uint8_t * response = pvPortMalloc(FIND_MAX_RESPONSE_SIZE);
                 uint8_t * IPAdrr = pvPortMalloc(16);
                 uint8_t * MACAdrr = FreeRTOS_GetMACAddress();
@@ -138,6 +189,8 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
             UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
         }else if(port == (uint8_t) COMMS_UART){
+            ConnectionStats.txPacketsTotal++;
+            ConnectionStats.txBytesLast += len_payload;
             //we got a valid transport frame from the UD3, so we send it on to the PC
             COMMS_sendDataToLastClient(min_payload, len_payload);
             LED_minPacketReceivedHook();
@@ -263,4 +316,54 @@ void COMMS_dumpPacket(uint8_t * data, uint16_t length){
         UART_print(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
     }
     UART_print("\r\n---------\r\n");
+}
+
+uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    uint8_t returnCode = TERM_CMD_EXIT_SUCCESS;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            (*handle->print)("shows packet throughput\r\n");
+            return TERM_CMD_EXIT_SUCCESS;
+        }
+    }
+    
+    TermProgram * prog = pvPortMalloc(sizeof(TermProgram));
+    prog->inputHandler = CMD_ioTop_handleInput;
+    TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
+    returnCode = xTaskCreate(CMD_ioTop_task, "top", configMINIMAL_STACK_SIZE, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
+    if(returnCode == TERM_CMD_EXIT_PROC_STARTED) TERM_attachProgramm(handle, prog);
+    return returnCode;
+}
+
+void CMD_ioTop_task(TERMINAL_HANDLE * handle){
+    while(1){
+        TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
+        (*handle->print)("%sioTop - %d\r\nAll datarates are in bytes/s an packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());
+        
+        (*handle->print)("%s%s%s", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
+        (*handle->print)("Connection \r\x1b[%dCDatarate last \r\x1b[%dCDatarate avg \r\x1b[%dCPacketrate last \r\x1b[%dCPacketrate avg \r\x1b[%dCTotal packet count\r\n", 11, 30, 49, 68, 87);
+        (*handle->print)("%s", UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
+        
+        (*handle->print)("%sUDP (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.rxDataRateLast); 
+        (*handle->print)("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.rxDataRateAVG, 49, ConnectionStats.rxPacketRateLast, 68, ConnectionStats.rxPacketRateAVG, 87, ConnectionStats.rxPacketsTotal);
+        
+        (*handle->print)("%sUART (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.txDataRateLast); 
+        (*handle->print)("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.txDataRateAVG, 49, ConnectionStats.txPacketRateLast, 68, ConnectionStats.txPacketRateAVG, 87, ConnectionStats.txPacketsTotal);
+        
+        vTaskDelay(500);
+    }
+}
+
+TermCommandInputHandler CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c){
+    switch(c){
+        case 'q':
+        case 0x03:
+            vTaskDelete(handle->currProgram->task);
+            vPortFree(handle->currProgram);
+            TERM_removeProgramm(handle);
+            return TERM_CMD_EXIT_SUCCESS;
+        default:
+            return TERM_CMD_CONTINUE;
+    }
 }

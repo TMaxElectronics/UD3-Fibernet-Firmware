@@ -1,3 +1,8 @@
+#ifndef _VT100_CURSOR_POS1
+
+#include "FreeRTOS.h"
+#include "task.h"
+
 #define _VT100_CURSOR_POS1 3
 #define _VT100_CURSOR_END 4
 #define _VT100_FOREGROUND_COLOR 5
@@ -113,6 +118,7 @@ unsigned isACIILetter(char c);
 uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle);
 char * strnchr(char * str, char c, uint32_t length);
 void strsft(char * src, int32_t startByte, int32_t offset);
+void TERM_printBootMessage(TERMINAL_HANDLE * handle);
 uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, TermCommandDescriptor ** buff);
 void TERM_freeCommandList(TermCommandDescriptor ** cl, uint16_t length);
 uint8_t TERM_buildCMDList();
@@ -128,3 +134,5 @@ void TERM_checkForCopy(TERMINAL_HANDLE * handle, COPYCHECK_MODE mode);
 void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...);
 void TERM_removeProgramm(TERMINAL_HANDLE * handle);
 void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog);
+
+#endif

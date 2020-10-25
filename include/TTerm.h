@@ -113,7 +113,6 @@ char toLowerCase(char c);
 void TERM_setCursorPos(TERMINAL_HANDLE * handle, uint16_t x, uint16_t y);
 void TERM_sendVT100Code(TERMINAL_HANDLE * handle, uint16_t cmd, uint8_t var);
 uint16_t TERM_countArgs(const char * data, uint16_t dataLength);
-uint8_t TERM_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 uint8_t TERM_interpretCMD(char * data, uint16_t dataLength, TERMINAL_HANDLE * handle);
 uint8_t TERM_seperateArgs(char * data, uint16_t dataLength, char ** buff);
 void TERM_checkForCopy(TERMINAL_HANDLE * handle, COPYCHECK_MODE mode);

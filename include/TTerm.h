@@ -97,6 +97,9 @@ typedef enum{
     TERM_CHECK_COMP_AND_HIST = 0b11, TERM_CHECK_COMP = 0b01, TERM_CHECK_HIST = 0b10, 
 } COPYCHECK_MODE;
 
+extern TermCommandDescriptor ** TERM_cmdList;
+extern uint8_t TERM_cmdCount;
+
 TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const char * usr);
 void TERM_destroyHandle(TERMINAL_HANDLE * handle);
 uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * handle);

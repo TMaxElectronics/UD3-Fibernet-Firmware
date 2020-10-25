@@ -82,9 +82,17 @@ uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * ha
                 if(data[currPos] == '['){
                     handle->escSeqBuff[handle->currEscSeqPos++] = data[currPos];
                 }else{
-                    handle->currEscSeqPos = 0xff;
-                    TERM_handleInput(0x1b, handle);
-                    TERM_handleInput(data[currPos], handle);
+                    switch(data[currPos]){
+                        case 'c':
+                            handle->currEscSeqPos = 0xff;
+                            TERM_handleInput(_VT100_RESET, handle);
+                            break;
+                        default:
+                            handle->currEscSeqPos = 0xff;
+                            TERM_handleInput(0x1b, handle);
+                            TERM_handleInput(data[currPos], handle);
+                            break;
+                    }
                 }
             }else{
                 if(isACIILetter(data[currPos])){
@@ -353,7 +361,16 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             }
             break;
             
-        default:
+        case _VT100_RESET:
+            TERM_sendVT100Code(handle, _VT100_RESET, 0);
+            (*handle->print)("\r\n\n\n%s\r\n", TERM_startupText1);
+            (*handle->print)("%s\r\n", TERM_startupText2);
+            (*handle->print)("%s\r\n", TERM_startupText3);
+            (*handle->print)("\r\n%s%sDISCLAIMER%s: This is only a POC. All commands will call the test handler at the moment\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
+            (*handle->print)("\r\n\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+            break;
+           
+        case 32 ... 126:
             TERM_checkForCopy(handle, TERM_CHECK_COMP_AND_HIST);
             
             //TODO check for string length overflow
@@ -374,6 +391,10 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
                 handle->currBufferLength ++;
                 (*handle->print)("%c", c);
             }
+            break;
+            
+        default:
+            TERM_printDebug("unknown code received: 0x%02x\r\n", c);
             break;
     }
 }

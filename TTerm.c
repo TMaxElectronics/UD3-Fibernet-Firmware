@@ -67,8 +67,13 @@ void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...){
     uint32_t length = vsprintf(buff, format, arg);
     
     (*handle->print)("\r\n%s", buff);
-    (*handle->print)("%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
-    if(handle->inputBuffer[handle->currBufferPosition] != 0) TERM_sendVT100Code(handle, _VT100_CURSOR_BACK_BY, handle->currBufferLength - handle->currBufferPosition);
+    
+    if(handle->currBufferLength == 0){
+        (*handle->print)("%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+    }else{
+        (*handle->print)("%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
+        if(handle->inputBuffer[handle->currBufferPosition] != 0) TERM_sendVT100Code(handle, _VT100_CURSOR_BACK_BY, handle->currBufferLength - handle->currBufferPosition);
+    }
     
     vPortFree(buff);
     
@@ -245,9 +250,10 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             (*handle->print)("^C");
             break;
             
-        case 0x08:      //backspace
+        case 0x08:      //backspace (used by xTerm)
+        case 0x7f:      //DEL       (used by hTerm)
             TERM_checkForCopy(handle, TERM_CHECK_COMP_AND_HIST);
-            if(handle->currBufferLength == 0) break;
+            if(handle->currBufferPosition == 0) break;
             
             if(handle->inputBuffer[handle->currBufferPosition] != 0){      //check if we are at the end of our command
                 //we are somewhere in the middle -> move back existing characters
@@ -413,7 +419,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             break;
             
         default:
-            //TERM_printDebug("unknown code received: 0x%02x\r\n", c);
+            TERM_printDebug(handle, "unknown code received: 0x%02x\r\n", c);
             break;
     }
 }
@@ -453,6 +459,10 @@ void strsft(char * src, int32_t startByte, int32_t offset){
         uint32_t currPos = strlen(src) + offset;
         src[currPos--] = 0;
         for(; currPos >= startByte; currPos--){
+            if(currPos == 0){
+                src[currPos] = ' ';
+                break;
+            }
             src[currPos] = src[currPos - offset];
         }
         return;

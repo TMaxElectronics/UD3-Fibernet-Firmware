@@ -23,13 +23,13 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const cha
     
     //if this is the first console we initialize we need to add the static commands
     if(TERM_cmdCount == 0){
-        TERM_addCommand(TERM_testCommandHandler, "help", 0);
-        TERM_addCommand(TERM_testCommandHandler, "cls", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcd", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdasd", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdasdasd", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdhfgasdasd", 0);
-        TERM_addCommand(TERM_testCommandHandler, "abcdhfgasd", 0);
+        TERM_addCommand(CMD_help, "help", "Displays this help message", 0);
+        TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0);
+        TERM_addCommand(CMD_top, "top", "shows performance stats", 0);
+        TERM_addCommand(TERM_testCommandHandler, "abcdasd", "Is just a stupid command to test sorting", 0);
+        TERM_addCommand(TERM_testCommandHandler, "abcdasdasd", "Is just a stupid command to test sorting", 0);
+        TERM_addCommand(TERM_testCommandHandler, "abcdhfgasdasd", "Is just a stupid command to test sorting", 0);
+        TERM_addCommand(TERM_testCommandHandler, "abcdhfgasd", "Is just a stupid command to test sorting", 0);
         
         // dump the now sorted list for debugging
         // TODO remove this
@@ -43,6 +43,7 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const cha
     //TODO VT100 reset at boot
     //TODO add min start frame to signal that debugging started and print this again
     //TODO colors in the boot message
+    TERM_sendVT100Code(ret, _VT100_RESET, 0); TERM_sendVT100Code(ret, _VT100_CURSOR_POS1, 0);
     (*ret->print)("\r\n\n\n%s\r\n", TERM_startupText1);
     (*ret->print)("%s\r\n", TERM_startupText2);
     (*ret->print)("%s\r\n", TERM_startupText3);
@@ -77,6 +78,7 @@ void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...){
 uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * handle){
     uint16_t currPos = 0;
     for(;currPos < length; currPos++){
+        //(*handle->print)("checking 0x%02x\r\n", data[currPos]);
         if(handle->currEscSeqPos != 0xff){
             if(handle->currEscSeqPos == 0){
                 if(data[currPos] == '['){
@@ -86,6 +88,9 @@ uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * ha
                         case 'c':
                             handle->currEscSeqPos = 0xff;
                             TERM_handleInput(_VT100_RESET, handle);
+                            break;
+                        case 0x1b:
+                            handle->currEscSeqPos = 0;
                             break;
                         default:
                             handle->currEscSeqPos = 0xff;
@@ -162,14 +167,26 @@ unsigned isACIILetter(char c){
 }
 
 uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
+    //(*handle->print)("received 0x%04x\r\n", c);
     if(handle->currProgram != NULL){
         //call the handler of the current override
-        (*handle->currProgram->inputHandler)(c);
+        uint8_t currRetCode = (*handle->currProgram->inputHandler)(handle, c);
+        
+        switch(currRetCode){
+            case TERM_CMD_EXIT_SUCCESS:
+                (*handle->print)("\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+                break;
+
+            case TERM_CMD_EXIT_ERROR:
+                (*handle->print)("\r\nTask returned with error code %d\r\n%s@%s>", currRetCode, handle->currUserName, TERM_DEVICE_NAME);
+                break;
+
+            case TERM_CMD_EXIT_NOT_FOUND:
+                (*handle->print)("\"%s\" is not a valid command. Type \"help\" to see a list of available ones\r\n%s@%s>", handle->inputBuffer, handle->currUserName, TERM_DEVICE_NAME);
+                break;
+        }
         
         if(c == 0x03){
-            //free the override pointer
-            vPortFree(handle->currProgram);
-            handle->currProgram = NULL;
             (*handle->print)("^C");
         }
         return 1;
@@ -208,6 +225,9 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
                         (*handle->print)("\"%s\" is not a valid command. Type \"help\" to see a list of available ones\r\n%s@%s>", handle->inputBuffer, handle->currUserName, TERM_DEVICE_NAME);
                         break;
 
+                    case TERM_CMD_EXIT_PROC_STARTED:
+                        break;
+
                     default:
                         (*handle->print)("\r\nTask returned with an unknown return code (%d)\r\n%s@%s>", retCode, handle->currUserName, TERM_DEVICE_NAME);
                         break;
@@ -227,6 +247,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             
         case 0x08:      //backspace
             TERM_checkForCopy(handle, TERM_CHECK_COMP_AND_HIST);
+            if(handle->currBufferLength == 0) break;
             
             if(handle->inputBuffer[handle->currBufferPosition] != 0){      //check if we are at the end of our command
                 //we are somewhere in the middle -> move back existing characters
@@ -238,12 +259,10 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
                 handle->currBufferPosition --;
                 handle->currBufferLength --;
             }else{
-                if(handle->currBufferPosition > 0){
-                    //we are somewhere at the end -> just delete the current one
-                    handle->inputBuffer[--handle->currBufferPosition] = 0;
-                    (*handle->print)("\x08 \x08");           
-                    handle->currBufferLength --;
-                }
+                //we are somewhere at the end -> just delete the current one
+                handle->inputBuffer[--handle->currBufferPosition] = 0;
+                (*handle->print)("\x08 \x08");           
+                handle->currBufferLength --;
             }
             break;
             
@@ -362,7 +381,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             break;
             
         case _VT100_RESET:
-            TERM_sendVT100Code(handle, _VT100_RESET, 0);
+            TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
             (*handle->print)("\r\n\n\n%s\r\n", TERM_startupText1);
             (*handle->print)("%s\r\n", TERM_startupText2);
             (*handle->print)("%s\r\n", TERM_startupText3);
@@ -394,7 +413,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             break;
             
         default:
-            TERM_printDebug("unknown code received: 0x%02x\r\n", c);
+            //TERM_printDebug("unknown code received: 0x%02x\r\n", c);
             break;
     }
 }
@@ -612,13 +631,14 @@ uint8_t TERM_buildCMDList(){
     //UART_print("Sorted the command list in %d ms\r\n", xTaskGetTickCount() - startTime);
 }
 
-uint8_t TERM_addCommand(TermCommandFunction function, const char * command, uint8_t minPermissionLevel){
+uint8_t TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel){
     if(TERM_cmdCount == 0xff) return 0;
     
     TermCommandDescriptor * newCMD = pvPortMalloc(sizeof(TermCommandDescriptor));
     TermCommandDescriptor ** newCMDList = pvPortMalloc((TERM_cmdCount + 1) * sizeof(TermCommandDescriptor *));
     
     newCMD->command = command;
+    newCMD->commandDescription = description;
     //UART_print("added %s", command);
     newCMD->commandLength = strlen(command);
     newCMD->function = function;
@@ -686,7 +706,7 @@ void TERM_setCursorPos(TERMINAL_HANDLE * handle, uint16_t x, uint16_t y){
 void TERM_sendVT100Code(TERMINAL_HANDLE * handle, uint16_t cmd, uint8_t var){
     switch(cmd){
         case _VT100_RESET:
-            (*handle->print)("\x1bC");
+            (*handle->print)("%cc", 0x1b);
             break;
         case _VT100_CURSOR_BACK:
             (*handle->print)("\x1b[D");
@@ -762,6 +782,14 @@ void TERM_sendVT100Code(TERMINAL_HANDLE * handle, uint16_t cmd, uint8_t var){
             break;
             
     }
+}
+
+void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog){
+    handle->currProgram = prog;
+}
+
+void TERM_removeProgramm(TERMINAL_HANDLE * handle){
+    handle->currProgram = 0;
 }
 
 

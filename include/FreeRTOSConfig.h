@@ -110,7 +110,7 @@ be called.  Only API functions that end in ...FromISR() can be used within
 interrupts. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY	0x04
     
-#define portGET_RUN_TIME_COUNTER_VALUE()	_CP0_GET_COUNT()
+#define portGET_RUN_TIME_COUNTER_VALUE()	((TMR3 << 16) | TMR2)
 #define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()	
 
 

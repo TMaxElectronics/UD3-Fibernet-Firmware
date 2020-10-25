@@ -1,4 +1,3 @@
-#define _VT100_RESET 0
 #define _VT100_CURSOR_POS1 3
 #define _VT100_CURSOR_END 4
 #define _VT100_FOREGROUND_COLOR 5
@@ -22,14 +21,15 @@
 #define _VT100_CURSOR_SAVE_POSITION 23
 #define _VT100_CURSOR_RESTORE_POSITION 24
 
-//VT100 cmds given to us by the terminal software
-#define _VT100_KEY_END              0x1000
-#define _VT100_KEY_POS1             0x1001
-#define _VT100_CURSOR_FORWARD       0x1002
-#define _VT100_CURSOR_BACK          0x1003
-#define _VT100_CURSOR_UP            0x1004
-#define _VT100_CURSOR_DOWN          0x1005
-#define _VT100_BACKWARDS_TAB        0x1006
+//VT100 cmds given to us by the terminal software (they need to be > 8 bits so the handler can tell them apart from normal characters)
+#define _VT100_RESET                0x1000
+#define _VT100_KEY_END              0x1001
+#define _VT100_KEY_POS1             0x1002
+#define _VT100_CURSOR_FORWARD       0x1003
+#define _VT100_CURSOR_BACK          0x1004
+#define _VT100_CURSOR_UP            0x1005
+#define _VT100_CURSOR_DOWN          0x1006
+#define _VT100_BACKWARDS_TAB        0x1007
 
 #define _VT100_BLACK 0
 #define _VT100_RED 1
@@ -43,14 +43,19 @@
 #define _VT100_POS_IGNORE 0xffff
 
 #define TERM_DEVICE_NAME "UD3 Fibernet"
+#define TERM_VERSION_STRING "V1.0"
+
 #define TERM_HISTORYSIZE 16
 #define TERM_INPUTBUFFER_SIZE 128
+
                         
 #define TERM_ARGS_ERROR_STRING_LITERAL 0xffff
 
 #define TERM_CMD_EXIT_ERROR 0
 #define TERM_CMD_EXIT_NOT_FOUND 1
 #define TERM_CMD_EXIT_SUCCESS 0xff
+#define TERM_CMD_EXIT_PROC_STARTED 0xfe
+#define TERM_CMD_CONTINUE 0x80
 
 #define TERM_ENABLE_STARTUP_TEXT
 
@@ -61,7 +66,7 @@ const extern char TERM_startupText3[];
 #endif
 
 typedef uint8_t (* TermCommandFunction)(struct TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
-typedef void (* TermCommandInputHandler)(uint8_t c);
+typedef uint8_t (* TermCommandInputHandler)(struct TERMINAL_HANDLE * handle, uint16_t c);
 typedef void (* TermPrintHandler)(char * format, ...);
 
 typedef struct{
@@ -72,6 +77,7 @@ typedef struct{
 typedef struct{
     TermCommandFunction function;
     const char * command;
+    const char * commandDescription;
     uint8_t commandLength;
     uint8_t minPermissionLevel;
 } TermCommandDescriptor;
@@ -110,7 +116,7 @@ void strsft(char * src, int32_t startByte, int32_t offset);
 uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, TermCommandDescriptor ** buff);
 void TERM_freeCommandList(TermCommandDescriptor ** cl, uint16_t length);
 uint8_t TERM_buildCMDList();
-uint8_t TERM_addCommand(TermCommandFunction function, const char * command, uint8_t minPermissionLevel);
+uint8_t TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel);
 unsigned TERM_isSorted(TermCommandDescriptor * a, TermCommandDescriptor * b);
 char toLowerCase(char c);
 void TERM_setCursorPos(TERMINAL_HANDLE * handle, uint16_t x, uint16_t y);
@@ -120,3 +126,5 @@ uint8_t TERM_interpretCMD(char * data, uint16_t dataLength, TERMINAL_HANDLE * ha
 uint8_t TERM_seperateArgs(char * data, uint16_t dataLength, char ** buff);
 void TERM_checkForCopy(TERMINAL_HANDLE * handle, COPYCHECK_MODE mode);
 void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...);
+void TERM_removeProgramm(TERMINAL_HANDLE * handle);
+void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog);

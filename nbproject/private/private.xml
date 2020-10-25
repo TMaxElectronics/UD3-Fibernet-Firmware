@@ -12,9 +12,13 @@
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/LED.c</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/UART.h</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/SPI.c</file>
+            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/TTerm.c</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/LAN9250.h</file>
+            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/TTerm_cmd.c</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/min_id.h</file>
+            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/TTerm.h</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/FiberComms.h</file>
+            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/TTerm_cmd.h</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FiberComms.c</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/LED.h</file>
         </group>

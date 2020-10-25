@@ -49,7 +49,11 @@ void ETH_init(){
             //we didn't get the ready flag. Try again after a little while
             ETH_RST = 0;
             COMMS_ethEventHook(ETH_INIT_FAIL);
-            vTaskDelay(25);
+            vTaskDelay(1000);
+            ETH_RST = 1;
+            vTaskDelay(1000);
+            ETH_RST = 0;
+            vTaskDelay(1000);
             continue;
         }
         break;

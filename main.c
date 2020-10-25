@@ -107,8 +107,7 @@ extern void main_full( void );
 /*
  * Create the demo tasks then start the scheduler.
  */
-int main( void )
-{
+int main( void ){
 	/* Prepare the hardware to run this demo. */
 	prvSetupHardware();
     

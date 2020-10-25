@@ -70,6 +70,8 @@ static uint32_t now;
 static void send_reset(struct min_context *self);
 #endif
 
+static void rx_byte(struct min_context *self, uint8_t byte);
+
 static void crc32_init_context(struct crc32_context *context)
 {
     context->crc = 0xffffffffU;
@@ -450,7 +452,7 @@ static void valid_frame_received(struct min_context *self)
         min_application_handler(0xff, self->rx_forward_buffer, self->rx_data_position, self->port);
         self->rx_forward_buffer = pvPortMalloc(MAX_PAYLOAD + 30);
     }else{
-        min_application_handler(id_control & (uint8_t)0x3fU, payload, self->rx_frame_length, self->port);
+        min_application_handler(id_control & (uint8_t)0x3fU, payload, self->rx_control, self->port);
     }
 #endif // TRANSPORT_PROTOCOL
 }

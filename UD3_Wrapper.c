@@ -4,8 +4,12 @@
 #include "UD3_Wrapper.h"
 #include "FreeRTOS/Core/include/portable.h"
 
-char * UD3_getName(){
-    char * ret = pvPortMalloc(strlen("An unnamed UD3") + 1);
-    strcpy(ret, "An unnamed UD3");
-    return ret;
+const char * UD3_getName(){
+    //TODO pull in the string from the UD3
+    return "An unnamed UD3";
+}
+
+const char * UD3_getProtocolVersion(){
+    //TODO pull in the string from the UD3
+    return "2.0";
 }

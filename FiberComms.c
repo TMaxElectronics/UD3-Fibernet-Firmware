@@ -16,6 +16,7 @@
 #include "UART.h"
 #include "min_id.h"
 #include "include/UD3_Wrapper.h"
+#include "include/TTerm.h"
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;
@@ -23,6 +24,7 @@ struct min_context * COMMS_UART;
 struct freertos_sockaddr lastClient;
 uint32_t clientLength = sizeof(lastClient);
 Socket_t dataSocket;
+TERMINAL_HANDLE * term;
 
 void COMMS_init(){
     //initialize min contexts
@@ -34,6 +36,8 @@ void COMMS_init(){
     //start the listener task
     xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
+    
+    term = TERM_createNewHandle(UART_print, "root");
 }
 
 void COMMS_udpDataHandler(void * params){
@@ -140,9 +144,10 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
             vPortFree(min_payload); //the data is copied by the send function so we can free it here
         }
     }else{
+        
         switch(min_id){
             case MIN_ID_DEBUG:
-                
+                TERM_processBuffer(min_payload, len_payload, term);
                 break;
             case MIN_ID_EVENT:
                 
@@ -204,9 +209,32 @@ void min_tx_finished(uint8_t port){
 }
 
 void COMMS_ethEventHook(EthEvent evt){
+    char cBuffer[16];
+    uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
+    
     switch(evt){
         case ETH_INIT_FAIL:
-            UART_print("LAN9250 initialization failed\r\n");
+            TERM_printDebug(term, "LAN9250 initialization failed\r\n");
+            break;
+            
+        case ETH_LINK_UP:
+            TERM_printDebug(term, "link up\r\n");
+            break;
+            
+        case ETH_LINK_DOWN:
+            TERM_printDebug(term, "link down\r\n");
+            break;
+            
+        case ETH_DHCP_SUCCESS:
+            FreeRTOS_GetAddressConfiguration( &ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress );
+            FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
+            TERM_printDebug(term, "DHCP Successful (IP=%s)\r\n", cBuffer);
+            break;
+            
+        case ETH_DHCP_FAIL:
+            FreeRTOS_GetAddressConfiguration( &ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress );
+            FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
+            TERM_printDebug(term, "DHCP Failed - reverted to defaults (IP=%s)\r\n", cBuffer);
             break;
             
         default:

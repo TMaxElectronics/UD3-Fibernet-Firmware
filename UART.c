@@ -20,6 +20,7 @@
 #include "include/LAN9250.h"
 #include "include/min.h"
 #include "min_id.h"
+#include "include/TTerm.h"
 
 // Special protocol bytes
 enum {
@@ -302,6 +303,7 @@ inline void UART_clearFERR(){
 
 //returns a static pointer to the requested VT100 code, so it can be used in printf without needing any free() call afterwards
 const char * UART_getVT100Code(uint16_t cmd, uint8_t var){
+    //INFO this is deprecated since all of the VT100 functions are handled by the terminal now
     switch(cmd){
         case _VT100_RESET:
             return "\x1bC";

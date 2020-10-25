@@ -1,4 +1,4 @@
 #include <xc.h>
 #include <stdint.h>
 
-char * UD3_getName();
+const char * UD3_getName();

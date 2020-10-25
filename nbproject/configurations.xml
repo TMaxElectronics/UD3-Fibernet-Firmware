@@ -58,6 +58,8 @@
       <itemPath>min_id.h</itemPath>
       <itemPath>include/System.h</itemPath>
       <itemPath>include/UD3_Wrapper.h</itemPath>
+      <itemPath>include/TTerm.h</itemPath>
+      <itemPath>TTerm_cmd.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -102,6 +104,8 @@
       <itemPath>min.c</itemPath>
       <itemPath>System.c</itemPath>
       <itemPath>UD3_Wrapper.c</itemPath>
+      <itemPath>TTerm.c</itemPath>
+      <itemPath>TTerm_cmd.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -129,8 +133,6 @@
       <packs>
         <pack name="PIC32MX_DFP" vendor="Microchip" version="1.1.215"/>
       </packs>
-      <ScriptingSettings>
-      </ScriptingSettings>
       <compileType>
         <linkerTool>
           <linkerLibItems>

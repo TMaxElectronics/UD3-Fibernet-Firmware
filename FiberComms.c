@@ -60,6 +60,7 @@ void COMMS_init(){
     xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
     
     TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
+    TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0);
     
     term = TERM_createNewHandle(UART_print, "root");
 }
@@ -154,7 +155,6 @@ void COMMS_udpDiscoverHandler(void * params){
                 uint8_t * IPAdrr = pvPortMalloc(16);
                 uint8_t * MACAdrr = FreeRTOS_GetMACAddress();
                 uint8_t * UD3Name = UD3_getName();
-                
                 uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
                 FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
                 FreeRTOS_inet_ntoa(ulIPAddress, IPAdrr);
@@ -261,16 +261,20 @@ void min_tx_finished(uint8_t port){
     }
 }
 
-void COMMS_ethEventHook(EthEvent evt){
+void COMMS_ethEventHook(Event evt){
     char cBuffer[16];
     uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
     
+    COMMS_pushEvent(evt);
+    
     switch(evt){
         case ETH_INIT_FAIL:
-            TERM_printDebug(term, "LAN9250 initialization failed\r\n");
+            COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "Fibernet initialization failed: LAN9250 could not be initialized", ALARM_NO_VALUE);
+            TERM_printDebug(term, "LAN9250 initialization failed!\r\n");
             break;
             
         case ETH_LINK_UP:
+            COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "Fibernet initialization failed: LAN9250 could not be initialized", ALARM_NO_VALUE);
             TERM_printDebug(term, "link up\r\n");
             break;
             
@@ -297,9 +301,10 @@ void COMMS_ethEventHook(EthEvent evt){
 
 void COMMS_pushAlarm(uint8_t level, char* message, int32_t value){
     uint8_t * pl = pvPortMalloc(sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(message) + 1);
+    memset(pl, 0, sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(message) + 1);
     
     MIN_ALARM_PAYLOAD_DESCRIPTOR * alarmPayload = (MIN_ALARM_PAYLOAD_DESCRIPTOR *) pl;
-    char * alarmMessage = (char *) (pl + sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR));
+    char * alarmMessage = (char *) (&pl[sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR)]);
     
     alarmPayload->level = level;
     alarmPayload->value = value;
@@ -307,6 +312,10 @@ void COMMS_pushAlarm(uint8_t level, char* message, int32_t value){
     
     min_send_frame(COMMS_UART, MIN_ID_ALARM, pl, sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(message) + 1);
     vPortFree(pl);
+}
+
+void COMMS_pushEvent(Event evt){
+    min_send_frame(COMMS_UART, MIN_ID_EVENT, (uint8_t *) &evt, sizeof(Event));
 }
 
 void COMMS_dumpPacket(uint8_t * data, uint16_t length){
@@ -366,4 +375,28 @@ TermCommandInputHandler CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t
         default:
             return TERM_CMD_CONTINUE;
     }
+}
+
+uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            (*handle->print)("sends a test alarm with a value\r\nUsage:\r\n\ttestAlarm [alarm value] [alarm text] ([alarm value])");
+            return TERM_CMD_EXIT_SUCCESS;
+        }
+    }
+    
+    uint8_t level = atoi(args[0]);
+    uint32_t value = ALARM_NO_VALUE;
+    if(argCount == 3){
+        value = atoi(args[2]);
+    }
+    
+    if(argCount < 2) return TERM_CMD_EXIT_ERROR;
+    if(argCount == 2) COMMS_pushAlarm(level, args[1], ALARM_NO_VALUE);
+    if(argCount == 3) COMMS_pushAlarm(level, args[1], atoi(args[2]));
+    
+    TERM_printDebug(term, "Sent alarm: value %d, text \"%s\", value %d%s (lenghth = %d)\r\n", level, args[1], value, (value == ALARM_NO_VALUE) ? " (no value)" : "", sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(args[1]) + 1);
+    
+    return TERM_CMD_EXIT_SUCCESS;
 }

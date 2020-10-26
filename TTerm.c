@@ -158,12 +158,13 @@ unsigned isACIILetter(char c){
 }
 
 void TERM_printBootMessage(TERMINAL_HANDLE * handle){
-    TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
+    TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0); TERM_sendVT100Code(handle, _VT100_WRAP_OFF, 0);
     (*handle->print)("\r\n\n\n%s\r\n", TERM_startupText1);
     (*handle->print)("%s\r\n", TERM_startupText2);
     (*handle->print)("%s\r\n", TERM_startupText3);
-    (*handle->print)("\r\n%s%sWARNING%s: You are now in the FiberNet console\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
+    (*handle->print)("\r\n%s%sWARNING%s: You are now in the FiberNet console\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0)); TERM_sendVT100Code(handle, _VT100_WRAP_ON, 0);
     (*handle->print)("\r\n\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+    
     
     if(handle->currBufferLength == 0){
         (*handle->print)("%s@%s>", handle->currUserName, TERM_DEVICE_NAME);

@@ -15,12 +15,12 @@
 #include "queue.h"
 #include "stream_buffer.h"
 #include "LED.h"
-#include "FreeRTOS/Core/include/semphr.h"
+#include "semphr.h"
 #include "FiberComms.h"
-#include "include/LAN9250.h"
-#include "include/min.h"
+#include "LAN9250.h"
+#include "min.h"
 #include "min_id.h"
-#include "include/TTerm.h"
+#include "TTerm.h"
 
 // Special protocol bytes
 enum {

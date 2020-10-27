@@ -58,7 +58,7 @@ unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_p
                     
                     //out serial number is the crc32 of the ID bytes, so lets calculate that
                     uint32_t serialNr = 0;
-                    uint8_t * id = &data->unique_id;
+                    uint8_t * id = (uint8_t *) &data->unique_id;
                     uint8_t currByte = 0;
                     for(currByte = 0; currByte < 8; currByte ++) serialNr = crcProc(id[currByte]);
                     
@@ -172,8 +172,6 @@ static void prvSetupHardware(){
     T3CON = 0b1000000001111000;
     
     UART_init(460800, &RPA3R, 0b0001);
-    
-    SPI_init(2000000);
 
     LED_init();
 }

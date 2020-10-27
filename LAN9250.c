@@ -19,8 +19,13 @@ static TaskHandle_t TXTask = NULL;
 SemaphoreHandle_t ETH_commsSem;
 SemaphoreHandle_t ETH_commsWaitSem;
 uint16_t packetCount = 0;
+SPI_HANDLE * ETH_spi;
 
 void ETH_init(){
+    //initialize our SPI handle
+    ETH_spi = SPI_createHandle(2);
+    SPI_init(ETH_spi, &RPB8R, 0b0011, 0, 400000);
+    
     ETH_commsSem = xSemaphoreCreateBinary();
     ETH_commsWaitSem = xSemaphoreCreateBinary();
     xSemaphoreTake(ETH_commsSem, 0);
@@ -60,7 +65,7 @@ void ETH_init(){
     COMMS_ethEventHook(ETH_INIT_DONE);
     
     //set the SPI clock to the maximum possible
-    SPI_setCLKFreq(24000000);
+    SPI_setCLKFreq(ETH_spi, 24000000);
     
     //print debug information that tells us about the state of the chip
     UART_printDebug("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(LAN9250_ID_REV));
@@ -273,8 +278,8 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     //begin pulling in data
     ETH_CS = 0;
     //write the SPI command to start the read
-    SPI_send(LAN9250_INSTR_REGREAD_SINGLE);
-    SPI_send(LAN9250_RX_DATA_FIFO >> 8); SPI_send(LAN9250_RX_DATA_FIFO);
+    SPI_send(ETH_spi, LAN9250_INSTR_REGREAD_SINGLE);
+    SPI_send(ETH_spi, LAN9250_RX_DATA_FIFO >> 8); SPI_send(ETH_spi, LAN9250_RX_DATA_FIFO);
     
     //start the DMA
     DCH1CONSET = _DCH1CON_CHEN_MASK;
@@ -317,7 +322,7 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     
     //the LAN only accepts communication in entire words, so we need to read any potential padding bytes
     uint8_t remaining = 4 - (DCH0SSIZ % 4);
-    if(remaining != 4) while(remaining--) SPI_send(0xff);
+    if(remaining != 4) while(remaining--) SPI_send(ETH_spi, 0xff);
     
     
     //set the CS, return the semaphore and free the data status data struct
@@ -341,7 +346,7 @@ void __ISR(_DMA0_VECTOR) ETH_txDmaFinishedCallback(){
         
         //the LAN only accepts communication in entire words, so we need to read any potential padding bytes
         uint8_t remaining = 4 - (DCH0SSIZ % 4);
-        if(remaining != 4) while(remaining--) SPI_send(0xff);
+        if(remaining != 4) while(remaining--) SPI_send(ETH_spi, 0xff);
         
         ETH_CS = 1;
         
@@ -404,8 +409,8 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
 
     //start the data write
     ETH_CS = 0;
-    SPI_send(LAN9250_INSTR_REGWRITE_SINGLE);
-    SPI_send(LAN9250_TX_DATA_FIFO >> 8); SPI_send(LAN9250_TX_DATA_FIFO & 0xff);    
+    SPI_send(ETH_spi, LAN9250_INSTR_REGWRITE_SINGLE);
+    SPI_send(ETH_spi, LAN9250_TX_DATA_FIFO >> 8); SPI_send(ETH_spi, LAN9250_TX_DATA_FIFO & 0xff);    
     
     //start the DMA transfer
     DCH0CONSET = _DCH0CON_CHEN_MASK;    
@@ -435,25 +440,25 @@ uint16_t ETH_getTXStatusCount(){
 
 uint32_t ETH_readReg(uint16_t addr){
     ETH_CS = 0;
-    SPI_send(LAN9250_INSTR_REGREAD_SINGLE);
-    SPI_send(addr >> 8); SPI_send(addr);
+    SPI_send(ETH_spi, LAN9250_INSTR_REGREAD_SINGLE);
+    SPI_send(ETH_spi, addr >> 8); SPI_send(ETH_spi, addr);
     uint32_t ret = 0;
-    ret |=  SPI_send(0xff)          & 0xff;
-    ret |= (SPI_send(0xff) << 8)    & 0xff00;
-    ret |= (SPI_send(0xff) << 16)   & 0xff0000;
-    ret |= (SPI_send(0xff) << 24)   & 0xff000000;
+    ret |=  SPI_send(ETH_spi, 0xff)          & 0xff;
+    ret |= (SPI_send(ETH_spi, 0xff) << 8)    & 0xff00;
+    ret |= (SPI_send(ETH_spi, 0xff) << 16)   & 0xff0000;
+    ret |= (SPI_send(ETH_spi, 0xff) << 24)   & 0xff000000;
     ETH_CS = 1;
     return ret;
 }
 
 void ETH_writeReg(uint32_t addr, uint32_t value){
     ETH_CS = 0;
-    SPI_send(LAN9250_INSTR_REGWRITE_SINGLE);
-    SPI_send(addr >> 8); SPI_send(addr);
-    SPI_send(value);
-    SPI_send(value >> 8);
-    SPI_send(value >> 16);
-    SPI_send(value >> 24);
+    SPI_send(ETH_spi, LAN9250_INSTR_REGWRITE_SINGLE);
+    SPI_send(ETH_spi, addr >> 8); SPI_send(ETH_spi, addr);
+    SPI_send(ETH_spi, value);
+    SPI_send(ETH_spi, value >> 8);
+    SPI_send(ETH_spi, value >> 16);
+    SPI_send(ETH_spi, value >> 24);
     ETH_CS = 1;
 }
 

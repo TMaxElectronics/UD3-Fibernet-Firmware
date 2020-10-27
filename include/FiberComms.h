@@ -52,3 +52,4 @@ void CMD_ioTop_task(TERMINAL_HANDLE * handle);
 uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 void COMMS_statsHandler(void * params);
 uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
+uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);

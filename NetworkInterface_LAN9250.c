@@ -47,10 +47,6 @@ uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
 static BaseType_t xTasksAlreadyCreated = pdFALSE;
 int8_t cBuffer[ 16 ];
 
-    UART_printDebug( "event!\r\n");
-    
-    LED_minPacketReceivedHook();
-
     /* Check this was a network up event, as opposed to a network down event. */
     if( eNetworkEvent == eNetworkUp )
     {

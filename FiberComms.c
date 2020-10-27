@@ -56,6 +56,7 @@ void COMMS_init(){
     min_init_context(COMMS_UART, (uint8_t) COMMS_UART);
     
     TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
+    TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0);
     TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0);
     
     term = TERM_createNewHandle(UART_print, "root");
@@ -392,7 +393,7 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
     for(;currArg<argCount; currArg++){
         if(strcmp(args[currArg], "-?") == 0){
-            (*handle->print)("sends a test alarm with a value\r\nUsage:\r\n\ttestAlarm [alarm value] [alarm text] ([alarm value])");
+            (*handle->print)("sends a test alarm with a value\r\nUsage:\r\n\ttestAlarm [alarm priority] [alarm text] ([alarm value])");
             return TERM_CMD_EXIT_SUCCESS;
         }
     }
@@ -407,7 +408,32 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     if(argCount == 2) COMMS_pushAlarm(level, args[1], ALARM_NO_VALUE);
     if(argCount == 3) COMMS_pushAlarm(level, args[1], atoi(args[2]));
     
-    TERM_printDebug(term, "Sent alarm: value %d, text \"%s\", value %d%s (lenghth = %d)\r\n", level, args[1], value, (value == ALARM_NO_VALUE) ? " (no value)" : "", sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(args[1]) + 1);
+    (*handle->print)("Sent alarm: priority %d, text \"%s\", value %d%s (lenghth = %d)\r\n", level, args[1], value, (value == ALARM_NO_VALUE) ? " (no value)" : "", sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(args[1]) + 1);
+    
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
+uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            (*handle->print)("displays network interface parameters");
+            return TERM_CMD_EXIT_SUCCESS;
+        }
+    }
+    
+    uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
+    char buff[16];
+    FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
+    (*handle->print)("eth0\r\x1b[%dCLink type: Ethernet  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\r\n", 7, MAC_ADDRESS[0], MAC_ADDRESS[1], MAC_ADDRESS[2], MAC_ADDRESS[3], MAC_ADDRESS[4], MAC_ADDRESS[5]);
+    FreeRTOS_inet_ntoa(ulIPAddress, buff);
+    (*handle->print)("\x1b[%dCinet addr: %s ", 7, buff); 
+    FreeRTOS_inet_ntoa(ulNetMask, buff);
+    (*handle->print)("Mask: %s\r\n", buff);
+    FreeRTOS_inet_ntoa(ulGatewayAddress, buff);
+    (*handle->print)("\x1b[%dCgateway: %s ", 7, buff);
+    FreeRTOS_inet_ntoa(ulDNSServerAddress, buff);
+    (*handle->print)("dns: %s\r\n\n", buff);
     
     return TERM_CMD_EXIT_SUCCESS;
 }

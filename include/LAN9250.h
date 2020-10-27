@@ -125,17 +125,11 @@
 #define LAN9250_TXCMD_A_FIRST_DATA                  0x00001000
 #define LAN9250_TXCMD_A_LAST_DATA                   0x00002000
 
-#define MAC_ADDR 0xde,0xad,0xbe,0xef,0xfe,0xed
+#define DEF_MAC_ADDR 0xde,0xad,0xbe,0xef,0xfe,0xed
 #define DEF_IP_ADDRESS 0,0,0,0
 #define DEF_NETMASK 0,0,0,0
 #define DEF_DNSIP 0,0,0,0
 #define DEF_GATEWAYIP 0,0,0,0
-
-extern const uint8_t MAC_ADDRESS[6];
-extern const uint8_t IP_ADDRESS[4];
-extern const uint8_t NETMASK[4];
-extern const uint8_t DNSIP[4];
-extern const uint8_t GATEWAYIP[4];
 
 extern SemaphoreHandle_t ETH_commsSem;
 extern SemaphoreHandle_t ETH_commsWaitSem;
@@ -159,7 +153,7 @@ typedef struct{
     uint16_t packetSize         :14;
     unsigned filterFail         :1;
     unsigned packetFilter       :1;
-} RX_STATUS_DATA __attribute__((packed));
+}__attribute__((packed)) RX_STATUS_DATA;
 
 typedef struct{
     unsigned deferred           :1;
@@ -174,7 +168,7 @@ typedef struct{
     uint8_t  reserved3          :3;
     unsigned errorStatus        :1;
     uint16_t packetTag          :16;
-} TX_STATUS_DATA_STRUCT __attribute__((packed));
+}__attribute__((packed)) TX_STATUS_DATA_STRUCT;
 
 void ETH_init();
 uint32_t ETH_readReg(uint16_t addr);

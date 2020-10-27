@@ -25,10 +25,11 @@ extern struct min_context * COMMS_UART;
 typedef enum{
     GET_INFO = 1,   
     ETH_INIT_FAIL = 2,
-    ETH_LINK_UP = 3,
-    ETH_LINK_DOWN = 4,
-    ETH_DHCP_SUCCESS = 5,
-    ETH_DHCP_FAIL = 6,
+    ETH_INIT_DONE = 3,
+    ETH_LINK_UP = 4,
+    ETH_LINK_DOWN = 5,
+    ETH_DHCP_SUCCESS = 6,
+    ETH_DHCP_FAIL = 7,
 }Event;
 
 typedef struct{

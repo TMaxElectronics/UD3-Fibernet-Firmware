@@ -17,6 +17,7 @@
 #include "min_id.h"
 #include "UD3_Wrapper.h"
 #include "TTerm.h"
+#include "startup.h"
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;
@@ -54,11 +55,6 @@ void COMMS_init(){
     min_init_context(COMMS_UDP, (uint8_t) COMMS_UDP);
     min_init_context(COMMS_UART, (uint8_t) COMMS_UART);
     
-    //start the listener task
-    xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
-    xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
-    
     TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
     TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0);
     
@@ -94,7 +90,7 @@ void COMMS_udpDataHandler(void * params){
     struct freertos_sockaddr dataPort;
 
     //set up the socket for the data
-	dataSocket = FreeRTOS_socket( FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP );
+	dataSocket = FreeRTOS_socket(FREERTOS_AF_INET, FREERTOS_SOCK_DGRAM, FREERTOS_IPPROTO_UDP);
     
 	configASSERT( dataSocket != FREERTOS_INVALID_SOCKET );
 
@@ -183,6 +179,8 @@ uint16_t min_checkUDPFrame(uint8_t * data){
 
 //handle incoming MIN frames (except for transport frames from UDP as those are forwarded immediately)
 void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, uint8_t port){
+    if(!deviceReady) if(startupMINHandler(min_id, min_payload, len_payload, port)) return;
+    
     if(min_id == 0xff){ //frame needs to be forwarded
         if(port == (uint8_t) COMMS_UDP){
             //we should never actually get here
@@ -203,8 +201,17 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
                 TERM_processBuffer(min_payload, len_payload, term);
                 break;
             case MIN_ID_EVENT:
-                
+                if(len_payload == 0) break;
+                switch(min_payload[0]){
+                    case EVENT_GET_INFO:
+                        break;
+
+                    default:
+                        break;
+                }
+
                 break;
+        
             case MIN_ID_ALARM:
                 
                 break;
@@ -269,12 +276,16 @@ void COMMS_ethEventHook(Event evt){
     
     switch(evt){
         case ETH_INIT_FAIL:
-            COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "Fibernet initialization failed: LAN9250 could not be initialized", ALARM_NO_VALUE);
+            COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "Fibernet initialization failed: LAN9250 could not be initialized, retrying", ALARM_NO_VALUE);
             TERM_printDebug(term, "LAN9250 initialization failed!\r\n");
             break;
             
+        case ETH_INIT_DONE:
+            COMMS_pushAlarm(ALARM_PRIO_INFO, "LAN9250 initialization complete", ALARM_NO_VALUE);
+            TERM_printDebug(term, "LAN9250 initialized\r\n");
+            break;
+            
         case ETH_LINK_UP:
-            COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "Fibernet initialization failed: LAN9250 could not be initialized", ALARM_NO_VALUE);
             TERM_printDebug(term, "link up\r\n");
             break;
             

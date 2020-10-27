@@ -60,6 +60,7 @@
       <itemPath>include/UD3_Wrapper.h</itemPath>
       <itemPath>include/TTerm.h</itemPath>
       <itemPath>TTerm_cmd.h</itemPath>
+      <itemPath>startup.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -106,6 +107,7 @@
       <itemPath>UD3_Wrapper.c</itemPath>
       <itemPath>TTerm.c</itemPath>
       <itemPath>TTerm_cmd.c</itemPath>
+      <itemPath>startup.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

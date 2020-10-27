@@ -13,12 +13,7 @@
 #include "LED.h"
 #include "FiberComms.h"
 #include "TTerm.h"
-
-const uint8_t MAC_ADDRESS[6] = {MAC_ADDR};
-const uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
-const uint8_t NETMASK[4] = {DEF_NETMASK};
-const uint8_t DNSIP[4] = {DEF_DNSIP};
-const uint8_t GATEWAYIP[4] = {DEF_GATEWAYIP};
+#include "startup.h"
 
 static TaskHandle_t TXTask = NULL;
 SemaphoreHandle_t ETH_commsSem;
@@ -61,6 +56,8 @@ void ETH_init(){
         }
         break;
     }
+           
+    COMMS_ethEventHook(ETH_INIT_DONE);
     
     //set the SPI clock to the maximum possible
     SPI_setCLKFreq(24000000);

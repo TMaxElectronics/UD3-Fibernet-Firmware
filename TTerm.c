@@ -163,13 +163,11 @@ void TERM_printBootMessage(TERMINAL_HANDLE * handle){
     (*handle->print)("%s\r\n", TERM_startupText2);
     (*handle->print)("%s\r\n", TERM_startupText3);
     (*handle->print)("\r\n%s%sWARNING%s: You are now in the FiberNet console\r\n", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_RED), UART_getVT100Code(_VT100_BLINK, 0), UART_getVT100Code(_VT100_RESET_ATTRIB, 0)); TERM_sendVT100Code(handle, _VT100_WRAP_ON, 0);
-    (*handle->print)("\r\n\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
-    
     
     if(handle->currBufferLength == 0){
-        (*handle->print)("%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
+        (*handle->print)("\r\n\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
     }else{
-        (*handle->print)("%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
+        (*handle->print)("\r\n\r\n%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
         if(handle->inputBuffer[handle->currBufferPosition] != 0) TERM_sendVT100Code(handle, _VT100_CURSOR_BACK_BY, handle->currBufferLength - handle->currBufferPosition);
     }
 }

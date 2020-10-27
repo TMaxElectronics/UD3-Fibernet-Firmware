@@ -19,6 +19,7 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const cha
     ret->inputBuffer = pvPortMalloc(TERM_INPUTBUFFER_SIZE);
     ret->print = printFunction;
     ret->currUserName = pvPortMalloc(strlen(usr) + 1 + strlen(UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_YELLOW)) + strlen(UART_getVT100Code(_VT100_RESET_ATTRIB, 0)));
+    sprintf(ret->currUserName, "%s%s%s", UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLUE), usr, UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
     ret->currEscSeqPos = 0xff;
     
     //if this is the first console we initialize we need to add the static commands

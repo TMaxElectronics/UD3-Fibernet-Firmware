@@ -8,6 +8,7 @@
 
 #include <xc.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -25,6 +26,7 @@ uint8_t GATEWAYIP[4] = {DEF_GATEWAYIP};
 
 unsigned deviceReady = 0;
 char * UD3_name;
+char * UD3_sn;
 static void startupTask();
 static void crcReset();
 static uint32_t crcProc(uint8_t byte);
@@ -54,19 +56,24 @@ unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_p
                     
                     //we have received the info struct so we set all of our parameters
                     
-#ifndef configUSE_DEFAULT_MAC
-                    //the last 32 bits of the mac are the crc of the id bytes
-                    uint32_t newMac = 0;
+                    //out serial number is the crc32 of the ID bytes, so lets calculate that
+                    uint32_t serialNr = 0;
                     uint8_t * id = &data->unique_id;
                     uint8_t currByte = 0;
-                    for(currByte = 0; currByte < 8; currByte ++) newMac = crcProc(id[currByte]);
+                    for(currByte = 0; currByte < 8; currByte ++) serialNr = crcProc(id[currByte]);
+                    
+#ifndef configUSE_DEFAULT_MAC
                     //copy the data to the mac adress array
-                    memcpy(&MAC_ADDRESS[2], &newMac, 4);
+                    memcpy(&MAC_ADDRESS[2], &serialNr, 4);
 #endif
                     
                     //copy the UD3 name
                     UD3_name = pvPortMalloc(16);
                     memcpy(UD3_name, &data->udname, 16);
+                    
+                    //convert the serial number into a hex string
+                    UD3_sn = pvPortMalloc(11);
+                    sprintf(UD3_sn, "%x", serialNr);
                     
                     deviceReady = 1;
                     

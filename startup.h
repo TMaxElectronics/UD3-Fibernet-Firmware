@@ -19,6 +19,7 @@ extern uint8_t DNSIP[4];
 extern uint8_t GATEWAYIP[4];
 
 extern char * UD3_name;
+extern char * UD3_sn;
 extern unsigned deviceReady;
 
 void startServices();

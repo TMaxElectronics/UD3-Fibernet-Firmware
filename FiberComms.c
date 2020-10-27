@@ -151,15 +151,13 @@ void COMMS_udpDiscoverHandler(void * params){
                 uint8_t * response = pvPortMalloc(FIND_MAX_RESPONSE_SIZE);
                 uint8_t * IPAdrr = pvPortMalloc(16);
                 uint8_t * MACAdrr = FreeRTOS_GetMACAddress();
-                uint8_t * UD3Name = UD3_getName();
                 uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
                 FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
                 FreeRTOS_inet_ntoa(ulIPAddress, IPAdrr);
-                uint16_t length = sprintf(response, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%08x;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3Name, 0x13376077);
+                uint16_t length = sprintf(response, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
                 FreeRTOS_sendto(dataSocket, response, length, 0, &discoverClient, dClientLength);
                 vPortFree(response);
                 vPortFree(IPAdrr);
-                vPortFree(UD3Name);
             }
         }
 	}
@@ -360,7 +358,7 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 void CMD_ioTop_task(TERMINAL_HANDLE * handle){
     while(1){
         TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-        (*handle->print)("%sioTop - %d\r\nAll datarates are in bytes/s an packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());
+        (*handle->print)("%sioTop - %d\r\nAll datarates are in bytes/s and packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());
         
         (*handle->print)("%s%s%s", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
         (*handle->print)("Connection \r\x1b[%dCDatarate last \r\x1b[%dCDatarate avg \r\x1b[%dCPacketrate last \r\x1b[%dCPacketrate avg \r\x1b[%dCTotal packet count\r\n", 11, 30, 49, 68, 87);
@@ -398,13 +396,14 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
         }
     }
     
+    if(argCount < 2) return TERM_CMD_EXIT_ERROR;
+    
     uint8_t level = atoi(args[0]);
     uint32_t value = ALARM_NO_VALUE;
     if(argCount == 3){
         value = atoi(args[2]);
     }
     
-    if(argCount < 2) return TERM_CMD_EXIT_ERROR;
     if(argCount == 2) COMMS_pushAlarm(level, args[1], ALARM_NO_VALUE);
     if(argCount == 3) COMMS_pushAlarm(level, args[1], atoi(args[2]));
     

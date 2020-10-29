@@ -30,6 +30,8 @@ typedef enum{
     ETH_LINK_DOWN = 5,
     ETH_DHCP_SUCCESS = 6,
     ETH_DHCP_FAIL = 7,
+    FS_CARD_CONNECTED = 8,
+    FS_CARD_REMOVED = 9,
 }Event;
 
 typedef struct{
@@ -44,7 +46,7 @@ void COMMS_udpDataHandler(void * params);
 void COMMS_udpDiscoverHandler(void * params);
 void COMMS_sendDataToLastClient(uint8_t * data, uint16_t dataLength);
 uint16_t min_checkUDPFrame(uint8_t * data);
-void COMMS_ethEventHook(Event evt);
+void COMMS_eventHook(Event evt);
 void COMMS_pushAlarm(uint8_t level, char* message, int32_t value);
 void COMMS_dumpPacket(uint8_t * data, uint16_t length);
 TermCommandInputHandler CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c);

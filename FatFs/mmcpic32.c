@@ -27,7 +27,6 @@
 #include <xc.h>
 #include "diskio.h"
 #include "SPI.h"
-#include "UART.h"
 
 /* Definitions for MMC/SDC command */
 #define CMD0   (0)			/* GO_IDLE_STATE */
@@ -264,16 +263,13 @@ void disk_setSPIHandle(SPI_HANDLE * handle){
 DSTATUS disk_initialize (BYTE drv){
 	BYTE n, cmd, ty, ocr[4];
 
-            UART_print("off\r\n");
 	power_on();							/* Force socket power on */
     FCLK_SLOW();
 	for (n = 80; n; n--) rcvr_spi();	/* 80 dummy clocks */
 
-            UART_print("off\r\n");
 	ty = 0;
 	if (send_cmd(CMD0, 0) == 1) {			/* Enter Idle state */
-		Timer1 = 100;				
-            UART_print("off\r\n");		/* Initialization timeout of 1000 msec */
+		Timer1 = 100;						/* Initialization timeout of 1000 msec */
 		if (send_cmd(CMD8, 0x1AA) == 1) {	/* SDv2? */
 			for (n = 0; n < 4; n++) ocr[n] = rcvr_spi();			/* Get trailing return value of R7 resp */
 			if (ocr[2] == 0x01 && ocr[3] == 0xAA) {				/* The card can work at vdd range of 2.7-3.6V */
@@ -300,10 +296,8 @@ DSTATUS disk_initialize (BYTE drv){
 	if (ty) {			/* Initialization succeded */
 		Stat &= ~STA_NOINIT;	/* Clear STA_NOINIT */
 		FCLK_FAST();
-            UART_print("on\r\n");
 	} else {			/* Initialization failed */
 		power_off();
-            UART_print("off\r\n");
 	}
 
 	return Stat;

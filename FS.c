@@ -35,7 +35,7 @@ void FS_task(void * params){
                 SDintialized = 1;
                 UART_print("sd initialized\r\n");
                 f_mount(&fso, "", 0);
-                //f_chdir("/");
+                f_chdir("/");
             }else{
                 UART_print("sd no initialized\r\n");
             }

@@ -53,7 +53,7 @@
 #define configMINIMAL_STACK_SIZE				( 250 )
 #define configISR_STACK_SIZE					( 250 )
 #define configTOTAL_HEAP_SIZE					( ( size_t ) 55000 )
-#define configMAX_TASK_NAME_LEN					( 8 )
+#define configMAX_TASK_NAME_LEN					( 16 )
 #define configUSE_TRACE_FACILITY				1
 #define configUSE_16_BIT_TICKS					0
 #define configIDLE_SHOULD_YIELD					1
@@ -65,6 +65,7 @@
 #define configUSE_APPLICATION_TASK_TAG			0
 #define configUSE_COUNTING_SEMAPHORES			1
 #define configGENERATE_RUN_TIME_STATS			1
+#define configTRACK_HEAP_USAGE                  1
 
 /* Co-routine definitions. */
 #define configUSE_CO_ROUTINES 			0

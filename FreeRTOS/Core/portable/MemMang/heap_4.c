@@ -69,6 +69,11 @@
 typedef struct A_BLOCK_LINK
 {
     struct A_BLOCK_LINK * pxNextFreeBlock; /*<< The next free block in the list. */
+    
+    #if ( configTRACK_HEAP_USAGE == 1 )
+    TaskHandle_t * TaskHandle;
+    #endif
+
     size_t xBlockSize;                     /*<< The size of the free block. */
 } BlockLink_t;
 
@@ -210,7 +215,11 @@ void * pvPortMalloc( size_t xWantedSize )
                     }
 
                     xFreeBytesRemaining -= pxBlock->xBlockSize;
-
+                    #if ( configTRACK_HEAP_USAGE == 1 )
+                    pxBlock->TaskHandle = xTaskGetCurrentTaskHandle();
+                    vTaskMallocTrackHeapUsage(pxBlock->TaskHandle, pxBlock->xBlockSize);
+                    #endif
+                    
                     if( xFreeBytesRemaining < xMinimumEverFreeBytesRemaining )
                     {
                         xMinimumEverFreeBytesRemaining = xFreeBytesRemaining;
@@ -294,6 +303,9 @@ void vPortFree( void * pv )
                 {
                     /* Add this block to the list of free blocks. */
                     xFreeBytesRemaining += pxLink->xBlockSize;
+                    #if configTRACK_HEAP_USAGE
+                    vTaskFreeTrackHeapUsage(pxLink->TaskHandle, pxLink->xBlockSize);
+                    #endif
                     traceFREE( pv, pxLink->xBlockSize );
                     prvInsertBlockIntoFreeList( ( ( BlockLink_t * ) pxLink ) );
                     xNumberOfSuccessfulFrees++;

@@ -24,8 +24,8 @@ unsigned ethError = 1;
 unsigned ethReady = 0;
 
 const uint8_t LED_generalExceptionCode[] = {1,1,0,0xfe,0,0xff};
-const uint8_t LED_stackOverflowCode[] = {1,1,0,0xfe,0,0xff};
-const uint8_t LED_mallocFailedCode[] = {1,1,0,0xfe,0,0xff};
+const uint8_t LED_stackOverflowCode[] = {0,0,0,0xfe,1,1,1,0xff};
+const uint8_t LED_mallocFailedCode[] = {1,1,0xfe,0,0,1,0,0xff};
 const uint8_t LED_assertCode[] = {0, 1, 0xfe, 0, 0, 0, 0xfe, 0, 0, 0, 0xff};
 
 void LED_init(){
@@ -103,7 +103,7 @@ void LED_errorFlashHook(){
 }
 
 void LED_showCode(uint8_t * code){
-    uint8_t currentPos;
+    uint8_t currentPos = 0;
     
     //turn off all LEDs
     LATASET = _LATA_LATA2_MASK;

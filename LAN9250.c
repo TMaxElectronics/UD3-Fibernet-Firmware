@@ -51,7 +51,7 @@ void ETH_init(){
         if(!(result & 0x08000000)){
             //we didn't get the ready flag. Try again after a little while
             ETH_RST = 0;
-            COMMS_ethEventHook(ETH_INIT_FAIL);
+            COMMS_eventHook(ETH_INIT_FAIL);
             vTaskDelay(1000);
             ETH_RST = 1;
             vTaskDelay(1000);
@@ -62,7 +62,7 @@ void ETH_init(){
         break;
     }
            
-    COMMS_ethEventHook(ETH_INIT_DONE);
+    COMMS_eventHook(ETH_INIT_DONE);
     
     //set the SPI clock to the maximum possible
     SPI_setCLKFreq(ETH_spi, 24000000);
@@ -124,11 +124,11 @@ static void ETH_run( void *pvParameters ){
                 if(phyIntStatus & LAN9250_PHY_INTERRUPT_LINK_UP){
                     linkState = 1;
                     LED_ethLinkStateChangeHook(linkState);
-                    COMMS_ethEventHook(ETH_LINK_UP);
+                    COMMS_eventHook(ETH_LINK_UP);
                 }else if(phyIntStatus & LAN9250_PHY_INTERRUPT_LINK_DOWN){
                     linkState = 0;
                     LED_ethLinkStateChangeHook(linkState);
-                    COMMS_ethEventHook(ETH_LINK_DOWN);
+                    COMMS_eventHook(ETH_LINK_DOWN);
                 }
                 intClear |= LAN9250_INTERRUPT_PHY_EVENT;
             }

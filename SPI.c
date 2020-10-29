@@ -17,9 +17,9 @@ SPI_HANDLE * SPI_createHandle(uint8_t module){
     switch(module){
         case 1:
             ret = pvPortMalloc(sizeof(SPI_HANDLE));
-            ret->CON = (CONBITS_t * ) &SPI1CON;
-            ret->CON2 = (CON2BITS_t * ) &SPI1CON2;
-            ret->STAT = (STATBITS_t * ) &SPI1STAT;
+            ret->CON = (CONBITS_t *) &SPI1CON;
+            ret->CON2 = (CON2BITS_t *) &SPI1CON2;
+            ret->STAT = &SPI1STAT;
             ret->BRG = &SPI1BRG;
             ret->BUF = &SPI1BUF;
             ret->pinVal = 0b0011;
@@ -75,7 +75,7 @@ void SPI_init(SPI_HANDLE * handle, volatile uint32_t* SDOPin, uint8_t SDIPin, ui
         default:    //mode 0 if any others are selected
             SPICONbits.CKP = 0;
             SPICONbits.CKE = 1;
-            SPICONbits.SMP = 0;
+            SPICONbits.SMP = 1;
             break;
     }
     
@@ -98,6 +98,7 @@ void SPI_init(SPI_HANDLE * handle, volatile uint32_t* SDOPin, uint8_t SDIPin, ui
 
 uint8_t SPI_send(SPI_HANDLE * handle, uint8_t data){
     SPIBUF = data;
+
     while(SPISTAT & _SPI2STAT_SPIBUSY_MASK);// UART_print("return 0x%08x\r\n", SPISTAT);
     uint8_t ret = SPIBUF;
     return ret;

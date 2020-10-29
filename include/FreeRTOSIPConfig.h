@@ -307,6 +307,6 @@ disconnecting stage will timeout after a period of non-activity. */
 #define ipconfigTCP_KEEP_ALIVE				( 1 )
 #define ipconfigTCP_KEEP_ALIVE_INTERVAL		( 20 ) /* in seconds */
 
-#define portINLINE __inline
+#define portINLINE inline
 
 #endif /* FREERTOS_IP_CONFIG_H */

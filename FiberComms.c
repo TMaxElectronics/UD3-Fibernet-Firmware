@@ -81,7 +81,7 @@ void COMMS_statsHandler(void * params){
         ConnectionStats.txPacketsLast = ConnectionStats.txPacketsTotal;
         ConnectionStats.txPacketRateAVG = ((ConnectionStats.txPacketRateAVG * 75) + (ConnectionStats.txPacketRateLast * 25)) / 100;
         
-        vTaskDelay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -342,7 +342,7 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t returnCode = TERM_CMD_EXIT_SUCCESS;
     for(;currArg<argCount; currArg++){
         if(strcmp(args[currArg], "-?") == 0){
-            (*handle->print)("shows packet throughput\r\n");
+            ttprintf("shows packet throughput\r\n");
             return TERM_CMD_EXIT_SUCCESS;
         }
     }
@@ -358,19 +358,19 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 void CMD_ioTop_task(TERMINAL_HANDLE * handle){
     while(1){
         TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-        (*handle->print)("%sioTop - %d\r\nAll datarates are in bytes/s and packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());
+        ttprintf("%sioTop - %d\r\nAll datarates are in bytes/s and packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());
         
-        (*handle->print)("%s%s%s", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
-        (*handle->print)("Connection \r\x1b[%dCDatarate last \r\x1b[%dCDatarate avg \r\x1b[%dCPacketrate last \r\x1b[%dCPacketrate avg \r\x1b[%dCTotal packet count\r\n", 11, 30, 49, 68, 87);
-        (*handle->print)("%s", UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
+        ttprintf("%s%s%s", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
+        ttprintf("Connection \r\x1b[%dCDatarate last \r\x1b[%dCDatarate avg \r\x1b[%dCPacketrate last \r\x1b[%dCPacketrate avg \r\x1b[%dCTotal packet count\r\n", 11, 30, 49, 68, 87);
+        ttprintf("%s", UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
         
-        (*handle->print)("%sUDP (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.rxDataRateLast); 
-        (*handle->print)("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.rxDataRateAVG, 49, ConnectionStats.rxPacketRateLast, 68, ConnectionStats.rxPacketRateAVG, 87, ConnectionStats.rxPacketsTotal);
+        ttprintf("%sUDP (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.rxDataRateLast); 
+        ttprintf("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.rxDataRateAVG, 49, ConnectionStats.rxPacketRateLast, 68, ConnectionStats.rxPacketRateAVG, 87, ConnectionStats.rxPacketsTotal);
         
-        (*handle->print)("%sUART (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.txDataRateLast); 
-        (*handle->print)("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.txDataRateAVG, 49, ConnectionStats.txPacketRateLast, 68, ConnectionStats.txPacketRateAVG, 87, ConnectionStats.txPacketsTotal);
+        ttprintf("%sUART (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.txDataRateLast); 
+        ttprintf("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.txDataRateAVG, 49, ConnectionStats.txPacketRateLast, 68, ConnectionStats.txPacketRateAVG, 87, ConnectionStats.txPacketsTotal);
         
-        vTaskDelay(500);
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -391,7 +391,7 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
     for(;currArg<argCount; currArg++){
         if(strcmp(args[currArg], "-?") == 0){
-            (*handle->print)("sends a test alarm with a value\r\nUsage:\r\n\ttestAlarm [alarm priority] [alarm text] ([alarm value])");
+            ttprintf("sends a test alarm with a value\r\nUsage:\r\n\ttestAlarm [alarm priority] [alarm text] ([alarm value])");
             return TERM_CMD_EXIT_SUCCESS;
         }
     }
@@ -407,7 +407,7 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     if(argCount == 2) COMMS_pushAlarm(level, args[1], ALARM_NO_VALUE);
     if(argCount == 3) COMMS_pushAlarm(level, args[1], atoi(args[2]));
     
-    (*handle->print)("Sent alarm: priority %d, text \"%s\", value %d%s (lenghth = %d)\r\n", level, args[1], value, (value == ALARM_NO_VALUE) ? " (no value)" : "", sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(args[1]) + 1);
+    ttprintf("Sent alarm: priority %d, text \"%s\", value %d%s (lenghth = %d)\r\n", level, args[1], value, (value == ALARM_NO_VALUE) ? " (no value)" : "", sizeof(MIN_ALARM_PAYLOAD_DESCRIPTOR) + strlen(args[1]) + 1);
     
     return TERM_CMD_EXIT_SUCCESS;
 }
@@ -416,7 +416,7 @@ uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
     for(;currArg<argCount; currArg++){
         if(strcmp(args[currArg], "-?") == 0){
-            (*handle->print)("displays network interface parameters");
+            ttprintf("displays network interface parameters");
             return TERM_CMD_EXIT_SUCCESS;
         }
     }
@@ -424,15 +424,15 @@ uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
     char buff[16];
     FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
-    (*handle->print)("eth0\r\x1b[%dCLink type: Ethernet  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\r\n", 7, MAC_ADDRESS[0], MAC_ADDRESS[1], MAC_ADDRESS[2], MAC_ADDRESS[3], MAC_ADDRESS[4], MAC_ADDRESS[5]);
+    ttprintf("eth0\r\x1b[%dCLink type: Ethernet  HWaddr %02x:%02x:%02x:%02x:%02x:%02x\r\n", 7, MAC_ADDRESS[0], MAC_ADDRESS[1], MAC_ADDRESS[2], MAC_ADDRESS[3], MAC_ADDRESS[4], MAC_ADDRESS[5]);
     FreeRTOS_inet_ntoa(ulIPAddress, buff);
-    (*handle->print)("\x1b[%dCinet addr: %s ", 7, buff); 
+    ttprintf("\x1b[%dCinet addr: %s ", 7, buff); 
     FreeRTOS_inet_ntoa(ulNetMask, buff);
-    (*handle->print)("Mask: %s\r\n", buff);
+    ttprintf("Mask: %s\r\n", buff);
     FreeRTOS_inet_ntoa(ulGatewayAddress, buff);
-    (*handle->print)("\x1b[%dCgateway: %s ", 7, buff);
+    ttprintf("\x1b[%dCgateway: %s ", 7, buff);
     FreeRTOS_inet_ntoa(ulDNSServerAddress, buff);
-    (*handle->print)("dns: %s\r\n\n", buff);
+    ttprintf("dns: %s\r\n\n", buff);
     
     return TERM_CMD_EXIT_SUCCESS;
 }

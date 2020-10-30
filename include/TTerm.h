@@ -70,8 +70,12 @@ const extern char TERM_startupText2[];
 const extern char TERM_startupText3[];
 #endif
 
-typedef uint8_t (* TermCommandFunction)(struct TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
-typedef uint8_t (* TermCommandInputHandler)(struct TERMINAL_HANDLE * handle, uint16_t c);
+#define ttprintf(format, ...) (*handle->print)(format, ##__VA_ARGS__)
+
+typedef struct __TERMINAL_HANDLE__ TERMINAL_HANDLE;
+
+typedef uint8_t (* TermCommandFunction)(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
+typedef uint8_t (* TermCommandInputHandler)(TERMINAL_HANDLE * handle, uint16_t c);
 typedef void (* TermPrintHandler)(char * format, ...);
 
 typedef struct{
@@ -87,7 +91,7 @@ typedef struct{
     uint8_t minPermissionLevel;
 } TermCommandDescriptor;
 
-typedef struct{
+struct __TERMINAL_HANDLE__{
     char * inputBuffer;
     uint32_t currBufferPosition;
     uint32_t currBufferLength;
@@ -102,7 +106,7 @@ typedef struct{
     uint32_t currHistoryReadPosition;
     uint8_t currEscSeqPos;
     uint8_t escSeqBuff[16];
-} TERMINAL_HANDLE;
+};
 
 typedef enum{
     TERM_CHECK_COMP_AND_HIST = 0b11, TERM_CHECK_COMP = 0b01, TERM_CHECK_HIST = 0b10, 

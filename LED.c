@@ -73,7 +73,7 @@ void LED_task(void * params){
                 LATBSET = _LATB_LATB2_MASK;
             }
         }
-        vTaskDelay(40);
+        vTaskDelay(pdMS_TO_TICKS(40));
     }
 }
 

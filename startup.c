@@ -100,7 +100,7 @@ static void startupTask(void * params){
     //wait for the startupMINHandler to receive the response to MIN_ID_EVENT, and continously send the request 
     while(1){
         if(deviceReady) break;
-        vTaskDelay(100);
+        vTaskDelay(pdMS_TO_TICKS(100));
         min_send_frame(COMMS_UART, MIN_ID_EVENT, "\x01", 1);
     }
     

@@ -3,20 +3,7 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FreeRTOS/Core/include/task.h</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/UART.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/main.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FS.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FatFs/ff.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FatFs/include/integer.h</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FatFs/mmcpic32.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/TTerm.h</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/include/FiberComms.h</file>
             <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/startup.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FatFs/include/diskio.h</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FatFs/include/ff.h</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FiberComms.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FreeRTOS/Core/tasks.c</file>
         </group>
     </open-files>
 </project-private>

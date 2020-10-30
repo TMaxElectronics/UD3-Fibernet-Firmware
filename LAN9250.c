@@ -35,10 +35,10 @@ void ETH_init(){
     
     while(1){
         //wait until we deassert reset after powerup
-        vTaskDelay(25);
+        vTaskDelay(pdMS_TO_TICKS(25));
         ETH_RST = 1;
         //wait for the chip to become ready after reset deassertion
-        vTaskDelay(25);
+        vTaskDelay(pdMS_TO_TICKS(25));
         
         //poll the HW_CFG register for the ready bit
         uint32_t result = 0;
@@ -52,11 +52,11 @@ void ETH_init(){
             //we didn't get the ready flag. Try again after a little while
             ETH_RST = 0;
             COMMS_eventHook(ETH_INIT_FAIL);
-            vTaskDelay(1000);
+            vTaskDelay(pdMS_TO_TICKS(1000));
             ETH_RST = 1;
-            vTaskDelay(1000);
+            vTaskDelay(pdMS_TO_TICKS(1000));
             ETH_RST = 0;
-            vTaskDelay(1000);
+            vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
         break;
@@ -225,7 +225,7 @@ static void ETH_run( void *pvParameters ){
             ETH_clearIF(0xffffffff);    //clear all int flags
             
             xSemaphoreGive(ETH_commsSem);
-            vTaskDelay(3);
+            vTaskDelay(pdMS_TO_TICKS(3));
         }
     }
 }
@@ -694,48 +694,48 @@ uint8_t CMD_getMacState(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     unsigned printFull = 0;
     for(;currArg<argCount; currArg++){
         if(strcmp(args[currArg], "-?") == 0){
-            (*handle->print)("shows the status of the mac\r\nusage: getMacState [-a]\r\n\t-a : prints all registers");
+            ttprintf("shows the status of the mac\r\nusage: getMacState [-a]\r\n\t-a : prints all registers");
             return TERM_CMD_EXIT_SUCCESS;
         }
         if(strcmp(args[currArg], "-a") == 0) printFull = 1;
     }
     
     if(!xSemaphoreTake(ETH_commsSem, 100)){ 
-        (*handle->print)("ERROR: Couldn't aquire ETH_commsSem semaphore. SPI was busy!\r\n");
+        ttprintf("ERROR: Couldn't aquire ETH_commsSem semaphore. SPI was busy!\r\n");
         return TERM_CMD_EXIT_ERROR;
     }
     
-    (*handle->print)("RX Fifo status: 0x%08x (dropped: %d)\r\n", ETH_readReg(LAN9250_RX_FIFO_INF), ETH_readReg(LAN9250_RX_DROP));
-    (*handle->print)("TX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
+    ttprintf("RX Fifo status: 0x%08x (dropped: %d)\r\n", ETH_readReg(LAN9250_RX_FIFO_INF), ETH_readReg(LAN9250_RX_DROP));
+    ttprintf("TX Fifo status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_FIFO_INF));
     
     if(!printFull){ 
         xSemaphoreGive(ETH_commsSem);
         return TERM_CMD_EXIT_SUCCESS;
     }
     
-    (*handle->print)("HW_CFG=0x%08x\r\n", ETH_readReg(LAN9250_HW_CFG));
-    (*handle->print)("AFC_CFG=0x%08x\r\n", ETH_readReg(LAN9250_AFC_CFG));
-    (*handle->print)("IRQ_CFG=0x%08x\r\n", ETH_readReg(LAN9250_IRQ_CFG));
-    (*handle->print)("INT_STS=0x%08x\r\n", ETH_readReg(LAN9250_INT_STAT));
-    (*handle->print)("INT_EN=0x%08x\r\n", ETH_readReg(LAN9250_INT_EN));
-    (*handle->print)("FIFO_INT=0x%08x\r\n", ETH_readReg(LAN9250_FIFO_INT));
-    (*handle->print)("RX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_RX_CFG));
-    (*handle->print)("TX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_TX_CFG));
-    (*handle->print)("PMT_CTRL=0x%08x\r\n", ETH_readReg(LAN9250_PMT_CTRL));
-    (*handle->print)("HMAC_CR=0x%08x\r\n", ETH_readMac(LAN9250_MAC_CR));
-    (*handle->print)("PHY_BASIC_CONTROL=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_CONTROL));
-    (*handle->print)("PHY_BASIC_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_STATUS));
-    (*handle->print)("PHY_AN_ADV=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_AN_ADV));
-    (*handle->print)("PHY_SPECIAL_MODES=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_MODES));
-    (*handle->print)("PHY_SPECIAL_CONTROL_STATUS_IND=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS_IND));
-    (*handle->print)("PHY_INTERRUPT_MASK=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_INTERRUPT_MASK));
-    (*handle->print)("PHY_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
-    (*handle->print)("PHY_SPECIAL_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS));
-    (*handle->print)("PHY_SYM_ERR_COUNTER=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SYM_ERR_COUNTER));
-    (*handle->print)("PHY_MODE_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
-    (*handle->print)("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
-    (*handle->print)("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
-    (*handle->print)("Count: 0x%08x\r\n", ETH_readReg(LAN9250_25MHZ_COUNTER));
+    ttprintf("HW_CFG=0x%08x\r\n", ETH_readReg(LAN9250_HW_CFG));
+    ttprintf("AFC_CFG=0x%08x\r\n", ETH_readReg(LAN9250_AFC_CFG));
+    ttprintf("IRQ_CFG=0x%08x\r\n", ETH_readReg(LAN9250_IRQ_CFG));
+    ttprintf("INT_STS=0x%08x\r\n", ETH_readReg(LAN9250_INT_STAT));
+    ttprintf("INT_EN=0x%08x\r\n", ETH_readReg(LAN9250_INT_EN));
+    ttprintf("FIFO_INT=0x%08x\r\n", ETH_readReg(LAN9250_FIFO_INT));
+    ttprintf("RX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_RX_CFG));
+    ttprintf("TX_CFG=0x%08x\r\n", ETH_readReg(LAN9250_TX_CFG));
+    ttprintf("PMT_CTRL=0x%08x\r\n", ETH_readReg(LAN9250_PMT_CTRL));
+    ttprintf("HMAC_CR=0x%08x\r\n", ETH_readMac(LAN9250_MAC_CR));
+    ttprintf("PHY_BASIC_CONTROL=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_CONTROL));
+    ttprintf("PHY_BASIC_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_BASIC_STATUS));
+    ttprintf("PHY_AN_ADV=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_AN_ADV));
+    ttprintf("PHY_SPECIAL_MODES=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_MODES));
+    ttprintf("PHY_SPECIAL_CONTROL_STATUS_IND=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS_IND));
+    ttprintf("PHY_INTERRUPT_MASK=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_INTERRUPT_MASK));
+    ttprintf("PHY_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
+    ttprintf("PHY_SPECIAL_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS));
+    ttprintf("PHY_SYM_ERR_COUNTER=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_SYM_ERR_COUNTER));
+    ttprintf("PHY_MODE_CONTROL_STATUS=0x%04x\r\n", ETH_readPhy(LAN9250_PHY_MODE_CONTROL_STATUS));
+    ttprintf("Mac Address high=0x%04x    ", ETH_readMac(LAN9250_MAC_ADDR_H));
+    ttprintf("Mac Address low=0x%08x\r\n", ETH_readMac(LAN9250_MAC_ADDR_L));
+    ttprintf("Count: 0x%08x\r\n", ETH_readReg(LAN9250_25MHZ_COUNTER));
     xSemaphoreGive(ETH_commsSem);
     
     return TERM_CMD_EXIT_SUCCESS;

@@ -17,6 +17,8 @@
 #include "min_id.h"
 #include "startup.h"
 #include "LAN9250.h"
+#include "FatFs/include/ff.h"
+#include "FS.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -35,6 +37,10 @@ static void prvSetupHardware();
 void startServices(){
     prvSetupHardware();
     COMMS_init();
+    
+    //create the FS task. (checks for SD card connection/removal)
+    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE+250, NULL , tskIDLE_PRIORITY + 1, NULL);
+    //TODO optimize stack usage and figure out why it needs to be this large
     
     xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
 }
@@ -58,7 +64,7 @@ unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_p
                     
                     //out serial number is the crc32 of the ID bytes, so lets calculate that
                     uint32_t serialNr = 0;
-                    uint8_t * id = &data->unique_id;
+                    uint8_t * id = (uint8_t *) &data->unique_id;
                     uint8_t currByte = 0;
                     for(currByte = 0; currByte < 8; currByte ++) serialNr = crcProc(id[currByte]);
                     
@@ -158,6 +164,9 @@ static void prvSetupHardware(){
     TRISACLR = _TRISA_TRISA2_MASK | _TRISA_TRISA3_MASK | _TRISA_TRISA4_MASK;
     TRISBCLR = _TRISB_TRISB2_MASK | _TRISB_TRISB3_MASK | _TRISB_TRISB4_MASK | _TRISB_TRISB7_MASK | _TRISB_TRISB8_MASK | _TRISB_TRISB9_MASK | _TRISB_TRISB14_MASK | _TRISB_TRISB15_MASK;
     
+    //enable pull up on the SD card detect pin
+    CNPUASET = _CNPUA_CNPUA0_MASK;
+    
     //Set LED pins to open drain and turn off r,g and b
     ODCASET = _ODCA_ODCA2_MASK;
     ODCBSET = _ODCB_ODCB2_MASK | _ODCB_ODCB3_MASK;
@@ -172,8 +181,6 @@ static void prvSetupHardware(){
     T3CON = 0b1000000001111000;
     
     UART_init(460800, &RPA3R, 0b0001);
-    
-    SPI_init(2000000);
 
     LED_init();
 }

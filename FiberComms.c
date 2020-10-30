@@ -267,7 +267,7 @@ void min_tx_finished(uint8_t port){
     }
 }
 
-void COMMS_ethEventHook(Event evt){
+void COMMS_eventHook(Event evt){
     char cBuffer[16];
     uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
     
@@ -304,8 +304,16 @@ void COMMS_ethEventHook(Event evt){
             TERM_printDebug(term, "DHCP Failed - reverted to defaults (IP=%s)\r\n", cBuffer);
             break;
             
+        case FS_CARD_CONNECTED:
+            TERM_printDebug(term, "SD card connected\r\n");
+            break;
+            
+        case FS_CARD_REMOVED:
+            TERM_printDebug(term, "SD card removed\r\n");
+            break;
+            
         default:
-            UART_print("unknown EthEvent received\r\n");
+            UART_print("unknown Event received\r\n");
     }
 }
 

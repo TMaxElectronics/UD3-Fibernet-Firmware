@@ -51,7 +51,7 @@ int8_t cBuffer[ 16 ];
     if( eNetworkEvent == eNetworkUp )
     {
         LED_ethDHCPStateChangeHook(1);
-        COMMS_ethEventHook(ETH_DHCP_SUCCESS);
+        COMMS_eventHook(ETH_DHCP_SUCCESS);
         /* Create the tasks that use the IP stack if they have not already been
         created. */
         if( xTasksAlreadyCreated == pdFALSE )

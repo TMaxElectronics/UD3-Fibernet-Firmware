@@ -77,6 +77,7 @@ int main( void ){
 
 void vApplicationMallocFailedHook( void ){
 	taskDISABLE_INTERRUPTS();
+    configASSERT(0);
     LED_showCode(LED_mallocFailedCode);
 }
 
@@ -90,6 +91,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
 	( void ) pxTask;
     
 	taskDISABLE_INTERRUPTS();
+    configASSERT(0);
     LED_showCode(LED_stackOverflowCode);
 }
 
@@ -98,6 +100,7 @@ void vApplicationTickHook( void ){
 }
 
 void _general_exception_handler( unsigned long ulCause, unsigned long ulStatus ){
+    configASSERT(0);
     LED_showCode(LED_generalExceptionCode);
 }
 /*-----------------------------------------------------------*/

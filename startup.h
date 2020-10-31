@@ -23,4 +23,4 @@ extern char * UD3_sn;
 extern unsigned deviceReady;
 
 void startServices();
-unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, uint8_t port);
+unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port);

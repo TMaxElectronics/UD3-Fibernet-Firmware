@@ -77,7 +77,7 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     DCH2INT = _DCH2INT_CHBCIE_MASK;                 //interrupt once the transfer is completed
     IEC1SET = _IEC1_DMA2IE_MASK;
     IPC10bits.DMA2IP = 4;
-    IPC10bits.DMA2IS = 4;
+    IPC10bits.DMA2IS = 3;
     
     DCH2SSA = 0;                                    //(source start) is to be set before each transfer
     DCH2DSA = KVA_TO_PA(&U2TXREG);                  //write into the SPI buffer
@@ -306,7 +306,7 @@ const char * UART_getVT100Code(uint16_t cmd, uint8_t var){
     //INFO this is deprecated since all of the VT100 functions are handled by the terminal now
     switch(cmd){
         case _VT100_RESET:
-            return "\x1bC";
+            return "\x1b" "C";
             
         case _VT100_CURSOR_BACK:
             return "\x1b[D";

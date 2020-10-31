@@ -664,7 +664,7 @@ void min_poll(struct min_context *self, uint8_t *buf, uint32_t buf_len){
 #endif // TRANSPORT_PROTOCOL
 }
 
-void min_init_context(struct min_context *self, uint8_t port)
+void min_init_context(struct min_context *self, void * port)
 {
     // Initialize context
     self->rx_header_bytes_seen = 0;

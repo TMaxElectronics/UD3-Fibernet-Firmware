@@ -46,7 +46,7 @@ void startServices(){
 }
 
 //as long as the network is not ready, we won't process any data for the transport protocol, so we call this handler instead
-unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, uint8_t port){
+unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port){
     switch(min_id){
         case 0xff:
             break;

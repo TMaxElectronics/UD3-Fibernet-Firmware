@@ -34,6 +34,10 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#if ( configCHECK_FOR_STACK_OVERFLOW > 2 )
+    #include <string.h>
+#endif
+
 /* Hardware specifics. */
 #define portTIMER_PRESCALE	8
 #define portPRESCALE_BITS	1

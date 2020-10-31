@@ -1,5 +1,6 @@
 #include <xc.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
 
@@ -553,8 +554,8 @@ uint16_t TERM_countArgs(const char * data, uint16_t dataLength){
     uint8_t count = 0;
     uint8_t currPos = 0;
     unsigned quoteMark = 0;
-    char * currStringStart = 0;
-    char * lastSpace = 0;
+    const char * currStringStart = NULL;
+    const char * lastSpace = NULL;
     for(;currPos<dataLength; currPos++){
         switch(data[currPos]){
             case ' ':
@@ -579,7 +580,7 @@ uint16_t TERM_countArgs(const char * data, uint16_t dataLength){
                 if(!quoteMark){
                     if(lastSpace){
                         count ++;
-                        lastSpace = 0;
+                        lastSpace = NULL;
                     }
                 }
                 break;
@@ -781,10 +782,10 @@ void TERM_sendVT100Code(TERMINAL_HANDLE * handle, uint16_t cmd, uint8_t var){
             ttprintf("\x1b[%dC", var);
             break;
         case _VT100_CURSOR_SAVE_POSITION:
-            ttprintf("\x1b7");
+            ttprintf("\x1b" "7");
             break;
         case _VT100_CURSOR_RESTORE_POSITION:
-            ttprintf("\x1b8");
+            ttprintf("\x1b" "8");
             break;
             
     }

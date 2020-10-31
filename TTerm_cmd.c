@@ -89,7 +89,8 @@ uint8_t CMD_top(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     return returnCode;
 }
 
-void CMD_top_task(TERMINAL_HANDLE * handle){
+void CMD_top_task(void *pvParameters){
+    TERMINAL_HANDLE * handle = (TERMINAL_HANDLE*)pvParameters;
     while(1){
         /*char * buff = pvPortMalloc(1024);
         vTaskGetRunTimeStats(buff);

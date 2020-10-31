@@ -53,8 +53,8 @@ void COMMS_init(){
     //initialize min contexts
     COMMS_UDP = pvPortMalloc(sizeof(struct min_context));
     COMMS_UART = pvPortMalloc(sizeof(struct min_context));
-    min_init_context(COMMS_UDP, (uint8_t) COMMS_UDP);
-    min_init_context(COMMS_UART, (uint8_t) COMMS_UART);
+    min_init_context(COMMS_UDP, COMMS_UDP);
+    min_init_context(COMMS_UART, COMMS_UART);
     
     TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
     TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0);
@@ -151,7 +151,7 @@ void COMMS_udpDiscoverHandler(void * params){
                 
                 uint8_t * response = pvPortMalloc(FIND_MAX_RESPONSE_SIZE);
                 uint8_t * IPAdrr = pvPortMalloc(16);
-                uint8_t * MACAdrr = FreeRTOS_GetMACAddress();
+                const uint8_t * MACAdrr = FreeRTOS_GetMACAddress();
                 uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
                 FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
                 FreeRTOS_inet_ntoa(ulIPAddress, IPAdrr);
@@ -178,15 +178,15 @@ uint16_t min_checkUDPFrame(uint8_t * data){
 }
 
 //handle incoming MIN frames (except for transport frames from UDP as those are forwarded immediately)
-void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, uint8_t port){
+void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port){
     if(!deviceReady) if(startupMINHandler(min_id, min_payload, len_payload, port)) return;
     
     if(min_id == 0xff){ //frame needs to be forwarded
-        if(port == (uint8_t) COMMS_UDP){
+        if(port == COMMS_UDP){
             //we should never actually get here
             UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
-        }else if(port == (uint8_t) COMMS_UART){
+        }else if(port == COMMS_UART){
             ConnectionStats.txPacketsTotal++;
             ConnectionStats.txBytesLast += len_payload;
             //we got a valid transport frame from the UD3, so we send it on to the PC
@@ -216,9 +216,9 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
                 
                 break;
             default:
-                if(port == (uint8_t) COMMS_UDP){
+                if(port == COMMS_UDP){
                     min_send_frame(COMMS_UART, min_id, min_payload, len_payload);
-                }else if(port == (uint8_t) COMMS_UART){
+                }else if(port == COMMS_UART){
                     min_send_frame(COMMS_UDP, min_id, min_payload, len_payload);
                 }
         }
@@ -226,15 +226,15 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
 }
 
 uint32_t min_time_ms(){
-    return xTaskGetTickCount();
+    return (xTaskGetTickCount() * portTICK_RATE_MS);
 }
 
-uint16_t min_tx_space(uint8_t port){
+uint16_t min_tx_space(void * port){
     return xPortGetFreeHeapSize();
 }
 
-void min_tx_byte(uint8_t port, uint8_t byte){
-    if(port == (uint8_t) COMMS_UART){
+void min_tx_byte(void * port, uint8_t byte){
+    if(port == COMMS_UART){
         COMMS_UART->tx_data_buffer[COMMS_UART->tx_data_position] = byte;
         COMMS_UART->tx_data_position++;
     }else{
@@ -243,8 +243,8 @@ void min_tx_byte(uint8_t port, uint8_t byte){
     }
 }
 
-void min_tx_start(uint8_t port){
-    if(port == (uint8_t) COMMS_UART){
+void min_tx_start(void * port){
+    if(port == COMMS_UART){
         if(COMMS_UART->tx_data_buffer) return;
         COMMS_UART->tx_data_buffer = pvPortMalloc(300);
     }else{
@@ -253,8 +253,8 @@ void min_tx_start(uint8_t port){
     }
 }
 
-void min_tx_finished(uint8_t port){
-    if(port == (uint8_t) COMMS_UART){
+void min_tx_finished(void * port){
+    if(port == COMMS_UART){
         if(COMMS_UART->tx_data_buffer == NULL) return;
         UART_queBuffer(COMMS_UART->tx_data_buffer, COMMS_UART->tx_data_position, 1);
         COMMS_UART->tx_data_position = 0;
@@ -366,7 +366,8 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     return returnCode;
 }
 
-void CMD_ioTop_task(TERMINAL_HANDLE * handle){
+void CMD_ioTop_task(void *pvParameters){
+    TERMINAL_HANDLE * handle = (TERMINAL_HANDLE*)pvParameters;
     while(1){
         TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
         ttprintf("%sioTop - %d\r\nAll datarates are in bytes/s and packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());

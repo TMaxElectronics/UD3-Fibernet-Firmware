@@ -242,7 +242,7 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     
     //allocate a buffer for the new packet
     NetworkBufferDescriptor_t * ret = pxGetNetworkBufferWithDescriptor(s->packetSize, 0);
-    if(ret == 0){ 
+    if(ret == NULL){ 
         UART_printDebug("RX buffer allocation failed!\r\n");
         return NULL;
     }
@@ -484,7 +484,7 @@ void ETH_setupDMA(){
     DCH0INT = _DCH0INT_CHBCIE_MASK;             //interrupt once the transfer is completed
     IEC1SET = _IEC1_DMA0IE_MASK;
     IPC10bits.DMA0IP = 4;
-    IPC10bits.DMA0IS = 4;
+    IPC10bits.DMA0IS = 3;
     
     //RX channel
     DCH1CON = 0b00000011;                       //channel is off (enabled once transmission starts), no chaining, channel auto enable is off, prio 1
@@ -499,7 +499,7 @@ void ETH_setupDMA(){
     DCH1INT = _DCH1INT_CHBCIE_MASK; //interrupt once the transfer is completed
     IEC1SET = _IEC1_DMA1IE_MASK;
     IPC10bits.DMA1IP = 4;
-    IPC10bits.DMA1IS = 4;
+    IPC10bits.DMA1IS = 3;
 }
 
 //Only register mapping functions after this point

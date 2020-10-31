@@ -50,7 +50,7 @@ void COMMS_eventHook(Event evt);
 void COMMS_pushAlarm(uint8_t level, char* message, int32_t value);
 void COMMS_dumpPacket(uint8_t * data, uint16_t length);
 uint8_t CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c);
-void CMD_ioTop_task(TERMINAL_HANDLE * handle);
+void CMD_ioTop_task(void *pvParameters);
 uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 void COMMS_statsHandler(void * params);
 uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);

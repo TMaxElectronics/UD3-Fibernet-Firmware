@@ -150,7 +150,7 @@ struct min_context {
     uint16_t rx_frame_length;                       // Length of frame (modified to 16bit to hold the amount of bytes needed to skip for forwarding)
     uint8_t rx_control;                             // Control byte
     uint8_t tx_header_byte_countdown;               // Count out the header bytes
-    uint8_t port;                                   // Number of the port associated with the context
+    void * port;                                   // Number of the port associated with the context
     uint16_t rx_data_position;                      // current forward buffer position
     uint8_t * rx_forward_buffer;                    // buffer holding the entire frame, if it is one we need to forward
     uint16_t tx_data_position;                      // current transmit buffer position
@@ -177,7 +177,7 @@ void min_poll(struct min_context *self, uint8_t *buf, uint32_t buf_len);
 void min_transport_reset(struct min_context *self, bool inform_other_side);
 
 // CALLBACK. Handle incoming MIN frame
-void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint16_t len_payload, uint8_t port);
+void min_application_handler(uint8_t min_id, uint8_t *min_payload, uint16_t len_payload, void * port);
 
 #ifdef TRANSPORT_PROTOCOL
 // CALLBACK. Must return current time in milliseconds.
@@ -187,18 +187,18 @@ uint32_t min_time_ms(void);
 
 // CALLBACK. Must return current buffer space in the given port. Used to check that a frame can be
 // queued.
-uint16_t min_tx_space(uint8_t port);
+uint16_t min_tx_space(void * port);
 
 // CALLBACK. Send a byte on the given line.
-void min_tx_byte(uint8_t port, uint8_t byte);
+void min_tx_byte(void * port, uint8_t byte);
 
 // CALLBACK. Indcates when frame transmission is finished; useful for buffering bytes into a single serial call.
-void min_tx_start(uint8_t port);
-void min_tx_finished(uint8_t port);
+void min_tx_start(void * port);
+void min_tx_finished(void * port);
 
 // Initialize a MIN context ready for receiving bytes from a serial link
 // (Can have multiple MIN contexts)
-void min_init_context(struct min_context *self, uint8_t port);
+void min_init_context(struct min_context *self, void * port);
 
 #ifdef MIN_DEBUG_PRINTING
 // Debug print

@@ -3046,7 +3046,7 @@ TaskHandle_t pvTaskIncrementMutexHeldCount( void ) PRIVILEGED_FUNCTION;
 void vTaskInternalSetTimeOutState( TimeOut_t * const pxTimeOut ) PRIVILEGED_FUNCTION;
 
 void vTaskMallocTrackHeapUsage(TaskHandle_t handle, uint32_t ulBytesUsed) PRIVILEGED_FUNCTION;
-void vTaskMallocTrackHeapUsage(TaskHandle_t handle, uint32_t ulBytesUsed) PRIVILEGED_FUNCTION;
+void vTaskFreeTrackHeapUsage(TaskHandle_t handle, uint32_t ulBytesFreed) PRIVILEGED_FUNCTION;
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

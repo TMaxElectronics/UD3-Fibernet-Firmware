@@ -71,7 +71,7 @@ typedef struct A_BLOCK_LINK
     struct A_BLOCK_LINK * pxNextFreeBlock; /*<< The next free block in the list. */
     
     #if ( configTRACK_HEAP_USAGE == 1 )
-    TaskHandle_t * TaskHandle;
+    TaskHandle_t TaskHandle;
     #endif
 
     size_t xBlockSize;                     /*<< The size of the free block. */

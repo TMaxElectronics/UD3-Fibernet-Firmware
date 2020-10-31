@@ -7,6 +7,7 @@
 
 
 #include <xc.h>
+#include <stdio.h>
 #include "FreeRTOS.h"
 #include "FreeRTOS_Sockets.h"
 #include "FreeRTOS_IP.h"
@@ -154,7 +155,7 @@ void COMMS_udpDiscoverHandler(void * params){
                 uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
                 FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
                 FreeRTOS_inet_ntoa(ulIPAddress, IPAdrr);
-                uint16_t length = sprintf(response, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
+                uint16_t length = snprintf(response,FIND_MAX_RESPONSE_SIZE, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
                 FreeRTOS_sendto(dataSocket, response, length, 0, &discoverClient, dClientLength);
                 vPortFree(response);
                 vPortFree(IPAdrr);
@@ -267,6 +268,10 @@ void min_tx_finished(uint8_t port){
     }
 }
 
+void COMMS_pushEvent(Event evt){
+    min_send_frame(COMMS_UART, MIN_ID_EVENT, (uint8_t *) &evt, sizeof(Event));
+}
+
 void COMMS_eventHook(Event evt){
     char cBuffer[16];
     uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
@@ -332,9 +337,7 @@ void COMMS_pushAlarm(uint8_t level, char* message, int32_t value){
     vPortFree(pl);
 }
 
-void COMMS_pushEvent(Event evt){
-    min_send_frame(COMMS_UART, MIN_ID_EVENT, (uint8_t *) &evt, sizeof(Event));
-}
+
 
 void COMMS_dumpPacket(uint8_t * data, uint16_t length){
     uint16_t currPos = 0;

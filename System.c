@@ -1,9 +1,11 @@
 #include <xc.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "FreeRTOSConfig.h"
 #include "System.h"
 #include "task.h"
+
 
 //a non scheduler dependent wait function. Used in exception handlers where no interrupts are enabled
 void SYS_waitCP0(uint16_t length){
@@ -17,7 +19,7 @@ uint32_t SYS_getCPULoadFine(TaskStatus_t * taskStats, uint32_t taskCount, uint32
     uint32_t currTask = 0;
     for(;currTask < taskCount; currTask++){
         if(strlen(taskStats[currTask].pcTaskName) == 4 && strcmp(taskStats[currTask].pcTaskName, "IDLE") == 0){
-            return 1000 - ((taskStats[currTask].ulRunTimeCounter) / (sysTime/1000));
+            return configTICK_RATE_HZ - ((taskStats[currTask].ulRunTimeCounter) / (sysTime/configTICK_RATE_HZ));
         }
     }
     return -1;

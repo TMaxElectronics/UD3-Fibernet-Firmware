@@ -11,6 +11,8 @@
 #include "FreeRTOS.h"
 #include "FreeRTOS_Sockets.h"
 #include "FreeRTOS_IP.h"
+#include "FreeRTOS_DHCP.h"
+#include "FreeRTOS_Sockets.h"
 #include "FiberComms.h"
 #include "min.h"
 #include "LAN9250.h"
@@ -27,6 +29,7 @@ struct freertos_sockaddr lastClient;
 uint32_t clientLength = sizeof(lastClient);
 Socket_t dataSocket;
 TERMINAL_HANDLE * term;
+uint8_t dhcpEnable = pdTRUE;
 
 struct{
     uint32_t findPacketsTotal;
@@ -88,7 +91,7 @@ void COMMS_statsHandler(void * params){
 
 void COMMS_udpDataHandler(void * params){
     int32_t receivedDataLength;
-    uint8_t * udpData = pvPortMalloc(300);
+    uint8_t * udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
     struct freertos_sockaddr dataPort;
 
     //set up the socket for the data
@@ -100,7 +103,7 @@ void COMMS_udpDataHandler(void * params){
 	FreeRTOS_bind( dataSocket, &dataPort, sizeof( dataPort ) );
 
 	while(1){
-		receivedDataLength = FreeRTOS_recvfrom(dataSocket, udpData, 512, 0, &lastClient, &clientLength);
+		receivedDataLength = FreeRTOS_recvfrom(dataSocket, udpData, COMMS_UDP_BUFFER_SIZE, 0, &lastClient, &clientLength);
         
         //check if we have received data or are here because of a timeout
         if(receivedDataLength > 0){
@@ -113,7 +116,7 @@ void COMMS_udpDataHandler(void * params){
             if(length <= MAX_PAYLOAD){
                 UART_queBuffer(udpData, receivedDataLength, 1);
                 LED_ethPacketReceivedHook();
-                udpData = pvPortMalloc(300);
+                udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
             }else if(length == MIN_NON_TRANSPORT_FRAME){
                 //if it is a non transport min frame we have to deal with it properly
                 min_poll(COMMS_UDP, udpData, receivedDataLength);
@@ -127,7 +130,7 @@ void COMMS_udpDataHandler(void * params){
 
 void COMMS_udpDiscoverHandler(void * params){
     int32_t receivedDataLength;
-    uint8_t * udpData = pvPortMalloc(300);
+    uint8_t * udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
     struct freertos_sockaddr dataPort;
     Socket_t discoverySocet;
     struct freertos_sockaddr discoverClient;
@@ -142,7 +145,7 @@ void COMMS_udpDiscoverHandler(void * params){
 	FreeRTOS_bind( discoverySocet, &dataPort, sizeof( dataPort ) );
 
 	while(1){
-		receivedDataLength = FreeRTOS_recvfrom(discoverySocet, udpData, 512, 0, &discoverClient, &dClientLength);
+		receivedDataLength = FreeRTOS_recvfrom(discoverySocet, udpData, COMMS_UDP_BUFFER_SIZE, 0, &discoverClient, &dClientLength);
         
         //check if we have received data or are here because of a timeout
         if(receivedDataLength == sizeof(FIND_queryString)){
@@ -424,12 +427,138 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     return TERM_CMD_EXIT_SUCCESS;
 }
 
+eDHCPCallbackAnswer_t xApplicationDHCPHook( eDHCPCallbackPhase_t eDHCPPhase, uint32_t ulIPAddress ){
+    
+eDHCPCallbackAnswer_t eReturn;
+uint32_t ulStaticIPAddress, ulStaticNetMask;
+
+  /* This hook is called in a couple of places during the DHCP process, as
+  identified by the eDHCPPhase parameter. */
+    switch( eDHCPPhase ){
+        case eDHCPPhasePreDiscover  :
+        /* A DHCP discovery is about to be sent out.  eDHCPContinue is
+        returned to allow the discovery to go out.
+
+        If eDHCPUseDefaults had been returned instead then the DHCP process
+        would be stopped and the statically configured IP address would be
+        used.
+
+        If eDHCPStopNoChanges had been returned instead then the DHCP
+        process would be stopped and whatever the current network
+        configuration was would continue to be used. */
+        if(dhcpEnable){
+            eReturn = eDHCPContinue;
+        }else{
+            eReturn = eDHCPStopNoChanges;
+        }
+        break;
+
+    case eDHCPPhasePreRequest  :
+      /* An offer has been received from the DHCP server, and the offered
+      IP address is passed in the ulIPAddress parameter.  Convert the
+      offered and statically allocated IP addresses to 32-bit values. */
+      ulStaticIPAddress = FreeRTOS_inet_addr_quick( IP_ADDRESS[0],
+                                                    IP_ADDRESS[1],
+                                                    IP_ADDRESS[2],
+                                                    IP_ADDRESS[3] );
+
+      ulStaticNetMask = FreeRTOS_inet_addr_quick( NETMASK[0],
+                                                  NETMASK[1],
+                                                  NETMASK[2],
+                                                  NETMASK[3] );
+
+      /* Mask the IP addresses to leave just the sub-domain octets. */
+      ulStaticIPAddress &= ulStaticNetMask;
+      ulIPAddress &= ulStaticNetMask;
+
+      /* Are the sub-domains the same? */
+      if( ulStaticIPAddress == ulIPAddress )
+      {
+        /* The sub-domains match, so the default IP address can be
+        used.  The DHCP process is stopped at this point. */
+        eReturn = eDHCPUseDefaults;
+      }
+      else
+      {
+        /* The sub-domains don?t match, so continue with the DHCP
+        process so the offered IP address is used. */
+        eReturn = eDHCPContinue;
+      }
+
+      break;
+
+    default :
+      /* Cannot be reached, but set eReturn to prevent compiler warnings
+      where compilers are disposed to generating one. */
+      eReturn = eDHCPContinue;
+      break;
+  }
+
+  return eReturn;
+}
+void help_ifconfig(TERMINAL_HANDLE * handle){
+    ttprintf("\teth0 [ip]\r\n");
+    ttprintf("\tnetmask [netmask]\r\n");
+    ttprintf("\tgw [netmask]\r\n");
+    ttprintf("\tdhcp\r\n");
+}
+
 uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
+    uint32_t ip;
     for(;currArg<argCount; currArg++){
         if(strcmp(args[currArg], "-?") == 0){
-            ttprintf("displays network interface parameters");
+            help_ifconfig(handle);
             return TERM_CMD_EXIT_SUCCESS;
+        }
+        if(strcmp(args[currArg], "eth0") == 0){
+            if(++currArg<argCount){
+                dhcpEnable = pdFALSE;                      
+                ip=FreeRTOS_inet_addr(args[currArg]);
+                if(ip){
+                    FreeRTOS_SetIPAddress(ip);
+                }else{
+                    help_ifconfig(handle);
+                    return TERM_CMD_EXIT_SUCCESS;
+                }
+            }else{
+               help_ifconfig(handle);
+               return TERM_CMD_EXIT_SUCCESS;
+            }
+        }
+        if(strcmp(args[currArg], "netmask") == 0){
+            if(++currArg<argCount){
+                dhcpEnable = pdFALSE;
+                ip=FreeRTOS_inet_addr(args[currArg]);
+                if(ip){
+                    FreeRTOS_SetNetmask(ip);
+                }else{
+                    help_ifconfig(handle);
+                    return TERM_CMD_EXIT_SUCCESS;
+                }
+            }else{
+                help_ifconfig(handle);
+                return TERM_CMD_EXIT_SUCCESS;
+            }
+        }
+        if(strcmp(args[currArg], "gw") == 0){
+            if(++currArg<argCount){
+                dhcpEnable = pdFALSE;
+                ip=FreeRTOS_inet_addr(args[currArg]);
+                if(ip){
+                    FreeRTOS_SetGatewayAddress(ip);
+                }else{
+                    help_ifconfig(handle);
+                    return TERM_CMD_EXIT_SUCCESS;
+                }
+            }else{
+                help_ifconfig(handle);
+                return TERM_CMD_EXIT_SUCCESS;
+            }
+        }
+        if(strcmp(args[currArg], "dhcp") == 0){
+            dhcpEnable = pdTRUE;
+            vDHCPProcess(pdTRUE);
         }
     }
     

@@ -153,6 +153,8 @@ reason.  The static configuration used is that passed into the stack by the
 FreeRTOS_IPInit() function call. */
 #define ipconfigUSE_DHCP 1
 
+#define ipconfigUSE_DHCP_HOOK 1
+
 /* When ipconfigUSE_DHCP is set to 1, DHCP requests will be sent out at
 increasing time intervals until either a reply is received from a DHCP server
 and accepted, or the interval between transmissions reaches

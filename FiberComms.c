@@ -382,7 +382,7 @@ void CMD_ioTop_task(TERMINAL_HANDLE * handle){
     }
 }
 
-TermCommandInputHandler CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c){
+uint8_t CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c){
     switch(c){
         case 'q':
         case 0x03:

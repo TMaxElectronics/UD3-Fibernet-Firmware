@@ -230,104 +230,53 @@ static void ETH_run( void *pvParameters ){
     }
 }
 
-void __ISR(_DMA1_VECTOR) ETH_rxDmaFinishedCallback(){
-    IFS1CLR = _IFS1_DMA1IF_MASK;
-    
-    if((DCH1INT & _DCH1INT_CHBCIF_MASK) != 0){
-        //all data was received, return to the receiver task
-        DCH1INTCLR = 0xff;
-        
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(ETH_commsWaitSem, &xHigherPriorityTaskWoken);
-        portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
-    }
-}
-
 NetworkBufferDescriptor_t * ETH_readFrame(){
     //check if there is even a packet in the fifo, if not return NULL so the caller knows that we are done receiving anything
     if(!ETH_rxDataAvailable()) return NULL;
-    
-    //get the semaphore that signals rx dma operations. This should never block, as we only call this from the same task, and it blocks until the DMA is completed before returning
-    if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
-        UART_printDebug("failed to load new packet!\r\n");
-        return NULL;
-    }
     
     //read the rx status FiFo, to get info on the next packet
     RX_STATUS_DATA * s = pvPortMalloc(sizeof(RX_STATUS_DATA));
     *((uint32_t *)s) = ETH_readReg(LAN9250_RX_STAT_FIFO); //your typecast protection is no match for my pointers old man
     
-    //TODO scheck for errors in the RX_STATUS_DATA 
+    //TODO check for errors in the RX_STATUS_DATA 
     
     //allocate a buffer for the new packet
     NetworkBufferDescriptor_t * ret = pxGetNetworkBufferWithDescriptor(s->packetSize, 0);
     if(ret == 0){ 
-        xSemaphoreGive(ETH_commsWaitSem);
         UART_printDebug("RX buffer allocation failed!\r\n");
         return NULL;
     }
     
-    //set up the DMA channels for SPI receive (one needs to write a byte, so the SPI module performs a transaction, the other then the other copies that data to the buffer once the transaction is complete)
-    IEC1CLR = _IEC1_DMA0IE_MASK;                    //clear the DMA0 interrupt, as this is used to signal completion of data transmission and we don't use it here
-    DCH0SSA = KVA_TO_PA(ret->pucEthernetBuffer);    //use the buffer as a dummy data source, what is in here doesn't matter as the LAN ignores any data sent to it in a read operation
-    DCH0SSIZ = s->packetSize;
-    
-    DCH1DSA = KVA_TO_PA(ret->pucEthernetBuffer);
-    DCH1DSIZ = s->packetSize;
-    
     //begin pulling in data
     ETH_CS = 0;
+    
     //write the SPI command to start the read
     SPI_send(ETH_spi, LAN9250_INSTR_REGREAD_SINGLE);
     SPI_send(ETH_spi, LAN9250_RX_DATA_FIFO >> 8); SPI_send(ETH_spi, LAN9250_RX_DATA_FIFO);
     
-    //start the DMA
-    DCH1CONSET = _DCH1CON_CHEN_MASK;
-    DCH0CONSET = _DCH1CON_CHEN_MASK;
-    DCH0ECONSET = _DCH1ECON_CFORCE_MASK;
+    /*
+     * why isn't this done with DMA anymore?
+     * There were some cases in which the rx dma channel just "forgot" some bytes and the ETH_rxDmaFinishedCallback() was never called,
+     * leaving the task stuck at the xSemaphoreTake for 1000 ticks (and us with a lost/corrupted packet). And since the DMA has plenty to do anyway (and this read doesn't 
+     * take up too many cpu cycles) I changed this to be CPU based.
+     */
     
-    //wait until the DMA has finished
-    if(!xSemaphoreTake(ETH_commsWaitSem, 1000)){
-        UART_printDebug("receive dma timeout!\r\n");
-        
-        //since the DMA never finished properly we need to clear the enable flags, as they are still set. 
-        //Pointer reset occours the next time we write an address anyway so we don't do that here
-        DCH1CONCLR = _DCH1CON_CHEN_MASK;
-        DCH0CONCLR = _DCH0CON_CHEN_MASK;
-        
-        //if we get here then some data was missed and there was probably a SPI ROV (receive overflow) which we'll have to clear
-        SPI2CONCLR = _SPI2CON_ON_MASK;
-        SPI2CONSET = _SPI2CON_ON_MASK;
-        
-        /*
-         * we do not know how much data there might still be in the RX Data fifo...
-         * The dma might have not copied all data due to a SPI ROV, in which case we transmitted all bytes needed to read the packet
-         * or it might have failed due to something that results in not all bytes being read. So I don't know how to handle this error properly.
-         * What my workaround is, is to check if there are more bytes in the RX fifo than could reasonable be there according to the level of the status fifo
-         * and if there are we just dicard all poackets. Crude and not ideal but better than nothing
-         */
-        
-        uint32_t fifoStatus = ETH_readReg(LAN9250_RX_FIFO_INF);
-        if(((fifoStatus >> 16) * 1600) < (fifoStatus & 0xffff)){
-            UART_printDebug("RX FiFo misalignment detected! all packages were dropped (0x%08x)\r\n", fifoStatus);
-            ETH_forceRXDiscard();
-            return 0;
-        }
-        
-        //set the CS and return the semaphore
-        ETH_CS = 1;
-        xSemaphoreGive(ETH_commsWaitSem);
-        return NULL;
+    //perform the read
+    uint8_t * dst = ret->pucEthernetBuffer;
+    uint16_t currByte = 0;
+    for(currByte = 0; currByte < s->packetSize;currByte++){
+        SPI2BUF = 0xff;
+        while(SPI2STAT & _SPI2STAT_SPIBUSY_MASK);
+        dst[currByte] = SPI2BUF;
     }
     
     //the LAN only accepts communication in entire words, so we need to read any potential padding bytes
-    uint8_t remaining = 4 - (DCH0SSIZ % 4);
+    uint8_t remaining = 4 - (s->packetSize % 4);
     if(remaining != 4) while(remaining--) SPI_send(ETH_spi, 0xff);
     
     
-    //set the CS, return the semaphore and free the data status data struct
+    //set the CS and free the data status data struct
     ETH_CS = 1;
-    xSemaphoreGive(ETH_commsWaitSem);
     vPortFree(s);
     
     return ret;

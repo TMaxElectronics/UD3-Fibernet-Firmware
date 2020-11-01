@@ -53,6 +53,9 @@
         <itemPath>include/FreeRTOSConfig.h</itemPath>
         <itemPath>include/FreeRTOSIPConfig.h</itemPath>
       </logicalFolder>
+      <logicalFolder name="f3" displayName=".services" projectFiles="true">
+        <itemPath>include/service.h</itemPath>
+      </logicalFolder>
       <itemPath>include/ConfigPerformance.h</itemPath>
       <itemPath>include/LAN9250.h</itemPath>
       <itemPath>include/NetworkInterface.h</itemPath>
@@ -68,6 +71,7 @@
       <itemPath>TTerm_cmd.h</itemPath>
       <itemPath>startup.h</itemPath>
       <itemPath>include/FS.h</itemPath>
+      <itemPath>TTerm_AC.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -107,6 +111,9 @@
           <itemPath>FreeRTOS/TCPIP/portable/BufferManagement/BufferAllocation_2.c</itemPath>
         </logicalFolder>
       </logicalFolder>
+      <logicalFolder name="f3" displayName=".services" projectFiles="true">
+        <itemPath>service.c</itemPath>
+      </logicalFolder>
       <itemPath>ConfigPerformance.c</itemPath>
       <itemPath>LAN9250.c</itemPath>
       <itemPath>NetworkInterface_LAN9250.c</itemPath>
@@ -122,6 +129,7 @@
       <itemPath>TTerm_cmd.c</itemPath>
       <itemPath>startup.c</itemPath>
       <itemPath>FS.c</itemPath>
+      <itemPath>TTerm_AC.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -149,8 +157,6 @@
       <packs>
         <pack name="PIC32MX_DFP" vendor="Microchip" version="1.1.215"/>
       </packs>
-      <ScriptingSettings>
-      </ScriptingSettings>
       <compileType>
         <linkerTool>
           <linkerLibItems>

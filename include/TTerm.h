@@ -2,6 +2,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "ff.h"
 
 #define _VT100_CURSOR_POS1 3
 #define _VT100_CURSOR_END 4
@@ -63,6 +64,7 @@
 #define TERM_CMD_CONTINUE 0x80
 
 #define TERM_ENABLE_STARTUP_TEXT
+//#define TERM_SUPPORT_CWD
 
 #ifdef TERM_ENABLE_STARTUP_TEXT
 const extern char TERM_startupText1[];
@@ -73,23 +75,27 @@ const extern char TERM_startupText3[];
 #define ttprintf(format, ...) (*handle->print)(format, ##__VA_ARGS__)
 
 typedef struct __TERMINAL_HANDLE__ TERMINAL_HANDLE;
+typedef struct __TermCommandDescriptor__ TermCommandDescriptor;
 
 typedef uint8_t (* TermCommandFunction)(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 typedef uint8_t (* TermCommandInputHandler)(TERMINAL_HANDLE * handle, uint16_t c);
 typedef void (* TermPrintHandler)(char * format, ...);
+typedef uint8_t (* TermAutoCompHandler)(TERMINAL_HANDLE * handle, void * params);
 
 typedef struct{
     TaskHandle_t task;
     TermCommandInputHandler inputHandler;
 } TermProgram;
 
-typedef struct{
+struct __TermCommandDescriptor__{
     TermCommandFunction function;
     const char * command;
     const char * commandDescription;
     uint8_t commandLength;
     uint8_t minPermissionLevel;
-} TermCommandDescriptor;
+    TermAutoCompHandler ACHandler;
+    void * ACParams;
+};
 
 struct __TERMINAL_HANDLE__{
     char * inputBuffer;
@@ -97,8 +103,9 @@ struct __TERMINAL_HANDLE__{
     uint32_t currBufferLength;
     uint32_t currAutocompleteCount;
     TermProgram * currProgram;
-    TermCommandDescriptor ** autocompleteBuffer;
+    char ** autocompleteBuffer;
     uint32_t autocompleteBufferLength;
+    uint32_t autocompleteStart;
     TermPrintHandler print;
     char * currUserName;
     char * historyBuffer[TERM_HISTORYSIZE];
@@ -106,6 +113,11 @@ struct __TERMINAL_HANDLE__{
     uint32_t currHistoryReadPosition;
     uint8_t currEscSeqPos;
     uint8_t escSeqBuff[16];
+    
+//TODO actually finish implementing this...
+#ifdef TERM_SUPPORT_CWD
+    DIR cwd;
+#endif
 };
 
 typedef enum{
@@ -123,10 +135,11 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle);
 char * strnchr(char * str, char c, uint32_t length);
 void strsft(char * src, int32_t startByte, int32_t offset);
 void TERM_printBootMessage(TERMINAL_HANDLE * handle);
-uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, TermCommandDescriptor ** buff);
+uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff);
 void TERM_freeCommandList(TermCommandDescriptor ** cl, uint16_t length);
 uint8_t TERM_buildCMDList();
-uint8_t TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel);
+TermCommandDescriptor * TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel);
+void TERM_addCommandAC(TermCommandDescriptor * cmd, TermAutoCompHandler ACH, void * ACParams);
 unsigned TERM_isSorted(TermCommandDescriptor * a, TermCommandDescriptor * b);
 char toLowerCase(char c);
 void TERM_setCursorPos(TERMINAL_HANDLE * handle, uint16_t x, uint16_t y);
@@ -138,5 +151,8 @@ void TERM_checkForCopy(TERMINAL_HANDLE * handle, COPYCHECK_MODE mode);
 void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...);
 void TERM_removeProgramm(TERMINAL_HANDLE * handle);
 void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog);
+uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle);
+TermCommandDescriptor * TERM_findCMD(TERMINAL_HANDLE * handle);
+uint8_t TERM_findLastArg(TERMINAL_HANDLE * handle, char * buff, uint8_t * lenBuff);
 
 #endif

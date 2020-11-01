@@ -9,6 +9,7 @@
 #include "UART.h"
 #include "TTerm.h"
 #include "TTerm_cmd.h"
+#include "TTerm_AC.h"
 
 TermCommandDescriptor ** TERM_cmdList;
 uint8_t TERM_cmdCount = 0;
@@ -29,6 +30,13 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const cha
         TERM_addCommand(CMD_help, "help", "Displays this help message", 0);
         TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0);
         TERM_addCommand(CMD_top, "top", "shows performance stats", 0);
+        
+        TermCommandDescriptor * test = TERM_addCommand(CMD_testCommandHandler, "test", "tests stuff", 0);
+        head = ACL_create();
+        ACL_add(head, "-ra");
+        ACL_add(head, "-r");
+        ACL_add(head, "-aa");
+        TERM_addCommandAC(test, ACL_defaultCompleter, head);  
     }
     
 #ifdef TERM_ENABLE_STARTUP_TEXT
@@ -350,9 +358,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             TERM_checkForCopy(handle, TERM_CHECK_HIST);
             
             if(handle->autocompleteBuffer == NULL){ 
-                handle->autocompleteBuffer = pvPortMalloc(TERM_cmdCount * sizeof(TermCommandDescriptor *));
-                handle->autocompleteBufferLength = TERM_findMatchingCMDs(handle->inputBuffer, handle->currBufferLength, handle->autocompleteBuffer);
-                handle->currAutocompleteCount = 0;
+                TERM_doAutoComplete(handle);
             }
             
             if(++handle->currAutocompleteCount > handle->autocompleteBufferLength) handle->currAutocompleteCount = 0;
@@ -363,7 +369,8 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
                 ttprintf("\r%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
             }else{
                 TERM_sendVT100Code(handle, _VT100_ERASE_LINE, 0);
-                ttprintf("\r%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->autocompleteBuffer[handle->currAutocompleteCount - 1]->command);
+                unsigned printQuotationMarks = strchr(handle->autocompleteBuffer[handle->currAutocompleteCount - 1], ' ') != 0;
+                ttprintf(printQuotationMarks ? "\r%s@%s>%.*s\"%s\"" : "\r%s@%s>%.*s%s", handle->currUserName, TERM_DEVICE_NAME, handle->autocompleteStart, handle->inputBuffer, handle->autocompleteBuffer[handle->currAutocompleteCount - 1]);
             }
             break;
             
@@ -371,9 +378,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
             TERM_checkForCopy(handle, TERM_CHECK_HIST);
             
             if(handle->autocompleteBuffer == NULL){ 
-                pvPortMalloc(TERM_cmdCount * sizeof(TermCommandDescriptor *));
-                handle->autocompleteBufferLength = TERM_findMatchingCMDs(handle->inputBuffer, handle->currBufferLength, handle->autocompleteBuffer);
-                handle->currAutocompleteCount = 0;
+                TERM_doAutoComplete(handle);
             }
             
             if(--handle->currAutocompleteCount > handle->autocompleteBufferLength - 1) handle->currAutocompleteCount = handle->autocompleteBufferLength - 1;
@@ -384,7 +389,8 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
                 ttprintf("\r%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->inputBuffer);
             }else{
                 TERM_sendVT100Code(handle, _VT100_ERASE_LINE, 0);
-                ttprintf("\r%s@%s>%s", handle->currUserName, TERM_DEVICE_NAME, handle->autocompleteBuffer[handle->currAutocompleteCount - 1]->command);
+                unsigned printQuotationMarks = strchr(handle->autocompleteBuffer[handle->currAutocompleteCount - 1], ' ') != 0;
+                ttprintf(printQuotationMarks ? "\r%s@%s>%.*s\"%s\"" : "\r%s@%s>%.*s%s", handle->currUserName, TERM_DEVICE_NAME, handle->autocompleteStart, handle->inputBuffer, handle->autocompleteBuffer[handle->currAutocompleteCount - 1]);
             }
             break;
             
@@ -424,12 +430,17 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
 void TERM_checkForCopy(TERMINAL_HANDLE * handle, COPYCHECK_MODE mode){
     if((mode & TERM_CHECK_COMP) && handle->autocompleteBuffer != NULL){ 
         if(handle->currAutocompleteCount != 0){
-            strcpy(handle->inputBuffer, handle->autocompleteBuffer[handle->currAutocompleteCount - 1]->command);
+            char * dst = (char *) ((uint32_t) handle->inputBuffer + handle->autocompleteStart);
+            if(strchr(handle->autocompleteBuffer[handle->currAutocompleteCount - 1], ' ') != 0){
+                sprintf(dst, "\"%s\"", handle->autocompleteBuffer[handle->currAutocompleteCount - 1]);
+            }else{
+                strcpy(dst, handle->autocompleteBuffer[handle->currAutocompleteCount - 1]);
+            }
             handle->currBufferLength = strlen(handle->inputBuffer);
             handle->currBufferPosition = handle->currBufferLength;
             handle->inputBuffer[handle->currBufferPosition] = 0;
         }
-        TERM_freeCommandList(handle->autocompleteBuffer, handle->autocompleteBufferLength);
+        vPortFree(handle->autocompleteBuffer);
         handle->autocompleteBuffer = NULL;
     }
     
@@ -473,38 +484,48 @@ void strsft(char * src, int32_t startByte, int32_t offset){
     }
 }
 
-uint8_t TERM_interpretCMD(char * data, uint16_t dataLength, TERMINAL_HANDLE * handle){
+TermCommandDescriptor * TERM_findCMD(TERMINAL_HANDLE * handle){
     uint8_t currPos = 0;
-    uint16_t cmdLength = dataLength;
+    uint16_t cmdLength = handle->currBufferLength;
     
-    char * firstSpace = strchr(data, ' ');
+    char * firstSpace = strchr(handle->inputBuffer, ' ');
     if(firstSpace != 0){
-        cmdLength = (uint16_t) ((uint32_t) firstSpace - (uint32_t) data);
+        cmdLength = (uint16_t) ((uint32_t) firstSpace - (uint32_t) handle->inputBuffer);
     }
     
     for(;currPos < TERM_cmdCount; currPos++){
-        if(TERM_cmdList[currPos]->commandLength == cmdLength && strncmp(data, TERM_cmdList[currPos]->command, cmdLength) == 0){
-            uint16_t argCount = TERM_countArgs(data, dataLength);
-            if(argCount == TERM_ARGS_ERROR_STRING_LITERAL){
-                ttprintf("\r\nError: unclosed string literal in command\r\n");
-                return TERM_CMD_EXIT_ERROR;
-            }
-            
-            char ** args = 0;
-            if(argCount != 0){
-                args = pvPortMalloc(sizeof(char*) * argCount);
-                TERM_seperateArgs(data, dataLength, args);
-            }
-            
-            uint8_t retCode = TERM_CMD_EXIT_ERROR;
-            if(TERM_cmdList[currPos]->function != 0){
-                retCode = (*TERM_cmdList[currPos]->function)(handle, argCount, args);
-            }
-            
-            if(argCount != 0) vPortFree(args);
-            return retCode;
-        }
+        if(TERM_cmdList[currPos]->commandLength == cmdLength && strncmp(handle->inputBuffer, TERM_cmdList[currPos]->command, cmdLength) == 0) return TERM_cmdList[currPos];
     }
+    
+    return 0;
+}
+
+uint8_t TERM_interpretCMD(char * data, uint16_t dataLength, TERMINAL_HANDLE * handle){
+    
+    TermCommandDescriptor * cmd = TERM_findCMD(handle);
+    
+    if(cmd != 0){
+        uint16_t argCount = TERM_countArgs(data, dataLength);
+        if(argCount == TERM_ARGS_ERROR_STRING_LITERAL){
+            ttprintf("\r\nError: unclosed string literal in command\r\n");
+            return TERM_CMD_EXIT_ERROR;
+        }
+
+        char ** args = 0;
+        if(argCount != 0){
+            args = pvPortMalloc(sizeof(char*) * argCount);
+            TERM_seperateArgs(data, dataLength, args);
+        }
+
+        uint8_t retCode = TERM_CMD_EXIT_ERROR;
+        if(cmd->function != 0){
+            retCode = (*cmd->function)(handle, argCount, args);
+        }
+
+        if(argCount != 0) vPortFree(args);
+        return retCode;
+    }
+    
     return TERM_CMD_EXIT_NOT_FOUND;
 }
 
@@ -590,28 +611,6 @@ uint16_t TERM_countArgs(const char * data, uint16_t dataLength){
     return count;
 }
 
-uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, TermCommandDescriptor ** buff){
-    
-    //TODO handle auto complete of parameters, for now we return if this is attempted
-    if(strnchr(currInput, ' ', length) != NULL) return 0;
-    //UART_print("scanning \"%s\" for matching cmds\r\n", currInput);
-    
-    uint8_t currPos = 0;
-    uint8_t commandsFound = 0;
-    for(;currPos < TERM_cmdCount; currPos++){
-        if(strncmp(currInput, TERM_cmdList[currPos]->command, length) == 0){
-            if(TERM_cmdList[currPos]->commandLength >= length){
-                buff[commandsFound] = TERM_cmdList[currPos];
-                commandsFound ++;
-                //UART_print("found %s (count is now %d)\r\n", TERM_cmdList[currPos]->command, commandsFound);
-            }
-        }else{
-            if(commandsFound > 0) return commandsFound;
-        }
-    }
-    return commandsFound;
-}
-
 void TERM_freeCommandList(TermCommandDescriptor ** cl, uint16_t length){
     /*uint8_t currPos = 0;
     for(;currPos < length; currPos++){
@@ -638,7 +637,7 @@ uint8_t TERM_buildCMDList(){
     //UART_print("Sorted the command list in %d ms\r\n", xTaskGetTickCount() - startTime);
 }
 
-uint8_t TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel){
+TermCommandDescriptor * TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel){
     if(TERM_cmdCount == 0xff) return 0;
     
     TermCommandDescriptor * newCMD = pvPortMalloc(sizeof(TermCommandDescriptor));
@@ -650,6 +649,7 @@ uint8_t TERM_addCommand(TermCommandFunction function, const char * command, cons
     newCMD->commandLength = strlen(command);
     newCMD->function = function;
     newCMD->minPermissionLevel = minPermissionLevel;
+    newCMD->ACHandler = 0;
     
     if(TERM_cmdCount > 0){
         memcpy(newCMDList, TERM_cmdList, TERM_cmdCount * sizeof(TermCommandDescriptor *));
@@ -659,7 +659,7 @@ uint8_t TERM_addCommand(TermCommandFunction function, const char * command, cons
     TERM_cmdList = newCMDList;
     TERM_cmdList[TERM_cmdCount++] = newCMD;
     TERM_buildCMDList();
-    return TERM_cmdCount;
+    return newCMD;
 }
 
 unsigned TERM_isSorted(TermCommandDescriptor * a, TermCommandDescriptor * b){

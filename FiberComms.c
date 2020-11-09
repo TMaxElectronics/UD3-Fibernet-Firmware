@@ -59,11 +59,11 @@ void COMMS_init(){
     min_init_context(COMMS_UDP, COMMS_UDP);
     min_init_context(COMMS_UART, COMMS_UART);
     
-    TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
-    TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0);
-    TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0);
+    TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0, &TERM_cmdListHead);
     
-    term = TERM_createNewHandle(UART_print, "root");
+    term = TERM_createNewHandle(UART_termPrint, 0, 1, &TERM_cmdListHead, 0, "root");
 }
 
 void COMMS_statsHandler(void * params){
@@ -71,19 +71,19 @@ void COMMS_statsHandler(void * params){
     while(1){
         ConnectionStats.rxDataRateLast = ConnectionStats.rxBytesLast * 2;
         ConnectionStats.rxBytesLast = 0;
-        ConnectionStats.rxDataRateAVG = ((ConnectionStats.rxDataRateAVG * 75) + (ConnectionStats.rxDataRateLast * 25)) / 100;
+        ConnectionStats.rxDataRateAVG = ((ConnectionStats.rxDataRateAVG * 97) + (ConnectionStats.rxDataRateLast * 3)) / 100;
         
         ConnectionStats.txDataRateLast = ConnectionStats.txBytesLast * 2;
         ConnectionStats.txBytesLast = 0;
-        ConnectionStats.txDataRateAVG = ((ConnectionStats.txDataRateAVG * 75) + (ConnectionStats.txDataRateLast * 25)) / 100;
+        ConnectionStats.txDataRateAVG = ((ConnectionStats.txDataRateAVG * 97) + (ConnectionStats.txDataRateLast * 3)) / 100;
         
         ConnectionStats.rxPacketRateLast = (ConnectionStats.rxPacketsTotal - ConnectionStats.rxPacketsLast) * 2;
         ConnectionStats.rxPacketsLast = ConnectionStats.rxPacketsTotal;
-        ConnectionStats.rxPacketRateAVG = ((ConnectionStats.rxPacketRateAVG * 75) + (ConnectionStats.rxPacketRateLast * 25)) / 100;
+        ConnectionStats.rxPacketRateAVG = ((ConnectionStats.rxPacketRateAVG * 90) + (ConnectionStats.rxPacketRateLast * 10)) / 100;
         
         ConnectionStats.txPacketRateLast = (ConnectionStats.txPacketsTotal - ConnectionStats.txPacketsLast) * 2;
         ConnectionStats.txPacketsLast = ConnectionStats.txPacketsTotal;
-        ConnectionStats.txPacketRateAVG = ((ConnectionStats.txPacketRateAVG * 75) + (ConnectionStats.txPacketRateLast * 25)) / 100;
+        ConnectionStats.txPacketRateAVG = ((ConnectionStats.txPacketRateAVG * 90) + (ConnectionStats.txPacketRateLast * 10)) / 100;
         
         vTaskDelay(pdMS_TO_TICKS(500));
     }
@@ -158,7 +158,7 @@ void COMMS_udpDiscoverHandler(void * params){
                 uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
                 FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
                 FreeRTOS_inet_ntoa(ulIPAddress, IPAdrr);
-                uint16_t length = snprintf(response,FIND_MAX_RESPONSE_SIZE, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
+                uint16_t length = snprintf(response,FIND_MAX_RESPONSE_SIZE, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;deviceType=UD3;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
                 FreeRTOS_sendto(dataSocket, response, length, 0, &discoverClient, dClientLength);
                 vPortFree(response);
                 vPortFree(IPAdrr);
@@ -320,6 +320,14 @@ void COMMS_eventHook(Event evt){
             TERM_printDebug(term, "SD card removed\r\n");
             break;
             
+        case FTP_CLIENT_CONNECTED:
+            TERM_printDebug(term, "FTP client connected\r\n");
+            break;
+            
+        case FTP_CLIENT_DISCONNECTED:
+            TERM_printDebug(term, "FTP client disconnected\r\n");
+            break;
+            
         default:
             UART_print("unknown Event received\r\n");
     }
@@ -341,13 +349,21 @@ void COMMS_pushAlarm(uint8_t level, char* message, int32_t value){
 }
 
 
-
+//WARNING: UNSAFE, NEEDS TO BE RE-CODED!
 void COMMS_dumpPacket(uint8_t * data, uint16_t length){
-    uint16_t currPos = 0;
+    return;
     UART_print("\r\nPacket dump:\r\n");
+    
+    char * buff = pvPortMalloc(length * 7);
+    uint16_t currPos = 0;
+    uint16_t nls = 0;
     for(;currPos < length; currPos++){
-        UART_print(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
+        sprintf(&buff[(currPos*5)+nls], "%s0x%02x ", data[currPos], (currPos % 16 == 0) ? "\r\n" : ((currPos % 8 == 0) ? " " : ""));
+        if(currPos % 16 == 0) nls += 2; else if(currPos % 8 == 0) nls += 1;
     }
+    min_send_frame(COMMS_UART, MIN_ID_DEBUG, buff, (currPos*5)+nls);
+    vPortFree(buff);
+    
     UART_print("\r\n---------\r\n");
 }
 
@@ -364,7 +380,7 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     TermProgram * prog = pvPortMalloc(sizeof(TermProgram));
     prog->inputHandler = CMD_ioTop_handleInput;
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-    returnCode = xTaskCreate(CMD_ioTop_task, "top", configMINIMAL_STACK_SIZE, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
+    returnCode = xTaskCreate(CMD_ioTop_task, "iotop", configMINIMAL_STACK_SIZE + 125, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
     if(returnCode == TERM_CMD_EXIT_PROC_STARTED) TERM_attachProgramm(handle, prog);
     return returnCode;
 }

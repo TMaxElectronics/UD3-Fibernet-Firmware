@@ -55,6 +55,7 @@
       </logicalFolder>
       <logicalFolder name="f3" displayName=".services" projectFiles="true">
         <itemPath>include/service.h</itemPath>
+        <itemPath>include/FTP.h</itemPath>
       </logicalFolder>
       <itemPath>include/ConfigPerformance.h</itemPath>
       <itemPath>include/LAN9250.h</itemPath>
@@ -113,6 +114,7 @@
       </logicalFolder>
       <logicalFolder name="f3" displayName=".services" projectFiles="true">
         <itemPath>service.c</itemPath>
+        <itemPath>FTP.c</itemPath>
       </logicalFolder>
       <itemPath>ConfigPerformance.c</itemPath>
       <itemPath>LAN9250.c</itemPath>

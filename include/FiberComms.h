@@ -32,6 +32,8 @@ typedef enum{
     ETH_DHCP_FAIL = 7,
     FS_CARD_CONNECTED = 8,
     FS_CARD_REMOVED = 9,
+    FTP_CLIENT_CONNECTED = 10,
+    FTP_CLIENT_DISCONNECTED = 11,
 }Event;
 
 typedef struct{

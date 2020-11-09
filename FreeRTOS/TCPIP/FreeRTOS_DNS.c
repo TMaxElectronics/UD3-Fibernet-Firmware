@@ -583,7 +583,7 @@ TickType_t uxIdentifier = 0U;
 			}
 			else
 			{
-				FreeRTOS_printf( ( "prvPrepareLookup: name is too long ( %lu > %lu )\n",
+				FreeRTOS_printf( ( "prvPrepareLookup: name is too long ( %lu > %lu )\r\n",
 								   ( uint32_t ) xLength,
 								   ( uint32_t ) ipconfigDNS_CACHE_NAME_LENGTH ) );
 			}
@@ -612,7 +612,7 @@ TickType_t uxIdentifier = 0U;
 
 				if( ulIPAddress != 0UL )
 				{
-					FreeRTOS_debug_printf( ( "FreeRTOS_gethostbyname: found '%s' in cache: %lxip\n", pcHostName, ulIPAddress ) );
+					FreeRTOS_debug_printf( ( "FreeRTOS_gethostbyname: found '%s' in cache: %lxip\r\n", pcHostName, ulIPAddress ) );
 				}
 				else
 				{
@@ -1343,7 +1343,7 @@ BaseType_t xReturn = pdTRUE;
 
 								( void ) FreeRTOS_inet_ntop( FREERTOS_AF_INET, ( const void * ) &( ulIPAddress ), cBuffer, sizeof( cBuffer ) );
 								/* Show what has happened. */
-								FreeRTOS_printf( ( "DNS[0x%04lX]: The answer to '%s' (%s) will%s be stored\n",
+								FreeRTOS_printf( ( "DNS[0x%04lX]: The answer to '%s' (%s) will%s be stored\r\n",
 												   ( UBaseType_t ) pxDNSMessageHeader->usIdentifier,
 												   pcName,
 												   cBuffer,
@@ -1845,7 +1845,7 @@ BaseType_t xReturn;
 
 		if( ( xLookUp == 0 ) || ( *pulIP != 0UL ) )
 		{
-			FreeRTOS_debug_printf( ( "prvProcessDNSCache: %s: '%s' @ %lxip\n", ( xLookUp != 0 ) ? "look-up" : "add", pcName, FreeRTOS_ntohl( *pulIP ) ) );
+			FreeRTOS_debug_printf( ( "prvProcessDNSCache: %s: '%s' @ %lxip\r\n", ( xLookUp != 0 ) ? "look-up" : "add", pcName, FreeRTOS_ntohl( *pulIP ) ) );
 		}
 		return xFound;
 	}

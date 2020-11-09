@@ -13,6 +13,7 @@ void UART_sendTask( void *pvParameters );
 void UART_receiveTask( void *pvParameters );
 
 void UART_print(char * format, ...);
+void UART_termPrint(void * port, char * format, ...);
 void UART_printDebug(char * format, ...);
 void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend);
 void UART_sendBytes(uint8_t * data, uint32_t length, unsigned freeAfterSend);

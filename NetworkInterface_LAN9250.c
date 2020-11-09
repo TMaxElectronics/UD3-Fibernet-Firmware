@@ -11,6 +11,7 @@
 #include "LAN9250.h"
 #include "include/FiberComms.h"
 
+unsigned debug = 0;
 
 /* INTERNAL API FUNCTIONS. */
 BaseType_t xNetworkInterfaceInitialise( void ){
@@ -18,7 +19,6 @@ BaseType_t xNetworkInterfaceInitialise( void ){
 }
 
 BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxNetworkBuffer, BaseType_t xReleaseAfterSend ){
-    //UART_print("sending packet with length %d\r\n", pxNetworkBuffer->xDataLength);
     ETH_writePacket(pxNetworkBuffer->pucEthernetBuffer, pxNetworkBuffer->xDataLength);
     if(xReleaseAfterSend != pdFALSE){
         vReleaseNetworkBufferAndDescriptor(pxNetworkBuffer);
@@ -52,39 +52,6 @@ int8_t cBuffer[ 16 ];
     {
         LED_ethDHCPStateChangeHook(1);
         COMMS_eventHook(ETH_DHCP_SUCCESS);
-        /* Create the tasks that use the IP stack if they have not already been
-        created. */
-        if( xTasksAlreadyCreated == pdFALSE )
-        {
-            /*
-             * Create the tasks here.
-             */
-
-            xTasksAlreadyCreated = pdTRUE;
-        }
-
-        /* The network is up and configured.  Print out the configuration,
-        which may have been obtained from a DHCP server. */
-        FreeRTOS_GetAddressConfiguration( &ulIPAddress,
-                                          &ulNetMask,
-                                          &ulGatewayAddress,
-                                          &ulDNSServerAddress );
-
-        /* Convert the IP address to a string then print it out. */
-        FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
-        UART_printDebug( "IP Address: %s\r\n", cBuffer );
-
-        /* Convert the net mask to a string then print it out. */
-        FreeRTOS_inet_ntoa( ulNetMask, cBuffer );
-        UART_printDebug( "Subnet Mask: %s\r\n", cBuffer );
-
-        /* Convert the IP address of the gateway to a string then print it out. */
-        FreeRTOS_inet_ntoa( ulGatewayAddress, cBuffer );
-        UART_printDebug( "Gateway IP Address: %s\r\n", cBuffer );
-
-        /* Convert the IP address of the DNS server to a string then print it out. */
-        FreeRTOS_inet_ntoa( ulDNSServerAddress, cBuffer );
-        UART_printDebug( "DNS server IP Address: %s\r\n", cBuffer );
     }else{
         LED_ethDHCPStateChangeHook(0);
     }

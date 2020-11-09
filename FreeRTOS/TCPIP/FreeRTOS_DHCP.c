@@ -365,7 +365,7 @@ BaseType_t xGivingUp = pdFALSE;
 							EP_DHCPData.xUseBroadcast = pdTRUE;
 						}
 						prvSendDHCPDiscover();
-						FreeRTOS_debug_printf( ( "vDHCPProcess: timeout %lu ticks\n", EP_DHCPData.xDHCPTxPeriod ) );
+						FreeRTOS_debug_printf( ( "vDHCPProcess: timeout %lu ticks\r\n", EP_DHCPData.xDHCPTxPeriod ) );
 					}
 					else
 					{
@@ -374,7 +374,7 @@ BaseType_t xGivingUp = pdFALSE;
 				}
 				else
 				{
-					FreeRTOS_debug_printf( ( "vDHCPProcess: giving up %lu > %lu ticks\n", EP_DHCPData.xDHCPTxPeriod, ipconfigMAXIMUM_DISCOVER_TX_PERIOD ) );
+					FreeRTOS_debug_printf( ( "vDHCPProcess: giving up %lu > %lu ticks\r\n", EP_DHCPData.xDHCPTxPeriod, ipconfigMAXIMUM_DISCOVER_TX_PERIOD ) );
 
 					#if( ipconfigDHCP_FALL_BACK_AUTO_IP != 0 )
 					{
@@ -406,7 +406,7 @@ BaseType_t xGivingUp = pdFALSE;
 			/* Look for acks coming in. */
 			if( prvProcessDHCPReplies( dhcpMESSAGE_TYPE_ACK ) == pdPASS )
 			{
-				FreeRTOS_debug_printf( ( "vDHCPProcess: acked %lxip\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
+				FreeRTOS_debug_printf( ( "vDHCPProcess: acked %lxip\r\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
 
 				/* DHCP completed.  The IP address can now be used, and the
 				timer set to the lease timeout time. */
@@ -622,7 +622,7 @@ static void prvInitialiseDHCP( void )
 
 		/* Create the DHCP socket if it has not already been created. */
 		prvCreateDHCPSocket();
-		FreeRTOS_debug_printf( ( "prvInitialiseDHCP: start after %lu ticks\n", dhcpINITIAL_TIMER_PERIOD ) );
+		FreeRTOS_debug_printf( ( "prvInitialiseDHCP: start after %lu ticks\r\n", dhcpINITIAL_TIMER_PERIOD ) );
 		vIPReloadDHCPTimer( dhcpINITIAL_TIMER_PERIOD );
 	}
 	else
@@ -854,7 +854,7 @@ const uint32_t ulMandatoryOptions = 2UL; /* DHCP server address, and the correct
 				{
 					/* HT:endian: used to be network order */
 					EP_DHCPData.ulOfferedIPAddress = pxDHCPMessage->ulYourIPAddress_yiaddr;
-					FreeRTOS_printf( ( "vDHCPProcess: offer %lxip\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
+					FreeRTOS_printf( ( "vDHCPProcess: offer %lxip\r\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
 					xReturn = pdPASS;
 				}
 			}
@@ -981,7 +981,7 @@ size_t uxOptionsLength = sizeof( ucDHCPRequestOptions );
 					 ( const void * ) ( &( EP_DHCPData.ulDHCPServerAddress ) ),
 					 sizeof( EP_DHCPData.ulDHCPServerAddress ) );
 
-	FreeRTOS_debug_printf( ( "vDHCPProcess: reply %lxip\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
+	FreeRTOS_debug_printf( ( "vDHCPProcess: reply %lxip\r\n", FreeRTOS_ntohl( EP_DHCPData.ulOfferedIPAddress ) ) );
 	iptraceSENDING_DHCP_REQUEST();
 
 	if( FreeRTOS_sendto( xDHCPSocket, pucUDPPayloadBuffer, sizeof( DHCPMessage_IPv4_t ) + uxOptionsLength, FREERTOS_ZERO_COPY, &xAddress, sizeof( xAddress ) ) == 0 )

@@ -1,31 +1,78 @@
+/*
+ * TTerm
+ *
+ * Copyright (c) 2020 Thorben Zethoff
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#if !defined(TTerm_H)
+#define TTerm_H
+    
 #ifndef _VT100_CURSOR_POS1
 
 #include "FreeRTOS.h"
 #include "task.h"
+#if PIC32 == 1    
 #include "ff.h"
+#endif    
 
-#define _VT100_CURSOR_POS1 3
-#define _VT100_CURSOR_END 4
-#define _VT100_FOREGROUND_COLOR 5
-#define _VT100_BACKGROUND_COLOR 6
-#define _VT100_RESET_ATTRIB 7
-#define _VT100_BRIGHT 8
-#define _VT100_DIM 9
-#define _VT100_UNDERSCORE 10
-#define _VT100_BLINK 11
-#define _VT100_REVERSE 12
-#define _VT100_HIDDEN 13
-#define _VT100_ERASE_SCREEN 14
-#define _VT100_ERASE_LINE 15
-#define _VT100_FONT_G0 16
-#define _VT100_FONT_G1 17
-#define _VT100_WRAP_ON 18
-#define _VT100_WRAP_OFF 19
-#define _VT100_ERASE_LINE_END 20
-#define _VT100_CURSOR_BACK_BY 21
-#define _VT100_CURSOR_FORWARD_BY 22
-#define _VT100_CURSOR_SAVE_POSITION 23
-#define _VT100_CURSOR_RESTORE_POSITION 24
+#define EXTENDED_PRINTF 1
+#define TERM_DEVICE_NAME "UD3"
+#define TERM_VERSION_STRING "V1.0"
+
+#if PIC32 == 1 
+    #define START_OF_FLASH  0xa0000000
+    #define END_OF_FLASH    0xa000ffff
+#else
+    #define START_OF_FLASH  0x00000000
+    #define END_OF_FLASH    0x1FFF8000
+#endif
+
+enum vt100{
+    _VT100_CURSOR_POS1,
+    _VT100_CURSOR_END,
+    _VT100_FOREGROUND_COLOR,
+    _VT100_BACKGROUND_COLOR,
+    _VT100_RESET_ATTRIB,
+    _VT100_BRIGHT,
+    _VT100_DIM,
+    _VT100_UNDERSCORE,
+    _VT100_BLINK,
+    _VT100_REVERSE,
+    _VT100_HIDDEN,
+    _VT100_ERASE_SCREEN,
+    _VT100_ERASE_LINE,
+    _VT100_FONT_G0,
+    _VT100_FONT_G1,
+    _VT100_WRAP_ON,
+    _VT100_WRAP_OFF,
+    _VT100_ERASE_LINE_END,
+    _VT100_CURSOR_BACK_BY,
+    _VT100_CURSOR_FORWARD_BY,
+    _VT100_CURSOR_DOWN_BY,
+    _VT100_CURSOR_UP_BY,
+    _VT100_CURSOR_SAVE_POSITION,
+    _VT100_CURSOR_RESTORE_POSITION,
+    _VT100_CURSOR_ENABLE,
+    _VT100_CURSOR_DISABLE,
+    _VT100_CLS
+};
 
 //VT100 cmds given to us by the terminal software (they need to be > 8 bits so the handler can tell them apart from normal characters)
 #define _VT100_RESET                0x1000
@@ -37,19 +84,18 @@
 #define _VT100_CURSOR_DOWN          0x1006
 #define _VT100_BACKWARDS_TAB        0x1007
 
-#define _VT100_BLACK 0
-#define _VT100_RED 1
-#define _VT100_GREEN 2
-#define _VT100_YELLOW 3
-#define _VT100_BLUE 4
-#define _VT100_MAGENTA 5
-#define _VT100_CYAN 6
-#define _VT100_WHITE 7
+enum color{
+    _VT100_BLACK,
+    _VT100_RED,
+    _VT100_GREEN,
+    _VT100_YELLOW,
+    _VT100_BLUE,
+    _VT100_MAGENTA,
+    _VT100_CYAN,
+    _VT100_WHITE
+};
 
 #define _VT100_POS_IGNORE 0xffff
-
-#define TERM_DEVICE_NAME "UD3 Fibernet"
-#define TERM_VERSION_STRING "V1.0"
 
 #define TERM_HISTORYSIZE 16
 #define TERM_INPUTBUFFER_SIZE 128
@@ -72,14 +118,31 @@ const extern char TERM_startupText2[];
 const extern char TERM_startupText3[];
 #endif
 
+
+#if EXTENDED_PRINTF == 1
+#define ttprintfEcho(format, ...) if(handle->echoEnabled) (*handle->print)(handle->port, format, ##__VA_ARGS__)
+#else
+#define ttprintfEcho(format, ...) if(echoEnabled) (*handle->print)(format, ##__VA_ARGS__)
+#endif
+
+#if EXTENDED_PRINTF == 1
+#define ttprintf(format, ...) (*handle->print)(handle->port, format, ##__VA_ARGS__)
+#else
 #define ttprintf(format, ...) (*handle->print)(format, ##__VA_ARGS__)
+#endif
 
 typedef struct __TERMINAL_HANDLE__ TERMINAL_HANDLE;
 typedef struct __TermCommandDescriptor__ TermCommandDescriptor;
 
 typedef uint8_t (* TermCommandFunction)(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 typedef uint8_t (* TermCommandInputHandler)(TERMINAL_HANDLE * handle, uint16_t c);
+typedef uint8_t (* TermErrorPrinter)(TERMINAL_HANDLE * handle, uint32_t retCode);
+
+#if EXTENDED_PRINTF == 1
+typedef void (* TermPrintHandler)(void * port, char * format, ...);
+#else
 typedef void (* TermPrintHandler)(char * format, ...);
+#endif
 typedef uint8_t (* TermAutoCompHandler)(TERMINAL_HANDLE * handle, void * params);
 
 typedef struct{
@@ -91,21 +154,26 @@ struct __TermCommandDescriptor__{
     TermCommandFunction function;
     const char * command;
     const char * commandDescription;
-    uint8_t commandLength;
+    uint32_t commandLength;
     uint8_t minPermissionLevel;
     TermAutoCompHandler ACHandler;
     void * ACParams;
+    
+    TermCommandDescriptor * nextCmd;
 };
 
 struct __TERMINAL_HANDLE__{
     char * inputBuffer;
+    #if EXTENDED_PRINTF == 1
+    void * port;
+    #endif        
     uint32_t currBufferPosition;
     uint32_t currBufferLength;
     uint32_t currAutocompleteCount;
     TermProgram * currProgram;
     char ** autocompleteBuffer;
     uint32_t autocompleteBufferLength;
-    uint32_t autocompleteStart;
+    uint32_t autocompleteStart;    
     TermPrintHandler print;
     char * currUserName;
     char * historyBuffer[TERM_HISTORYSIZE];
@@ -113,7 +181,9 @@ struct __TERMINAL_HANDLE__{
     uint32_t currHistoryReadPosition;
     uint8_t currEscSeqPos;
     uint8_t escSeqBuff[16];
-    
+    unsigned echoEnabled;
+    TermCommandDescriptor * cmdListHead;
+    TermErrorPrinter errorPrinter;
 //TODO actually finish implementing this...
 #ifdef TERM_SUPPORT_CWD
     DIR cwd;
@@ -124,10 +194,13 @@ typedef enum{
     TERM_CHECK_COMP_AND_HIST = 0b11, TERM_CHECK_COMP = 0b01, TERM_CHECK_HIST = 0b10, 
 } COPYCHECK_MODE;
 
-extern TermCommandDescriptor ** TERM_cmdList;
-extern uint8_t TERM_cmdCount;
+extern TermCommandDescriptor TERM_cmdListHead;
 
-TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, const char * usr);
+#if EXTENDED_PRINTF == 1
+TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, void * port, unsigned echoEnabled, TermCommandDescriptor * cmdListHead, TermErrorPrinter errorPrinter, const char * usr);
+#else
+TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, unsigned echoEnabled, TermCommandDescriptor * cmdListHead, TermErrorPrinter errorPrinter, const char * usr);    
+#endif    
 void TERM_destroyHandle(TERMINAL_HANDLE * handle);
 uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * handle);
 unsigned isACIILetter(char c);
@@ -135,15 +208,15 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle);
 char * strnchr(char * str, char c, uint32_t length);
 void strsft(char * src, int32_t startByte, int32_t offset);
 void TERM_printBootMessage(TERMINAL_HANDLE * handle);
-uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff);
 void TERM_freeCommandList(TermCommandDescriptor ** cl, uint16_t length);
 uint8_t TERM_buildCMDList();
-TermCommandDescriptor * TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel);
+TermCommandDescriptor * TERM_addCommand(TermCommandFunction function, const char * command, const char * description, uint8_t minPermissionLevel, TermCommandDescriptor * head);
 void TERM_addCommandAC(TermCommandDescriptor * cmd, TermAutoCompHandler ACH, void * ACParams);
 unsigned TERM_isSorted(TermCommandDescriptor * a, TermCommandDescriptor * b);
 char toLowerCase(char c);
 void TERM_setCursorPos(TERMINAL_HANDLE * handle, uint16_t x, uint16_t y);
 void TERM_sendVT100Code(TERMINAL_HANDLE * handle, uint16_t cmd, uint8_t var);
+const char * TERM_getVT100Code(uint16_t cmd, uint8_t var);
 uint16_t TERM_countArgs(const char * data, uint16_t dataLength);
 uint8_t TERM_interpretCMD(char * data, uint16_t dataLength, TERMINAL_HANDLE * handle);
 uint8_t TERM_seperateArgs(char * data, uint16_t dataLength, char ** buff);
@@ -152,7 +225,11 @@ void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...);
 void TERM_removeProgramm(TERMINAL_HANDLE * handle);
 void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog);
 uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle);
-TermCommandDescriptor * TERM_findCMD(TERMINAL_HANDLE * handle);
+uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff, TermCommandDescriptor * cmdListHead);
 uint8_t TERM_findLastArg(TERMINAL_HANDLE * handle, char * buff, uint8_t * lenBuff);
+BaseType_t ptr_is_in_ram(void* ptr);
+void TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
+void TERM_LIST_add(TermCommandDescriptor * item, TermCommandDescriptor * head);
 
+#endif
 #endif

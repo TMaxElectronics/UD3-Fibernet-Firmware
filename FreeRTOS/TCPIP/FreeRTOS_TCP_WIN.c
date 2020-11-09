@@ -340,7 +340,7 @@ static void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
 
 		if( xTCPSegments == NULL )
 		{
-			FreeRTOS_debug_printf( ( "prvCreateSectors: malloc %u failed\n",
+			FreeRTOS_debug_printf( ( "prvCreateSectors: malloc %u failed\r\n",
 				( unsigned ) ipconfigTCP_WIN_SEG_COUNT * sizeof( xTCPSegments[ 0 ] ) ) );
 
 			xReturn = pdFAIL;
@@ -414,7 +414,7 @@ static void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
 		{
 			/* If the TCP-stack runs out of segments, you might consider
 			increasing 'ipconfigTCP_WIN_SEG_COUNT'. */
-			FreeRTOS_debug_printf( ( "xTCPWindow%cxNew: Error: all segments occupied\n", ( xIsForRx != 0 ) ? 'R' : 'T' ) );
+			FreeRTOS_debug_printf( ( "xTCPWindow%cxNew: Error: all segments occupied\r\n", ( xIsForRx != 0 ) ? 'R' : 'T' ) );
 			pxSegment = NULL;
 		}
 		else
@@ -491,7 +491,7 @@ static void vListInsertGeneric( List_t * const pxList, ListItem_t * const pxNewL
 		}
 		else
 		{
-			FreeRTOS_debug_printf( ( "xTCPWindowRxEmpty: cur %lu highest %lu (empty)\n",
+			FreeRTOS_debug_printf( ( "xTCPWindowRxEmpty: cur %lu highest %lu (empty)\r\n",
 				( pxWindow->rx.ulCurrentSequenceNumber - pxWindow->rx.ulFirstSequenceNumber ),
 				( pxWindow->rx.ulHighestSequenceNumber - pxWindow->rx.ulFirstSequenceNumber ) ) );
 			xReturn = pdFALSE;
@@ -643,7 +643,7 @@ void vTCPWindowCreate( TCPWindow_t *pxWindow, uint32_t ulRxWindowLength,
 
 	if( xTCPWindowLoggingLevel != 0 )
 	{
-		FreeRTOS_debug_printf( ( "vTCPWindowCreate: for WinLen = Rx/Tx: %lu/%lu\n",
+		FreeRTOS_debug_printf( ( "vTCPWindowCreate: for WinLen = Rx/Tx: %lu/%lu\r\n",
 			ulRxWindowLength, ulTxWindowLength ) );
 	}
 
@@ -781,7 +781,7 @@ const int32_t l500ms = 500;
 		if( ( pxBest != NULL ) &&
 			( ( pxBest->ulSequenceNumber != ulSequenceNumber ) || ( pxBest->lDataLength != ( int32_t ) ulLength ) ) )
 		{
-			FreeRTOS_debug_printf( ( "xTCPWindowRxConfirm[%u]: search %lu (+%ld=%lu) found %lu (+%ld=%lu)\n",
+			FreeRTOS_debug_printf( ( "xTCPWindowRxConfirm[%u]: search %lu (+%ld=%lu) found %lu (+%ld=%lu)\r\n",
 				pxWindow->usPeerPortNumber,
 				ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
 				ulLength,
@@ -828,7 +828,7 @@ const int32_t l500ms = 500;
 			for.  It can be passed directly to the rx stream. */
 			if( ulLength > ulSpace )
 			{
-				FreeRTOS_debug_printf( ( "lTCPWindowRxCheck: Refuse %lu bytes, due to lack of space (%lu)\n", ulLength, ulSpace ) );
+				FreeRTOS_debug_printf( ( "lTCPWindowRxCheck: Refuse %lu bytes, due to lack of space (%lu)\r\n", ulLength, ulSpace ) );
 				lReturn = -1;
 			}
 			else
@@ -878,7 +878,7 @@ const int32_t l500ms = 500;
 
 						if( xTCPWindowLoggingLevel >= 1 )
 						{
-							FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: retran %lu (Found %lu bytes at %lu cnt %ld)\n",
+							FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: retran %lu (Found %lu bytes at %lu cnt %ld)\r\n",
 								pxWindow->usPeerPortNumber, pxWindow->usOurPortNumber,
 								ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
 								pxWindow->ulUserDataLength,
@@ -925,7 +925,7 @@ const int32_t l500ms = 500;
 			{
 				/* The new segment is ahead of rx.ulCurrentSequenceNumber.  The
 				sequence number of this packet is too far ahead, ignore it. */
-				FreeRTOS_debug_printf( ( "lTCPWindowRxCheck: Refuse %lu+%lu bytes, due to lack of space (%lu)\n", lDistance, ulLength, ulSpace ) );
+				FreeRTOS_debug_printf( ( "lTCPWindowRxCheck: Refuse %lu+%lu bytes, due to lack of space (%lu)\r\n", lDistance, ulLength, ulSpace ) );
 				lReturn = -1;
 			}
 			else
@@ -949,7 +949,7 @@ const int32_t l500ms = 500;
 
 				if( xTCPWindowLoggingLevel >= 1 )
 				{
-					FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: seqnr %u exp %u (dist %d) SACK to %u\n",
+					FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%d,%d]: seqnr %u exp %u (dist %d) SACK to %u\r\n",
 						( int ) pxWindow->usPeerPortNumber,
 						( int ) pxWindow->usOurPortNumber,
 						( unsigned ) ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
@@ -998,7 +998,7 @@ const int32_t l500ms = 500;
 					{
 						if( xTCPWindowLoggingLevel != 0 )
 						{
-							FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%u,%u]: seqnr %lu (cnt %lu)\n",
+							FreeRTOS_debug_printf( ( "lTCPWindowRxCheck[%u,%u]: seqnr %lu (cnt %lu)\r\n",
 								pxWindow->usPeerPortNumber, pxWindow->usOurPortNumber, ulSequenceNumber - pxWindow->rx.ulFirstSequenceNumber,
 								listCURRENT_LIST_LENGTH( &pxWindow->xRxSegments ) ) );
 							FreeRTOS_flush_logging( );
@@ -1096,7 +1096,7 @@ const int32_t l500ms = 500;
 					/* Some detailed logging, for those who're interested. */
 					if( ( xTCPWindowLoggingLevel >= 2 ) && ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) )
 					{
-						FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: Add %4lu bytes for seqNr %lu len %4lu (nxt %lu) pos %lu\n",
+						FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: Add %4lu bytes for seqNr %lu len %4lu (nxt %lu) pos %lu\r\n",
 							ulLength,
 							pxSegment->ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 							pxSegment->lDataLength,
@@ -1150,7 +1150,7 @@ const int32_t l500ms = 500;
 					if( ( xTCPWindowLoggingLevel >= 3 ) ||
 						( ( xTCPWindowLoggingLevel >= 2 ) && ( pxWindow->pxHeadSegment != NULL ) ) )
 					{
-						FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: New %4ld bytes for seqNr %lu len %4lu (nxt %lu) pos %lu\n",
+						FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: New %4ld bytes for seqNr %lu len %4lu (nxt %lu) pos %lu\r\n",
 							ulLength,
 							pxSegment->ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 							pxSegment->lDataLength,
@@ -1166,7 +1166,7 @@ const int32_t l500ms = 500;
 				No more data can be sent at the moment. */
 				if( lDone != 0 )
 				{
-					FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: Sorry all buffers full (cancel %ld bytes)\n", lBytesLeft ) );
+					FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: Sorry all buffers full (cancel %ld bytes)\r\n", lBytesLeft ) );
 				}
 				break;
 			}
@@ -1362,7 +1362,7 @@ const int32_t l500ms = 500;
 					/* Some detailed logging. */
 					if( ( xTCPWindowLoggingLevel != 0 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) ) )
 					{
-						FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u,%u]: WaitQueue %ld bytes for sequence number %lu (%lX)\n",
+						FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u,%u]: WaitQueue %ld bytes for sequence number %lu (%lX)\r\n",
 							pxWindow->usPeerPortNumber,
 							pxWindow->usOurPortNumber,
 							pxSegment->lDataLength,
@@ -1418,7 +1418,7 @@ const int32_t l500ms = 500;
 					/* ...and more detailed logging */
 					if( ( xTCPWindowLoggingLevel >= 2 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) ) )
 					{
-						FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u,%u]: XmitQueue %ld bytes for sequence number %lu (ws %lu)\n",
+						FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u,%u]: XmitQueue %ld bytes for sequence number %lu (ws %lu)\r\n",
 							pxWindow->usPeerPortNumber,
 							pxWindow->usOurPortNumber,
 							pxSegment->lDataLength,
@@ -1435,7 +1435,7 @@ const int32_t l500ms = 500;
 			space or timeouts. */
 			if( xTCPWindowLoggingLevel != 0 )
 			{
-				FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u,%u]: PrioQueue %ld bytes for sequence number %lu (ws %lu)\n",
+				FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u,%u]: PrioQueue %ld bytes for sequence number %lu (ws %lu)\r\n",
 					pxWindow->usPeerPortNumber,
 					pxWindow->usOurPortNumber,
 					pxSegment->lDataLength,
@@ -1469,7 +1469,7 @@ const int32_t l500ms = 500;
 			{
 				if( pxWindow->xSize.ulTxWindowLength > ( 2U * ( ( uint32_t ) pxWindow->usMSS ) ) )
 				{
-					FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u - %d]: Change Tx window: %lu -> %u\n",
+					FreeRTOS_debug_printf( ( "ulTCPWindowTxGet[%u - %d]: Change Tx window: %lu -> %u\r\n",
 						pxWindow->usPeerPortNumber,
 						pxWindow->usOurPortNumber,
 						pxWindow->xSize.ulTxWindowLength,
@@ -1564,7 +1564,7 @@ const int32_t l500ms = 500;
 					#if( ipconfigHAS_DEBUG_PRINTF != 0 )
 					{
 						uint32_t ulFirstSeq = pxSegment->ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber;
-						FreeRTOS_debug_printf( ( "prvTCPWindowTxCheckAck[%u.%u]: %lu - %lu Partial sequence number %lu - %lu\n",
+						FreeRTOS_debug_printf( ( "prvTCPWindowTxCheckAck[%u.%u]: %lu - %lu Partial sequence number %lu - %lu\r\n",
 							pxWindow->usPeerPortNumber,
 							pxWindow->usOurPortNumber,
 							ulFirstSeq - pxWindow->tx.ulFirstSequenceNumber,
@@ -1612,7 +1612,7 @@ const int32_t l500ms = 500;
 			{
 				if( ( xTCPWindowLoggingLevel >= 2 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) ) )
 				{
-					FreeRTOS_debug_printf( ( "prvTCPWindowTxCheckAck: %lu - %lu Ready sequence number %lu\n",
+					FreeRTOS_debug_printf( ( "prvTCPWindowTxCheckAck: %lu - %lu Ready sequence number %lu\r\n",
 						ulFirst - pxWindow->tx.ulFirstSequenceNumber,
 						ulLast - pxWindow->tx.ulFirstSequenceNumber,
 						pxSegment->ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber ) );
@@ -1687,7 +1687,7 @@ const int32_t l500ms = 500;
 						which might lead to a second fast rexmit. */
 						if( ( xTCPWindowLoggingLevel >= 0 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) ) )
 						{
-							FreeRTOS_debug_printf( ( "prvTCPWindowFastRetransmit: Requeue sequence number %lu < %lu\n",
+							FreeRTOS_debug_printf( ( "prvTCPWindowFastRetransmit: Requeue sequence number %lu < %lu\r\n",
 								pxSegment->ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 								ulFirst - pxWindow->tx.ulFirstSequenceNumber ) );
 							FreeRTOS_flush_logging( );
@@ -1747,7 +1747,7 @@ const int32_t l500ms = 500;
 
 		if( ( xTCPWindowLoggingLevel >= 1 ) && ( xSequenceGreaterThan( ulFirst, ulCurrentSequenceNumber ) != pdFALSE ) )
 		{
-			FreeRTOS_debug_printf( ( "ulTCPWindowTxSack[%u,%u]: from %lu to %lu (ack = %lu)\n",
+			FreeRTOS_debug_printf( ( "ulTCPWindowTxSack[%u,%u]: from %lu to %lu (ack = %lu)\r\n",
 				pxWindow->usPeerPortNumber,
 				pxWindow->usOurPortNumber,
 				ulFirst - pxWindow->tx.ulFirstSequenceNumber,
@@ -1822,7 +1822,7 @@ const int32_t l500ms = 500;
 			{
 				if( ( xTCPWindowLoggingLevel != 0 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) != pdFALSE ) )
 				{
-					FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: can only store %ld / %ld bytes\n", ulLength, pxSegment->lMaxLength ) );
+					FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: can only store %ld / %ld bytes\r\n", ulLength, pxSegment->lMaxLength ) );
 				}
 
 				ulLength = ( uint32_t ) pxSegment->lMaxLength;
@@ -1830,7 +1830,7 @@ const int32_t l500ms = 500;
 
 			if( ( xTCPWindowLoggingLevel != 0 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) != pdFALSE ) )
 			{
-				FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: SeqNr %ld (%ld) Len %ld\n",
+				FreeRTOS_debug_printf( ( "lTCPWindowTxAdd: SeqNr %ld (%ld) Len %ld\r\n",
 					pxWindow->ulNextTxSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 					pxWindow->tx.ulCurrentSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 					ulLength ) );
@@ -2000,7 +2000,7 @@ const int32_t l500ms = 500;
 			{
 				if( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) != pdFALSE )
 				{
-					FreeRTOS_debug_printf( ( "win_tx_ack: acked %ld expc %ld len %ld\n",
+					FreeRTOS_debug_printf( ( "win_tx_ack: acked %ld expc %ld len %ld\r\n",
 						ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 						pxWindow->tx.ulCurrentSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 						ulDataLength ) );
@@ -2015,7 +2015,7 @@ const int32_t l500ms = 500;
 
 				if( ( xTCPWindowLoggingLevel != 0 ) && ( ipconfigTCP_MAY_LOG_PORT( pxWindow->usOurPortNumber ) != pdFALSE ) )
 				{
-					FreeRTOS_debug_printf( ( "win_tx_ack: acked seqnr %ld len %ld\n",
+					FreeRTOS_debug_printf( ( "win_tx_ack: acked seqnr %ld len %ld\r\n",
 						ulSequenceNumber - pxWindow->tx.ulFirstSequenceNumber,
 						ulDataLength ) );
 				}

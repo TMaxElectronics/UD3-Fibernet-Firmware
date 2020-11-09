@@ -433,7 +433,7 @@ BaseType_t xResult;
 			{
 				#if( ipconfigHAS_DEBUG_PRINTF == 1 )
 				{
-					FreeRTOS_debug_printf( ( "Inactive socket closed: port %u rem %lxip:%u status %s\n",
+					FreeRTOS_debug_printf( ( "Inactive socket closed: port %u rem %lxip:%u status %s\r\n",
 						pxSocket->usLocalPort,
 						pxSocket->u.xTCP.ulRemoteIP,
 						pxSocket->u.xTCP.usRemotePort,
@@ -509,7 +509,7 @@ BaseType_t xReady = pdFALSE;
 				{
 					if( ( xTCPWindowLoggingLevel > 1 ) && ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) )
 					{
-						FreeRTOS_debug_printf( ( "Send[%u->%u] del ACK %lu SEQ %lu (len %u)\n",
+						FreeRTOS_debug_printf( ( "Send[%u->%u] del ACK %lu SEQ %lu (len %u)\r\n",
 							pxSocket->usLocalPort,
 							pxSocket->u.xTCP.usRemotePort,
 							pxSocket->u.xTCP.xTCPWindow.rx.ulCurrentSequenceNumber - pxSocket->u.xTCP.xTCPWindow.rx.ulFirstSequenceNumber,
@@ -605,7 +605,7 @@ NetworkBufferDescriptor_t *pxNetworkBuffer;
 			/* The connection is in the SYN status. The packet will be repeated
 			to most 3 times.  When there is no response, the socket get the
 			status 'eCLOSE_WAIT'. */
-			FreeRTOS_debug_printf( ( "Connect: giving up %lxip:%u\n",
+			FreeRTOS_debug_printf( ( "Connect: giving up %lxip:%u\r\n",
 				pxSocket->u.xTCP.ulRemoteIP,		/* IP address of remote machine. */
 				pxSocket->u.xTCP.usRemotePort ) );	/* Port on remote machine. */
 			vTCPStateChange( pxSocket, eCLOSE_WAIT );
@@ -838,7 +838,7 @@ NetworkBufferDescriptor_t xTempBuffer;
 					if( ( pxTCPWindow->ulOurSequenceNumber + ulDataLen ) != pxTCPWindow->tx.ulFINSequenceNumber )
 					{
 						pxTCPPacket->xTCPHeader.ucTCPFlags &= ( ( uint8_t ) ~tcpTCP_FLAG_FIN );
-						FreeRTOS_debug_printf( ( "Suppress FIN for %lu + %lu < %lu\n",
+						FreeRTOS_debug_printf( ( "Suppress FIN for %lu + %lu < %lu\r\n",
 							pxTCPWindow->ulOurSequenceNumber - pxTCPWindow->tx.ulFirstSequenceNumber,
 							ulDataLen,
 							pxTCPWindow->tx.ulFINSequenceNumber - pxTCPWindow->tx.ulFirstSequenceNumber ) );
@@ -959,7 +959,7 @@ static void prvTCPCreateWindow( FreeRTOS_Socket_t *pxSocket )
 {
 	if( xTCPWindowLoggingLevel != 0 )
 	{
-		FreeRTOS_debug_printf( ( "Limits (using): TCP Win size %u Water %u <= %u <= %u\n",
+		FreeRTOS_debug_printf( ( "Limits (using): TCP Win size %u Water %u <= %u <= %u\r\n",
 			( unsigned ) pxSocket->u.xTCP.uxRxWinSize * ipconfigTCP_MSS,
 			( unsigned ) pxSocket->u.xTCP.uxLittleSpace ,
 			( unsigned ) pxSocket->u.xTCP.uxEnoughSpace,
@@ -1013,7 +1013,7 @@ uint32_t ulInitialSequenceNumber = 0;
 		/* Count the number of times it couldn't find the ARP address. */
 		pxSocket->u.xTCP.ucRepCount++;
 
-		FreeRTOS_debug_printf( ( "ARP for %lxip (using %lxip): rc=%d %02X:%02X:%02X %02X:%02X:%02X\n",
+		FreeRTOS_debug_printf( ( "ARP for %lxip (using %lxip): rc=%d %02X:%02X:%02X %02X:%02X:%02X\r\n",
 			pxSocket->u.xTCP.ulRemoteIP,
 			FreeRTOS_htonl( ulRemoteIP ),
 			eReturned,
@@ -1284,7 +1284,7 @@ BaseType_t xReturn = pdFALSE;
 				}
 				else
 				{
-					FreeRTOS_debug_printf( ( "MSS change %u -> %lu\n", pxSocket->u.xTCP.usInitMSS, uxNewMSS ) );
+					FreeRTOS_debug_printf( ( "MSS change %u -> %lu\r\n", pxSocket->u.xTCP.usInitMSS, uxNewMSS ) );
 				}
 			}
 
@@ -1299,7 +1299,7 @@ BaseType_t xReturn = pdFALSE;
 					{
 						/* The peer advertises a smaller MSS than this socket was
 						using.  Use that as well. */
-						FreeRTOS_debug_printf( ( "Change mss %d => %lu\n", pxSocket->u.xTCP.usCurMSS, uxNewMSS ) );
+						FreeRTOS_debug_printf( ( "Change mss %d => %lu\r\n", pxSocket->u.xTCP.usCurMSS, uxNewMSS ) );
 						pxSocket->u.xTCP.usCurMSS = ( uint16_t ) uxNewMSS;
 					}
 					pxTCPWindow->xSize.ulRxWindowLength = ( ( uint32_t ) uxNewMSS ) * ( pxTCPWindow->xSize.ulRxWindowLength / ( ( uint32_t ) uxNewMSS ) );
@@ -1421,7 +1421,7 @@ BaseType_t xReturn = pdFALSE;
 			ucFactor++;
 		}
 
-		FreeRTOS_debug_printf( ( "prvWinScaleFactor: uxRxWinSize %u MSS %u Factor %u\n",
+		FreeRTOS_debug_printf( ( "prvWinScaleFactor: uxRxWinSize %u MSS %u Factor %u\r\n",
 			( unsigned ) pxSocket->u.xTCP.uxRxWinSize,
 			( unsigned ) pxSocket->u.xTCP.usInitMSS,
 			ucFactor ) );
@@ -1658,7 +1658,7 @@ BaseType_t bAfter  = ipNUMERIC_CAST( BaseType_t, tcpNOW_CONNECTED( ( BaseType_t 
 	{
 		if( ( xTCPWindowLoggingLevel >= 0 ) && ( ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) ) )
 		{
-			FreeRTOS_debug_printf( ( "Socket %d -> %lxip:%u State %s->%s\n",
+			FreeRTOS_debug_printf( ( "Socket %d -> %lxip:%u State %s->%s\r\n",
 				pxSocket->usLocalPort,
 				pxSocket->u.xTCP.ulRemoteIP,
 				pxSocket->u.xTCP.usRemotePort,
@@ -1846,7 +1846,7 @@ UBaseType_t uxIntermediateResult = 0;
 				{
 					if( ulDataGot != ( uint32_t ) lDataLen )
 					{
-						FreeRTOS_debug_printf( ( "uxStreamBufferGet: pos %d offs %u only %u != %d\n",
+						FreeRTOS_debug_printf( ( "uxStreamBufferGet: pos %d offs %u only %u != %d\r\n",
 							( int ) lStreamPos, ( unsigned ) uxOffset, ( unsigned ) ulDataGot, ( int ) lDataLen ) );
 					}
 				}
@@ -1868,7 +1868,7 @@ UBaseType_t uxIntermediateResult = 0;
 							size_t uxMid = pxSocket->u.xTCP.txStream->uxMid;
 							size_t uxTail = pxSocket->u.xTCP.txStream->uxTail;
 
-							FreeRTOS_debug_printf( ( "CheckClose %u <= %u (%u <= %u <= %u)\n",
+							FreeRTOS_debug_printf( ( "CheckClose %u <= %u (%u <= %u <= %u)\r\n",
 								( unsigned ) ulDataGot, ( unsigned ) ulDistance,
 								( unsigned ) uxTail, ( unsigned ) uxMid, ( unsigned ) uxHead ) );
 						}
@@ -1907,7 +1907,7 @@ UBaseType_t uxIntermediateResult = 0;
 		{
 			if( pxSocket->u.xTCP.ucKeepRepCount > 3U ) /*_RB_ Magic number. */
 			{
-				FreeRTOS_debug_printf( ( "keep-alive: giving up %lxip:%u\n",
+				FreeRTOS_debug_printf( ( "keep-alive: giving up %lxip:%u\r\n",
 					pxSocket->u.xTCP.ulRemoteIP,			/* IP address of remote machine. */
 					pxSocket->u.xTCP.usRemotePort ) );	/* Port on remote machine. */
 				vTCPStateChange( pxSocket, eCLOSE_WAIT );
@@ -1929,7 +1929,7 @@ UBaseType_t uxIntermediateResult = 0;
 					pxSocket->u.xTCP.xLastAliveTime = xTaskGetTickCount( );
 					if( xTCPWindowLoggingLevel != 0 )
 					{
-						FreeRTOS_debug_printf( ( "keep-alive: %lxip:%u count %u\n",
+						FreeRTOS_debug_printf( ( "keep-alive: %lxip:%u count %u\r\n",
 							pxSocket->u.xTCP.ulRemoteIP,
 							pxSocket->u.xTCP.usRemotePort,
 							pxSocket->u.xTCP.ucKeepRepCount ) );
@@ -1996,7 +1996,7 @@ TickType_t ulDelayMs = ( TickType_t ) tcpMAXIMUM_TCP_WAKEUP_TIME_MS;
 			ulDelayMs = 500UL;
 		}
 
-		FreeRTOS_debug_printf( ( "Connect[%lxip:%u]: next timeout %u: %lu ms\n",
+		FreeRTOS_debug_printf( ( "Connect[%lxip:%u]: next timeout %u: %lu ms\r\n",
 			pxSocket->u.xTCP.ulRemoteIP, pxSocket->u.xTCP.usRemotePort,
 			pxSocket->u.xTCP.ucRepCount, ulDelayMs ) );
 		pxSocket->u.xTCP.usTimeout = ( uint16_t )ipMS_TO_MIN_TICKS( ulDelayMs );
@@ -2154,7 +2154,7 @@ uint32_t ulAckNr = FreeRTOS_ntohl( pxTCPHeader->ulAckNr );
 
 	if( xTCPWindowLoggingLevel != 0 )
 	{
-		FreeRTOS_debug_printf( ( "TCP: send FIN+ACK (ack %lu, cur/nxt %lu/%lu) ourSeqNr %lu | Rx %lu\n",
+		FreeRTOS_debug_printf( ( "TCP: send FIN+ACK (ack %lu, cur/nxt %lu/%lu) ourSeqNr %lu | Rx %lu\r\n",
 			ulAckNr - pxTCPWindow->tx.ulFirstSequenceNumber,
 			pxTCPWindow->tx.ulCurrentSequenceNumber - pxTCPWindow->tx.ulFirstSequenceNumber,
 			pxTCPWindow->ulNextTxSequenceNumber - pxTCPWindow->tx.ulFirstSequenceNumber,
@@ -2292,7 +2292,7 @@ BaseType_t xResult = 0;
 
 			if( lStored != ( int32_t ) ulReceiveLength )
 			{
-				FreeRTOS_debug_printf( ( "lTCPAddRxdata: stored %ld / %lu bytes? ?\n", lStored, ulReceiveLength ) );
+				FreeRTOS_debug_printf( ( "lTCPAddRxdata: stored %ld / %lu bytes? ?\r\n", lStored, ulReceiveLength ) );
 
 				/* Received data could not be stored.  The socket's flag
 				bMallocError has been set.  The socket now has the status
@@ -2343,7 +2343,7 @@ UBaseType_t uxOptionsLength = pxTCPWindow->ucOptionLength;
 		was received. */
 		if( xTCPWindowLoggingLevel >= 0 )
 		{
-			FreeRTOS_debug_printf( ( "SACK[%d,%d]: optlen %lu sending %lu - %lu\n",
+			FreeRTOS_debug_printf( ( "SACK[%d,%d]: optlen %lu sending %lu - %lu\r\n",
 				pxSocket->usLocalPort,
 				pxSocket->u.xTCP.usRemotePort,
 				uxOptionsLength,
@@ -2364,7 +2364,7 @@ UBaseType_t uxOptionsLength = pxTCPWindow->ucOptionLength;
 		pxSocket->u.xTCP.bits.bMssChange = pdFALSE_UNSIGNED;
 		if( xTCPWindowLoggingLevel >= 0 )
 		{
-			FreeRTOS_debug_printf( ( "MSS: sending %d\n", pxSocket->u.xTCP.usCurMSS ) );
+			FreeRTOS_debug_printf( ( "MSS: sending %d\r\n", pxSocket->u.xTCP.usCurMSS ) );
 		}
 
 		pxTCPHeader->ucOptdata[ 0 ] = tcpTCP_OPT_MSS;
@@ -2415,7 +2415,7 @@ UBaseType_t uxIntermediateResult = 0;
 	{
 		/* eSYN_RECEIVED: flags 0010 expected, not 0002. */
 		/* eSYN_RECEIVED: flags ACK  expected, not SYN. */
-		FreeRTOS_debug_printf( ( "%s: flags %04X expected, not %04X\n",
+		FreeRTOS_debug_printf( ( "%s: flags %04X expected, not %04X\r\n",
 			( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eSYN_RECEIVED ) ? "eSYN_RECEIVED" : "eCONNECT_SYN",
 			ucExpect, ucTCPFlags ) );
 		vTCPStateChange( pxSocket, eCLOSE_WAIT );
@@ -2470,7 +2470,7 @@ UBaseType_t uxIntermediateResult = 0;
 
 		#if( ipconfigUSE_TCP_WIN == 1 )
 		{
-			FreeRTOS_debug_printf( ( "TCP: %s %d => %lxip:%d set ESTAB (scaling %u)\n",
+			FreeRTOS_debug_printf( ( "TCP: %s %d => %lxip:%d set ESTAB (scaling %u)\r\n",
 				( pxSocket->u.xTCP.ucTCPState == ( uint8_t )  eCONNECT_SYN ) ? "active" : "passive",
 				pxSocket->usLocalPort,
 				pxSocket->u.xTCP.ulRemoteIP,
@@ -2603,7 +2603,7 @@ UBaseType_t uxIntermediateResult = 0;
 			if( ( bRxComplete == 0 ) || ( bTxDone == 0 ) )
 			{
 				/* Refusing FIN: Rx incomp 1 optlen 4 tx done 1. */
-				FreeRTOS_debug_printf( ( "Refusing FIN[%u,%u]: RxCompl %lu tx done %ld\n",
+				FreeRTOS_debug_printf( ( "Refusing FIN[%u,%u]: RxCompl %lu tx done %ld\r\n",
 					pxSocket->usLocalPort,
 					pxSocket->u.xTCP.usRemotePort,
 					bRxComplete, bTxDone ) );
@@ -2616,7 +2616,7 @@ UBaseType_t uxIntermediateResult = 0;
 
 				if( lDistance > 1 )
 				{
-					FreeRTOS_debug_printf( ( "Refusing FIN: Rx not complete %ld (cur %lu high %lu)\n",
+					FreeRTOS_debug_printf( ( "Refusing FIN: Rx not complete %ld (cur %lu high %lu)\r\n",
 						lDistance, pxTCPWindow->rx.ulCurrentSequenceNumber - pxTCPWindow->rx.ulFirstSequenceNumber,
 						pxTCPWindow->rx.ulHighestSequenceNumber - pxTCPWindow->rx.ulFirstSequenceNumber ) );
 
@@ -2627,7 +2627,7 @@ UBaseType_t uxIntermediateResult = 0;
 
 		if( xTCPWindowLoggingLevel > 0 )
 		{
-			FreeRTOS_debug_printf( ( "TCP: FIN received, mayClose = %ld (Rx %lu Len %ld, Tx %lu)\n",
+			FreeRTOS_debug_printf( ( "TCP: FIN received, mayClose = %ld (Rx %lu Len %ld, Tx %lu)\r\n",
 				xMayClose, ulSequenceNumber - pxSocket->u.xTCP.xTCPWindow.rx.ulFirstSequenceNumber, ulReceiveLength,
 				pxTCPWindow->tx.ulCurrentSequenceNumber - pxSocket->u.xTCP.xTCPWindow.tx.ulFirstSequenceNumber ) );
 		}
@@ -2752,7 +2752,7 @@ uint32_t ulRxBufferSpace;
 
 			if( ( xTCPWindowLoggingLevel > 1 ) && ( ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) ) )
 			{
-				FreeRTOS_debug_printf( ( "Send[%u->%u] del ACK %lu SEQ %lu (len %lu) tmout %u d %lu\n",
+				FreeRTOS_debug_printf( ( "Send[%u->%u] del ACK %lu SEQ %lu (len %lu) tmout %u d %lu\r\n",
 					pxSocket->usLocalPort,
 					pxSocket->u.xTCP.usRemotePort,
 					pxTCPWindow->rx.ulCurrentSequenceNumber - pxTCPWindow->rx.ulFirstSequenceNumber,
@@ -2793,7 +2793,7 @@ uint32_t ulRxBufferSpace;
 	{
 		if( ( xTCPWindowLoggingLevel > 1 ) && ( ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) ) )
 		{
-			FreeRTOS_debug_printf( ( "Send[%u->%u] imm ACK %lu SEQ %lu (len %lu)\n",
+			FreeRTOS_debug_printf( ( "Send[%u->%u] imm ACK %lu SEQ %lu (len %lu)\r\n",
 				pxSocket->usLocalPort,
 				pxSocket->u.xTCP.usRemotePort,
 				pxTCPWindow->rx.ulCurrentSequenceNumber - pxTCPWindow->rx.ulFirstSequenceNumber,
@@ -3062,7 +3062,7 @@ uint32_t ulMSS = ipconfigTCP_MSS;
 		ulMSS = FreeRTOS_min_uint32( ( uint32_t ) tcpREDUCED_MSS_THROUGH_INTERNET, ulMSS );
 	}
 
-	FreeRTOS_debug_printf( ( "prvSocketSetMSS: %lu bytes for %lxip:%u\n", ulMSS, pxSocket->u.xTCP.ulRemoteIP, pxSocket->u.xTCP.usRemotePort ) );
+	FreeRTOS_debug_printf( ( "prvSocketSetMSS: %lu bytes for %lxip:%u\r\n", ulMSS, pxSocket->u.xTCP.ulRemoteIP, pxSocket->u.xTCP.usRemotePort ) );
 
 	pxSocket->u.xTCP.usInitMSS = ( uint16_t ) ulMSS;
 	pxSocket->u.xTCP.usCurMSS  = ( uint16_t ) ulMSS;
@@ -3124,7 +3124,7 @@ const IPHeader_t *pxIPHeader;
 			non-active states:  eCLOSED, eCLOSE_WAIT, eFIN_WAIT_2, eCLOSING, or
 			eTIME_WAIT. */
 
-			FreeRTOS_debug_printf( ( "TCP: No active socket on port %d (%lxip:%d)\n", xLocalPort, ulRemoteIP, xRemotePort ) );
+			FreeRTOS_debug_printf( ( "TCP: No active socket on port %d (%lxip:%d)\r\n", xLocalPort, ulRemoteIP, xRemotePort ) );
 
 			/* Send a RST to all packets that can not be handled.  As a result
 			the other party will get a ECONN error.  There are two exceptions:
@@ -3156,7 +3156,7 @@ const IPHeader_t *pxIPHeader;
 					request. */
 					#if( ipconfigHAS_DEBUG_PRINTF == 1 )
 					{
-					FreeRTOS_debug_printf( ( "TCP: Server can't handle flags: %s from %lxip:%u to port %u\n",
+					FreeRTOS_debug_printf( ( "TCP: Server can't handle flags: %s from %lxip:%u to port %u\r\n",
 						prvTCPFlagMeaning( ( UBaseType_t ) ucTCPFlags ), ulRemoteIP, xRemotePort, xLocalPort ) );
 					}
 					#endif /* ipconfigHAS_DEBUG_PRINTF */
@@ -3186,7 +3186,7 @@ const IPHeader_t *pxIPHeader;
 				flag. */
 				if( ( ucTCPFlags & tcpTCP_FLAG_RST ) != 0U )
 				{
-					FreeRTOS_debug_printf( ( "TCP: RST received from %lxip:%u for %u\n", ulRemoteIP, xRemotePort, xLocalPort ) );
+					FreeRTOS_debug_printf( ( "TCP: RST received from %lxip:%u for %u\r\n", ulRemoteIP, xRemotePort, xLocalPort ) );
 
 					/* Implement https://tools.ietf.org/html/rfc5961#section-3.2. */
 					if( pxSocket->u.xTCP.ucTCPState == ( uint8_t ) eCONNECT_SYN )
@@ -3225,7 +3225,7 @@ const IPHeader_t *pxIPHeader;
 				else if( ( ( ucTCPFlags & tcpTCP_FLAG_CTRL ) == tcpTCP_FLAG_SYN ) && ( pxSocket->u.xTCP.ucTCPState >= ( uint8_t ) eESTABLISHED ) )
 				{
 					/* SYN flag while this socket is already connected. */
-					FreeRTOS_debug_printf( ( "TCP: SYN unexpected from %lxip:%u\n", ulRemoteIP, xRemotePort ) );
+					FreeRTOS_debug_printf( ( "TCP: SYN unexpected from %lxip:%u\r\n", ulRemoteIP, xRemotePort ) );
 
 					/* The packet cannot be handled. */
 					xResult = pdFAIL;
@@ -3348,7 +3348,7 @@ uint32_t ulInitialSequenceNumber;
 
 			if( pxSocket->u.xTCP.usChildCount >= pxSocket->u.xTCP.usBacklog )
 			{
-				FreeRTOS_printf( ( "Check: Socket %u already has %u / %u child%s\n",
+				FreeRTOS_printf( ( "Check: Socket %u already has %u / %u child%s\r\n",
 					pxSocket->usLocalPort,
 					pxSocket->u.xTCP.usChildCount,
 					pxSocket->u.xTCP.usBacklog,
@@ -3484,7 +3484,7 @@ BaseType_t xResult;
 
 	pxSocket->u.xTCP.usChildCount++;
 
-	FreeRTOS_debug_printf( ( "Gain: Socket %u now has %u / %u child%s\n",
+	FreeRTOS_debug_printf( ( "Gain: Socket %u now has %u / %u child%s\r\n",
 		pxSocket->usLocalPort,
 		pxSocket->u.xTCP.usChildCount,
 		pxSocket->u.xTCP.usBacklog,
@@ -3564,7 +3564,7 @@ const ListItem_t *pxEndTCP = listGET_END_MARKER( &xBoundTCPSocketsList );
 			if( ( pxFound->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP ) && ( pxFound->u.xTCP.bits.bPassAccept != pdFALSE_UNSIGNED ) )
 			{
 				pxSocket->u.xTCP.pxPeerSocket = pxFound;
-				FreeRTOS_debug_printf( ( "xTCPCheckNewClient[0]: client on port %u\n", pxSocket->usLocalPort ) );
+				FreeRTOS_debug_printf( ( "xTCPCheckNewClient[0]: client on port %u\r\n", pxSocket->usLocalPort ) );
 				xResult = pdTRUE;
 				break;
 			}

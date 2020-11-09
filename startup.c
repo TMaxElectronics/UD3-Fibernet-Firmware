@@ -19,6 +19,7 @@
 #include "LAN9250.h"
 #include "FatFs/include/ff.h"
 #include "FS.h"
+#include "FTP.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -39,7 +40,7 @@ void startServices(){
     COMMS_init();
     
     //create the FS task. (checks for SD card connection/removal)
-    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE+250, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 200, NULL , tskIDLE_PRIORITY + 1, NULL);
     //TODO optimize stack usage and figure out why it needs to be this large
     
     xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
@@ -114,6 +115,8 @@ static void startupTask(void * params){
     FreeRTOS_IPInit(IP_ADDRESS, NETMASK, GATEWAYIP, DNSIP, MAC_ADDRESS);
     
     //create the listener tasks
+    
+    xTaskCreate(FTP_task, "ftp Task", configMINIMAL_STACK_SIZE + 125, NULL , tskIDLE_PRIORITY + 1, NULL);
     xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
     xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);

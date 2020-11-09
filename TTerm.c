@@ -269,7 +269,7 @@ uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
         //call the handler of the current override
         uint8_t currRetCode = (*handle->currProgram->inputHandler)(handle, c);
         
-        (*handle->errorPrinter)(handle, TERM_CMD_EXIT_NOT_FOUND);
+        (*handle->errorPrinter)(handle, currRetCode);
         
         if(c == 0x03){
             ttprintfEcho("^C");
@@ -612,6 +612,7 @@ uint8_t TERM_seperateArgs(char * data, uint16_t dataLength, char ** buff){
                 }
                         
                 break;
+                
             default:
                 if(!quoteMark){
                     if(lastSpace != 0){
@@ -652,6 +653,9 @@ uint16_t TERM_countArgs(const char * data, uint16_t dataLength){
                 }
                         
                 break;
+            case 0:
+                configASSERT(0);
+                
             default:
                 if(!quoteMark){
                     if(lastSpace){

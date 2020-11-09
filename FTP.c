@@ -467,7 +467,8 @@ static unsigned FTP_openTranferSocket(FTP_CLIENT_HANDLE * client){
     
     FreeRTOS_bind(client->clientTX, &xSlavAddress, sizeof(xSlavAddress));
     
-    return FreeRTOS_connect(client->clientTX, &client->clientAddr, sizeof(client->clientAddr));
+    
+    return (FreeRTOS_connect(client->clientTX, &client->clientAddr, sizeof(client->clientAddr)) == 0);
 }
 
 //closes the data socket, if one is opened

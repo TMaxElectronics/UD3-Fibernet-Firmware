@@ -108,7 +108,7 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     
     //Serial Send / Receive Tasks
     xTaskCreate(UART_sendTask, "SSendTsk", configMINIMAL_STACK_SIZE + 100, NULL, tskIDLE_PRIORITY + 4, NULL);
-    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE + 100, NULL, tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE + 250, NULL, tskIDLE_PRIORITY + 2, NULL);
     
     //enable the UART module (we need the RX DMA running before this point to avoid an overflow in the time that we initialize other stuff)
     U2MODEbits.ON = 1;
@@ -252,6 +252,8 @@ void UART_print(char * format, ...){
     uint8_t * buff = (uint8_t*) pvPortMalloc(256);
     uint32_t length = vsprintf(buff, format, arg);
     
+    configASSERT(length < 256);
+    
     min_send_frame(COMMS_UART, MIN_ID_DEBUG, buff, length);
     
     vPortFree(buff);
@@ -266,6 +268,8 @@ void UART_termPrint(void * port, char * format, ...){
     
     uint8_t * buff = (uint8_t*) pvPortMalloc(256);
     uint32_t length = vsprintf(buff, format, arg);
+    
+    configASSERT(length < 256);
     
     min_send_frame(COMMS_UART, MIN_ID_DEBUG, buff, length);
     

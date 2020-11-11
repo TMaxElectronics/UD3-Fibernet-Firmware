@@ -38,6 +38,8 @@ typedef struct{
 QueueHandle_t UART_sendQueue;
 SemaphoreHandle_t UART_txDMA;
 
+volatile uint8_t UART_bootloader = pdFALSE;
+
 volatile uint32_t lastScanPosition = 0;
 uint32_t currPackageOffset = 0;
 uint8_t * UART_rxBuffer;
@@ -108,7 +110,7 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     
     //Serial Send / Receive Tasks
     xTaskCreate(UART_sendTask, "SSendTsk", configMINIMAL_STACK_SIZE + 100, NULL, tskIDLE_PRIORITY + 4, NULL);
-    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE + 250, NULL, tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE + 250, NULL, tskIDLE_PRIORITY + 2, NULL);//<-----250 alt
     
     //enable the UART module (we need the RX DMA running before this point to avoid an overflow in the time that we initialize other stuff)
     U2MODEbits.ON = 1;
@@ -192,7 +194,7 @@ void UART_receiveTask(void *pvParameters){
             vPortFree(buff);
         }
 #else
-        while(lastScanPosition != DCH3DPTR){
+        while(lastScanPosition != DCH3DPTR && UART_bootloader == pdFALSE){
             min_poll(COMMS_UART, &UART_rxBuffer[lastScanPosition], 1);
             if(++lastScanPosition >= DCH3DSIZ) lastScanPosition = 0;
         }
@@ -211,6 +213,12 @@ void UART_receiveTask(void *pvParameters){
         }
         vTaskDelay(pdMS_TO_TICKS(2));
     }
+}
+void UART_flush0(){
+    lastScanPosition = DCH3DPTR;
+}
+void UART_flush(){
+    lastScanPosition = DCH3DPTR-1;
 }
 
 //support functions:
@@ -287,6 +295,14 @@ void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend){
     if(!xQueueSend(UART_sendQueue, &toSendData, 10)){ //queue buffer to be sent out via UART. If we can't enqueue it we have to free it
         if(freeAfterSend) vPortFree(toSendData->data);
         vPortFree(toSendData);
+    }
+}
+
+uint32_t UART_queEmpty(){
+    if(uxQueueMessagesWaiting(UART_sendQueue)){
+        return pdFALSE;
+    }else{
+        return pdTRUE;
     }
 }
 

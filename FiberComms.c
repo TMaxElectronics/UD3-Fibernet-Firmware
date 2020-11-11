@@ -8,12 +8,11 @@
 
 #include <xc.h>
 #include <stdio.h>
-#include "FreeRTOS.h"
+#include "FiberComms.h"
 #include "FreeRTOS_Sockets.h"
 #include "FreeRTOS_IP.h"
 #include "FreeRTOS_DHCP.h"
 #include "FreeRTOS_Sockets.h"
-#include "FiberComms.h"
 #include "min.h"
 #include "LAN9250.h"
 #include "UART.h"
@@ -21,6 +20,9 @@
 #include "UD3_Wrapper.h"
 #include "TTerm.h"
 #include "startup.h"
+#include "TTerm_cmd.h"
+#include "FreeRTOS/Core/include/stream_buffer.h"
+
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;
@@ -30,6 +32,12 @@ uint32_t clientLength = sizeof(lastClient);
 Socket_t dataSocket;
 TERMINAL_HANDLE * term;
 uint8_t dhcpEnable = pdTRUE;
+
+StreamBufferHandle_t streamRx;
+
+#define STREAM_SIZE 255
+
+void Term_task(void *pvParameters);
 
 struct{
     uint32_t findPacketsTotal;
@@ -62,8 +70,12 @@ void COMMS_init(){
     TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_boot, "boot", "Bootloader", 0, &TERM_cmdListHead);
     
+    streamRx = xStreamBufferCreate(STREAM_SIZE,1);
     term = TERM_createNewHandle(UART_termPrint, 0, 1, &TERM_cmdListHead, 0, "root");
+    
+    xTaskCreate(Term_task, "Term", configMINIMAL_STACK_SIZE + 1500, term, tskIDLE_PRIORITY + 2, NULL);
 }
 
 void COMMS_statsHandler(void * params){
@@ -113,16 +125,18 @@ void COMMS_udpDataHandler(void * params){
             ConnectionStats.rxPacketsTotal++;
             ConnectionStats.rxBytesLast += receivedDataLength;
             
-            if(length <= MAX_PAYLOAD){
-                UART_queBuffer(udpData, receivedDataLength, 1);
-                LED_ethPacketReceivedHook();
-                udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
-            }else if(length == MIN_NON_TRANSPORT_FRAME){
-                //if it is a non transport min frame we have to deal with it properly
-                min_poll(COMMS_UDP, udpData, receivedDataLength);
-            }else{
-                //we have received an invalid min frame
-                UART_printDebug("Invalid MIN frame received\r\n");
+            if(UART_bootloader==pdFALSE){
+                if(length <= MAX_PAYLOAD){
+                    UART_queBuffer(udpData, receivedDataLength, 1);
+                    LED_ethPacketReceivedHook();
+                    udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
+                }else if(length == MIN_NON_TRANSPORT_FRAME){
+                    //if it is a non transport min frame we have to deal with it properly
+                    min_poll(COMMS_UDP, udpData, receivedDataLength);
+                }else{
+                    //we have received an invalid min frame
+                    UART_printDebug("Invalid MIN frame received\r\n");
+                }
             }
         }
 	}
@@ -201,7 +215,7 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
         
         switch(min_id){
             case MIN_ID_DEBUG:
-                TERM_processBuffer(min_payload, len_payload, term);
+                xStreamBufferSend(streamRx, min_payload, len_payload,2);
                 break;
             case MIN_ID_EVENT:
                 if(len_payload == 0) break;
@@ -225,6 +239,15 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
                     min_send_frame(COMMS_UDP, min_id, min_payload, len_payload);
                 }
         }
+    }
+}
+
+void Term_task(void *pvParameters){
+    TERMINAL_HANDLE * termPtr = pvParameters;
+    uint8_t c;
+    while(1){
+        xStreamBufferReceive(streamRx, &c,sizeof(c), portMAX_DELAY);
+        TERM_processBuffer(&c, sizeof(c), termPtr);
     }
 }
 

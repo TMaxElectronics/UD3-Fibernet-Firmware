@@ -41,6 +41,14 @@
 #include "semphr.h"
 #include "system.h"
 
+#include "UART.h"
+#include "FTP.h"
+#include "cybtldr_parse.h"
+#include "cybtldr_command.h"
+#include "communication_api.h"
+#include "cybtldr_api.h"
+#include "include/FiberComms.h"
+
 char TETRISplaceHolder[] = {[0 ... TETRIS_GA_WIDTH] = ' ', [TETRIS_GA_WIDTH + 1] = 0};
 
 typedef struct{
@@ -184,6 +192,119 @@ uint8_t TERM_testCommandAutoCompleter(TERMINAL_HANDLE * handle, void * params){
         
     vPortFree(buff);
     return handle->autocompleteBufferLength;
+}
+
+uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    if(argCount==0){
+        ttprintf("No file specified\r\n");
+        return TERM_CMD_EXIT_SUCCESS;
+    }
+    FIL fp;
+    FRESULT res = f_open(&fp,args[0],FA_READ);
+    if(res != FR_OK){
+        ttprintf("Error file open: %u\r\n", res);
+        return TERM_CMD_EXIT_SUCCESS;
+    }
+    FIL log;
+    res = f_open(&log,"/boot.log",FA_WRITE | FA_CREATE_ALWAYS);
+    if(res != FR_OK){
+        ttprintf("Error creating log\r\n");
+        return TERM_CMD_EXIT_SUCCESS;
+    }
+    uint32_t lineLen;
+    uint16_t err;
+    unsigned char arrayId; 
+	unsigned short rowNum;
+	unsigned short rowSize; 
+	unsigned char checksum ;
+	unsigned char checksum2;
+    unsigned long siliconID;
+	unsigned char siliconRev;
+	unsigned char packetChkSumType;
+    unsigned long blVer=0;
+
+    min_send_frame(COMMS_UART, 13,"\x00\x01" "loader",sizeof("\x00\x01" "loader"));
+    min_send_frame(COMMS_UART, 0,"\x03\r\nbootloader\r\n",sizeof("\r\nbootloader\r\n"));
+    
+    vTaskDelay(pdMS_TO_TICKS(2000));
+    
+    UART_bootloader = pdTRUE;
+    UART_flush0();
+    uint8_t* buffer = pvPortMalloc(600);
+    unsigned char* rowData = pvPortMalloc(288);
+    f_gets(buffer,600,&fp);
+    lineLen = strlen(buffer);
+    err = CyBtldr_ParseHeader(lineLen ,(unsigned char *)buffer , &siliconID , &siliconRev ,&packetChkSumType);
+    CyBtldr_SetCheckSumType((CyBtldr_ChecksumType)packetChkSumType);
+    CyBtldr_CommunicationsData comm1;
+    comm1.OpenConnection = &OpenConnection;
+	comm1.CloseConnection = &CloseConnection;
+	comm1.ReadData = &ReadData;
+	comm1.WriteData =&WriteData;
+	comm1.MaxTransferSize =255;
+    
+    if(err==CYRET_SUCCESS){
+        f_printf(&log, "Opened CYACD, found silicon ID: %u, silicon rev: %u\r\n", siliconID, siliconRev);
+        err = CyBtldr_StartBootloadOperation(&comm1 ,siliconID, siliconRev ,&blVer);
+        f_printf(&log, "Opened connection res: %u blVer: %u\r\n", err, blVer);
+		while((err == CYRET_SUCCESS)&& ( f_gets(buffer,600,&fp) !=  0 ))
+		{
+            /* Get the string length for the line*/
+			lineLen =  strlen(buffer);
+            if(buffer[lineLen-2]==0x0d && buffer[lineLen-1]==0x0a){
+                buffer[lineLen-2]=0x00;
+                lineLen-=2;
+            }
+            
+			
+			/*Parse row data*/
+			err = CyBtldr_ParseRowData((unsigned int)lineLen,(unsigned char *)buffer, &arrayId, &rowNum, rowData, &rowSize, &checksum);
+			if (CYRET_SUCCESS == err)
+            {
+				/* Program Row */
+				err = CyBtldr_ProgramRow(arrayId, rowNum, rowData, rowSize);
+				f_printf(&log, "Programm res: %u row: %u\r\n", err, rowNum);
+	            if (CYRET_SUCCESS == err)
+				{
+					/* Verify Row . Check whether the checksum received from bootloader matches
+					* the expected row checksum stored in cyacd file*/
+					checksum2 = (unsigned char)(checksum + arrayId + rowNum + (rowNum >> 8) + rowSize + (rowSize >> 8));
+					err = CyBtldr_VerifyRow(arrayId, rowNum, checksum2);
+				}
+            }
+		}
+		/* End Bootloader Operation */
+		CyBtldr_EndBootloadOperation();
+	}
+    switch(err){
+        case CYRET_ERR_DEVICE:
+            f_printf(&log, "The detected device does not match the desired device\r\n");
+            break;
+        case CYRET_ERR_VERSION:
+            f_printf(&log, "The detected bootloader version is not compatible\r\n");
+            break;
+        case CYRET_ERR_BTLDR:
+            f_printf(&log, "The bootloader experienced an error\r\n");
+            break;
+        case CYRET_ERR_ROW:
+            f_printf(&log, "The flash row is not valid\r\n");
+            break;
+            
+        default:
+            f_printf(&log, "Unknown error: %u\r\n", err);
+            break;
+            
+    }
+   
+    vPortFree(buffer);
+    vPortFree(rowData);
+    f_close(&fp);
+    f_close(&log);
+
+    UART_flush();
+    UART_bootloader = pdFALSE;
+    
+    return TERM_CMD_EXIT_SUCCESS;
 }
 
 uint8_t CMD_help(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){

@@ -1,6 +1,10 @@
+#ifndef FiberComms_H
+#define FiberComms_H
+
 #include <xc.h>
 #include <stdint.h>
-
+#include "FreeRTOS.h"
+#include "stream_buffer.h"
 #include "TTerm.h"
 
 #define FIND_MAX_RESPONSE_SIZE 512
@@ -21,6 +25,8 @@
 
 extern struct min_context * COMMS_UDP;
 extern struct min_context * COMMS_UART;
+
+extern StreamBufferHandle_t terminal;
 
 typedef enum{
     GET_INFO = 1,   
@@ -57,3 +63,5 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 void COMMS_statsHandler(void * params);
 uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
+
+#endif

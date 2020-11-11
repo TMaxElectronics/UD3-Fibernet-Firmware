@@ -5,7 +5,6 @@
 #include "FreeRTOS.h"
 #include "FreeRTOS_Sockets.h"
 #include "FreeRTOS_IP.h"
-#include "TTerm.h"
 #include "ff.h"
 #include "System.h"
 #include "FS.h"
@@ -40,6 +39,8 @@ typedef struct{
     char * cwdPath;
     
 }FTP_CLIENT_HANDLE;
+
+TERMINAL_HANDLE * ftp_term;
 
 static void print(void * port, char * format, ...);
 static void FTP_clientTask(void *pvParameters);
@@ -124,7 +125,7 @@ void FTP_task(void * params){
             
             //create the terminal handle with the FTP_CLIENT_HANDLE as the port, and disable text echo
             TERMINAL_HANDLE * term = TERM_createNewHandle(print, (void *) newClient, 0, &FTP_cmdListHead, FTP_errorPrinter, "FTP");
-            
+            ftp_term = term;
             //create the task that will take care of the new client. Needs a lot of stack because of FatFs :(
             xTaskCreate(FTP_clientTask, "FTP Client", configMINIMAL_STACK_SIZE + 300, (void *) term, tskIDLE_PRIORITY + 1, NULL);
         }

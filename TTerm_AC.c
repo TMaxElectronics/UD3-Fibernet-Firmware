@@ -44,7 +44,7 @@ void TERM_addCommandAC(TermCommandDescriptor * cmd, TermAutoCompHandler ACH, voi
 uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle){
     if(strnchr(handle->inputBuffer, ' ', handle->currBufferLength) != NULL){
         TermCommandDescriptor * cmd = TERM_findCMD(handle);
-        if(cmd != 0){
+        if(cmd != NULL){
             if(cmd->ACHandler == 0){
                 handle->currAutocompleteCount = 0;
                 handle->autocompleteStart = 0;
@@ -80,7 +80,7 @@ uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff, Te
     for(;currPos < cmdListHead->commandLength; currPos++){
         if(strncmp(currInput, currCMD->command, length) == 0){
             if(currCMD->commandLength >= length){
-                buff[commandsFound] = currCMD->command;
+                buff[commandsFound] = (char*)currCMD->command;
                 commandsFound ++;
                 //UART_print("found %s (count is now %d)\r\n", TERM_cmdList[currPos]->command, commandsFound);
             }

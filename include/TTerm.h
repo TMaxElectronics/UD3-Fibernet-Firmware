@@ -226,9 +226,10 @@ void TERM_removeProgramm(TERMINAL_HANDLE * handle);
 void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog);
 uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle);
 uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff, TermCommandDescriptor * cmdListHead);
+TermCommandDescriptor * TERM_findCMD(TERMINAL_HANDLE * handle);
 uint8_t TERM_findLastArg(TERMINAL_HANDLE * handle, char * buff, uint8_t * lenBuff);
 BaseType_t ptr_is_in_ram(void* ptr);
-void TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
+uint8_t TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
 void TERM_LIST_add(TermCommandDescriptor * item, TermCommandDescriptor * head);
 
 #endif

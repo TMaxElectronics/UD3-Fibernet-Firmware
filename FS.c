@@ -1,5 +1,7 @@
 #include <xc.h>
 #include <stdint.h>
+#include <string.h>
+#include <stdio.h>
 #include "SPI.h"
 #include "FiberComms.h"
 #include "FS.h"

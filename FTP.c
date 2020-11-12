@@ -44,7 +44,7 @@ TERMINAL_HANDLE * ftp_term;
 
 static void print(void * port, char * format, ...);
 static void FTP_clientTask(void *pvParameters);
-static void FTP_errorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
+static uint8_t FTP_errorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
 static void FTP_closeTranferSocket(FTP_CLIENT_HANDLE * client);
 static unsigned FTP_openTranferSocket(FTP_CLIENT_HANDLE * client);
 static uint16_t FTP_generateDirlistEntry(FILINFO * fno, char * dst);
@@ -133,13 +133,14 @@ void FTP_task(void * params){
 }
 
 //a custom error printing routine, that sends FTP status codes
-static void FTP_errorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode){
+static uint8_t FTP_errorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode){
     switch(retCode){
         case TERM_CMD_EXIT_NOT_FOUND:
         case TERM_CMD_EXIT_ERROR:
             ttprintf("504 dude get on my level bitch\r\n");
             break;
     }
+    return 0;
 }
 
 //TTerm compatible print function to send data to the client

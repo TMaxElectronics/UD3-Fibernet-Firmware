@@ -248,7 +248,7 @@ BaseType_t ptr_is_in_ram(void* ptr){
     return pdTRUE;
 }
 
-void TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode){
+uint8_t TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode){
     switch(retCode){
         case TERM_CMD_EXIT_SUCCESS:
             ttprintfEcho("\r\n%s@%s>", handle->currUserName, TERM_DEVICE_NAME);
@@ -262,6 +262,7 @@ void TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode){
             ttprintfEcho("\"%s\" is not a valid command. Type \"help\" to see a list of available ones\r\n%s@%s>", handle->inputBuffer, handle->currUserName, TERM_DEVICE_NAME);
             break;
     }
+    return 0;
 }
 
 uint8_t TERM_handleInput(uint16_t c, TERMINAL_HANDLE * handle){
@@ -552,7 +553,7 @@ TermCommandDescriptor * TERM_findCMD(TERMINAL_HANDLE * handle){
         currCmd = currCmd->nextCmd;
     }
     
-    return 0;
+    return NULL;
 }
 
 uint8_t TERM_interpretCMD(char * data, uint16_t dataLength, TERMINAL_HANDLE * handle){

@@ -40,7 +40,7 @@
 #include "TTerm_cmd.h"
 #include "semphr.h"
 #include "system.h"
-
+#include "THex.h"
 #include "UART.h"
 #include "FTP.h"
 #include "cybtldr_parse.h"
@@ -114,8 +114,7 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
             ttprintf("This function is intended for testing. it will list all passed arguments\r\n");
             ttprintf("usage:\r\n\ttest [{option} {value}]\r\n\n\t-aa : adds an argument to the ACL\r\n\n\t-ra : removes an argument from the ACL\r\n\n\t-r  : returns with the given code");
             return TERM_CMD_EXIT_SUCCESS;
-        }
-        if(strcmp(args[currArg], "-r") == 0){
+        }else if(strcmp(args[currArg], "-r") == 0){
             if(argCount > currArg + 1){
                 returnCode = atoi(args[currArg + 1]);
                 ttprintf("returning %d (from string \"%s\")\r\n", returnCode, args[currArg + 1]);
@@ -125,8 +124,7 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
                 ttprintf("usage:\r\ntest -r [return code]\r\n");
                 return 0;
             }
-        }
-        if(strcmp(args[currArg], "-ra") == 0){
+        }else if(strcmp(args[currArg], "-ra") == 0){
             if(++currArg < argCount){
                 ACL_remove(head, args[currArg]);
                 ttprintf("removed \"%s\" from the ACL\r\n", args[currArg]);
@@ -135,8 +133,7 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
                 ttprintf("missing ACL element value for option \"-ra\"\r\n");
                 returnCode = TERM_CMD_EXIT_ERROR;
             }
-        }
-        if(strcmp(args[currArg], "-aa") == 0){
+        }else if(strcmp(args[currArg], "-aa") == 0){
             if(++currArg < argCount){
                 char * newString = pvPortMalloc(strlen(args[currArg])+1);
                 strcpy(newString, args[currArg]);
@@ -147,13 +144,27 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
                 ttprintf("missing ACL element value for option \"-aa\"\r\n");
                 returnCode = TERM_CMD_EXIT_ERROR;
             }
-        }
-        if(strcmp(args[currArg], "-tt") == 0){
+        }else if(strcmp(args[currArg], "-tt") == 0){
             uint16_t c = 0;
             for(; c < 7; c++){
                 TETRIS_drawBlock(handle, TETRIS_blocks[c], c * 7, 60);
             }
             returnCode = TERM_CMD_EXIT_SUCCESS;
+        }else if(strcmp(args[currArg], "-th") == 0){
+            if(++currArg < argCount){
+                FIL file;
+                FRESULT res = f_open(&file, args[currArg], FA_READ);
+                if(res == FR_OK){
+                    ttprintf("File is %s\r\n", BL_verifyFile(&file) ? "valid" : "invalid");
+                    returnCode = TERM_CMD_EXIT_SUCCESS;
+                }else{
+                    ttprintf("File could not be found\r\n");
+                    returnCode = TERM_CMD_EXIT_ERROR;
+                }
+            }else{
+                ttprintf("Missing file name\r\n");
+                returnCode = TERM_CMD_EXIT_ERROR;
+            }
         }
     }
     if(returnCode != 0) return returnCode;
@@ -192,6 +203,32 @@ uint8_t TERM_testCommandAutoCompleter(TERMINAL_HANDLE * handle, void * params){
         
     vPortFree(buff);
     return handle->autocompleteBufferLength;
+}
+
+unsigned BL_verifyFile(FIL * file){
+    unsigned ret = 1;
+    char * buff = pvPortMalloc(2048);
+    THexFileInfo * fileInfo = pvPortMalloc(sizeof(THexFileInfo));
+    uint8_t * dBuff = pvPortMalloc(32);
+    uint8_t lengthRead = 0;
+    
+    while(f_gets(buff, 2048, file) != 0){
+        THexResult_t res = THEX_parseString(fileInfo, buff, &lengthRead, dBuff);
+        if(res == THEX_EOF) break;
+        
+        if(res != THEX_OK && res < 0x1000){ 
+            ret = 0;
+        }
+    }
+    
+    vPortFree(buff);
+    vPortFree(fileInfo);
+    return ret;
+}
+
+uint8_t CMD_reset(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    __pic32_software_reset();
+    return TERM_CMD_EXIT_SUCCESS;
 }
 
 uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){

@@ -20,6 +20,7 @@
 #include "FatFs/include/ff.h"
 #include "FS.h"
 #include "FTP.h"
+#include "System.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -34,13 +35,21 @@ static void startupTask();
 static void crcReset();
 static uint32_t crcProc(uint8_t byte);
 static void prvSetupHardware();
+uint32_t BL_result;
 
 void startServices(){
+    BL_result = TMR2;
+    TMR2 = 0;
+    
     prvSetupHardware();
     COMMS_init();
     
+    if(BL_result <= BOOTLOADER_EXIT_UPDATE_COMPLETE){
+        UART_print("\r\nBL_EXITCODE=%s\r\n", SYS_BOOTCODES[BL_result]);
+    }
+    
     //create the FS task. (checks for SD card connection/removal)
-    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 200, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
     //TODO optimize stack usage and figure out why it needs to be this large
     
     xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);

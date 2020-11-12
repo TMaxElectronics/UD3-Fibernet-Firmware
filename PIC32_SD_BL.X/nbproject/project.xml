@@ -3,19 +3,16 @@
     <type>com.microchip.mplab.nbide.embedded.makeproject</type>
     <configuration>
         <data xmlns="http://www.netbeans.org/ns/make-project/1">
-            <name>UD3_Fibernet</name>
-            <creation-uuid>bd5841f2-089f-48fb-b2f7-325d7b921682</creation-uuid>
+            <name>PIC32_SD_BL</name>
+            <creation-uuid>60155223-c4ab-44b4-bab6-ee1ba0823ac0</creation-uuid>
             <make-project-type>0</make-project-type>
             <c-extensions>c</c-extensions>
             <cpp-extensions/>
             <header-extensions>h</header-extensions>
             <asminc-extensions/>
             <sourceEncoding>ISO-8859-1</sourceEncoding>
-            <make-dep-projects>
-                <make-dep-project>PIC32_SD_BL.X</make-dep-project>
-            </make-dep-projects>
+            <make-dep-projects/>
             <sourceRootList>
-                <sourceRootElem>../freeRTOS Demo/FreeRTOS/Demo/PIC32MX_MPLAB/RTOSDemo.X/FreeRTOS</sourceRootElem>
                 <sourceRootElem>.</sourceRootElem>
             </sourceRootList>
             <confList>

@@ -71,6 +71,7 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, unsigned 
         TERM_addCommand(CMD_help, "help", "Displays this help message", 0, &TERM_cmdListHead);
         TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0, &TERM_cmdListHead);
         TERM_addCommand(CMD_top, "top", "shows performance stats", 0, &TERM_cmdListHead);
+        TERM_addCommand(CMD_reset, "reset", "resets the fibernet", 0, &TERM_cmdListHead);
         
         TermCommandDescriptor * test = TERM_addCommand(CMD_testCommandHandler, "test", "tests stuff", 0, &TERM_cmdListHead);
         head = ACL_create();

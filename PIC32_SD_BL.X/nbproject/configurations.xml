@@ -4,154 +4,30 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
-      <logicalFolder name="f5" displayName=".cybtldr" projectFiles="true">
-        <itemPath>cybtldr_api.h</itemPath>
-        <itemPath>cybtldr_command.h</itemPath>
-        <itemPath>cybtldr_parse.h</itemPath>
-        <itemPath>cybtldr_utils.h</itemPath>
-        <itemPath>communication_api.h</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f2" displayName=".FatFs &amp; SD Card" projectFiles="true">
-        <itemPath>FatFs/include/diskio.h</itemPath>
-        <itemPath>FatFs/include/ff.h</itemPath>
-        <itemPath>FatFs/include/ffconf.h</itemPath>
-        <itemPath>FatFs/include/integer.h</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f1" displayName=".FreeRTOS" projectFiles="true">
-        <logicalFolder name="f1" displayName="Core" projectFiles="true">
-          <itemPath>FreeRTOS/Core/include/FreeRTOS.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/StackMacros.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/atomic.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/croutine.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/event_groups.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/list.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/message_buffer.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/mpu_prototypes.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/mpu_wrappers.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/portable.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/projdefs.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/queue.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/semphr.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/stack_macros.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/stream_buffer.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/task.h</itemPath>
-          <itemPath>FreeRTOS/Core/include/timers.h</itemPath>
-          <itemPath>FreeRTOS/Core/portable/MPLAB/PIC32MX/portmacro.h</itemPath>
-        </logicalFolder>
-        <logicalFolder name="f2" displayName="TCPIP" projectFiles="true">
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOSIPConfigDefaults.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_ARP.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_DHCP.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_DNS.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_IP.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_IP_Private.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_Sockets.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_Stream_Buffer.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_TCP_IP.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_TCP_WIN.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_UDP_IP.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/FreeRTOS_errno_TCP.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/IPTraceMacroDefaults.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/NetworkBufferManagement.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/NetworkInterface.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/tcp_dump_packets.h</itemPath>
-          <itemPath>FreeRTOS/TCPIP/include/tcp_mem_stats.h</itemPath>
-        </logicalFolder>
-        <itemPath>include/FreeRTOSConfig.h</itemPath>
-        <itemPath>include/FreeRTOSIPConfig.h</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f3" displayName=".services" projectFiles="true">
-        <itemPath>include/service.h</itemPath>
-        <itemPath>include/FTP.h</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f4" displayName=".THex" projectFiles="true">
-        <itemPath>THex/Include/THex.h</itemPath>
-      </logicalFolder>
-      <itemPath>include/ConfigPerformance.h</itemPath>
-      <itemPath>include/LAN9250.h</itemPath>
-      <itemPath>include/NetworkInterface.h</itemPath>
-      <itemPath>include/SPI.h</itemPath>
-      <itemPath>include/UART.h</itemPath>
-      <itemPath>include/FiberComms.h</itemPath>
-      <itemPath>include/min.h</itemPath>
-      <itemPath>include/LED.h</itemPath>
-      <itemPath>min_id.h</itemPath>
-      <itemPath>include/System.h</itemPath>
-      <itemPath>include/UD3_Wrapper.h</itemPath>
-      <itemPath>include/TTerm.h</itemPath>
-      <itemPath>TTerm_cmd.h</itemPath>
-      <itemPath>startup.h</itemPath>
-      <itemPath>include/FS.h</itemPath>
-      <itemPath>TTerm_AC.h</itemPath>
+      <itemPath>SPI.h</itemPath>
+      <itemPath>FatFs/include/diskio.h</itemPath>
+      <itemPath>FatFs/include/ff.h</itemPath>
+      <itemPath>FatFs/include/ffconf.h</itemPath>
+      <itemPath>FatFs/include/integer.h</itemPath>
+      <itemPath>THex/Include/THex.h</itemPath>
+      <itemPath>NVM.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
                    projectFiles="true">
-      <itemPath>p32MX270F256B.ld</itemPath>
+      <itemPath>BL_Linker.ld</itemPath>
     </logicalFolder>
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
-      <logicalFolder name="f5" displayName=".cybtldr" projectFiles="true">
-        <itemPath>cybtldr_api.c</itemPath>
-        <itemPath>cybtldr_command.c</itemPath>
-        <itemPath>cybtldr_parse.c</itemPath>
-        <itemPath>communication_api.c</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f2" displayName=".FatFs &amp; SD Card" projectFiles="true">
-        <itemPath>FatFs/ff.c</itemPath>
-        <itemPath>FatFs/ffsystem.c</itemPath>
-        <itemPath>FatFs/ffunicode.c</itemPath>
-        <itemPath>FatFs/mmcpic32.c</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f1" displayName=".FreeRTOS" projectFiles="true">
-        <logicalFolder name="f1" displayName="Core" projectFiles="true">
-          <itemPath>FreeRTOS/Core/event_groups.c</itemPath>
-          <itemPath>FreeRTOS/Core/list.c</itemPath>
-          <itemPath>FreeRTOS/Core/queue.c</itemPath>
-          <itemPath>FreeRTOS/Core/stream_buffer.c</itemPath>
-          <itemPath>FreeRTOS/Core/tasks.c</itemPath>
-          <itemPath>FreeRTOS/Core/timers.c</itemPath>
-          <itemPath>FreeRTOS/Core/portable/MemMang/heap_4.c</itemPath>
-          <itemPath>FreeRTOS/Core/portable/MPLAB/PIC32MX/port.c</itemPath>
-          <itemPath>FreeRTOS/Core/portable/MPLAB/PIC32MX/port_asm.S</itemPath>
-        </logicalFolder>
-        <logicalFolder name="f2" displayName="TCPIP" projectFiles="true">
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_ARP.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_DHCP.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_DNS.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_IP.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_Sockets.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_Stream_Buffer.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_TCP_IP.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_TCP_WIN.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/FreeRTOS_UDP_IP.c</itemPath>
-          <itemPath>FreeRTOS/TCPIP/portable/BufferManagement/BufferAllocation_2.c</itemPath>
-        </logicalFolder>
-      </logicalFolder>
-      <logicalFolder name="f3" displayName=".services" projectFiles="true">
-        <itemPath>service.c</itemPath>
-        <itemPath>FTP.c</itemPath>
-      </logicalFolder>
-      <logicalFolder name="f4" displayName=".THex" projectFiles="true">
-        <itemPath>THex/THex.c</itemPath>
-      </logicalFolder>
-      <itemPath>ConfigPerformance.c</itemPath>
-      <itemPath>LAN9250.c</itemPath>
-      <itemPath>NetworkInterface_LAN9250.c</itemPath>
       <itemPath>SPI.c</itemPath>
-      <itemPath>UART.c</itemPath>
-      <itemPath>main.c</itemPath>
-      <itemPath>LED.c</itemPath>
-      <itemPath>FiberComms.c</itemPath>
-      <itemPath>min.c</itemPath>
-      <itemPath>System.c</itemPath>
-      <itemPath>UD3_Wrapper.c</itemPath>
-      <itemPath>TTerm.c</itemPath>
-      <itemPath>TTerm_cmd.c</itemPath>
-      <itemPath>startup.c</itemPath>
-      <itemPath>FS.c</itemPath>
-      <itemPath>TTerm_AC.c</itemPath>
+      <itemPath>FatFs/mmcpic32.c</itemPath>
+      <itemPath>newmain.c</itemPath>
+      <itemPath>FatFs/ff.c</itemPath>
+      <itemPath>FatFs/ffsystem.c</itemPath>
+      <itemPath>FatFs/ffunicode.c</itemPath>
+      <itemPath>THex/THex.c</itemPath>
+      <itemPath>NVM.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -160,7 +36,6 @@
     </logicalFolder>
   </logicalFolder>
   <sourceRootList>
-    <Elem>../freeRTOS Demo/FreeRTOS/Demo/PIC32MX_MPLAB/RTOSDemo.X/FreeRTOS</Elem>
     <Elem>.</Elem>
   </sourceRootList>
   <projectmakefile>Makefile</projectmakefile>
@@ -187,21 +62,6 @@
         <archiverTool>
         </archiverTool>
         <loading>
-          <makeArtifact PL="PIC32_SD_BL.X"
-                        CT="1"
-                        CN="default"
-                        AC="true"
-                        BL="true"
-                        WD="PIC32_SD_BL.X"
-                        BC="${MAKE}  -f Makefile CONF=default"
-                        DBC="${MAKE}  -f Makefile CONF=default TYPE_IMAGE=DEBUG_RUN"
-                        CC="rm -rf &quot;build/default&quot; &quot;dist/default&quot;"
-                        OP="dist/default/production/PIC32_SD_BL.X.production.hex"
-                        DOP="dist/default/debug/PIC32_SD_BL.X.debug.elf"
-                        FL="dist/default/production/PIC32_SD_BL.X.production.hex"
-                        PD="dist/default/production/PIC32_SD_BL.X.production.elf"
-                        DD="dist/default/debug/PIC32_SD_BL.X.debug.elf">
-          </makeArtifact>
           <useAlternateLoadableFile>false</useAlternateLoadableFile>
           <parseOnProdLoad>false</parseOnProdLoad>
           <alternateLoadableFile></alternateLoadableFile>
@@ -218,6 +78,22 @@
         <makeCustomizationEnableLongLines>false</makeCustomizationEnableLongLines>
         <makeCustomizationNormalizeHexFile>false</makeCustomizationNormalizeHexFile>
       </makeCustomizationType>
+      <item path="BL_Linker.ld" ex="false" overriding="false">
+        <C32>
+        </C32>
+        <C32-AR>
+        </C32-AR>
+        <C32-AS>
+        </C32-AS>
+        <C32-CO>
+        </C32-CO>
+        <C32-LD>
+        </C32-LD>
+        <C32CPP>
+        </C32CPP>
+        <C32Global>
+        </C32Global>
+      </item>
       <C32>
         <property key="additional-warnings" value="false"/>
         <property key="addresss-attribute-use" value="false"/>
@@ -243,7 +119,7 @@
         <property key="use-cci" value="false"/>
         <property key="use-iar" value="false"/>
         <property key="use-indirect-calls" value="false"/>
-        <appendMe value="-I ./include -I ./FreeRTOS/Core/include -I ./FreeRTOS/ -I ./FreeRTOS/TCPIP/include -I ./FatFs -I ./FatFs/include -I ./THex/Include -I ./FreeRTOS/Core/portable/MPLAB/PIC32MX -I ./FreeRTOS/TCPIP/portable/Compiler/GCC"/>
+        <appendMe value="-I ./FatFs -I ./THex   -I ./FatFs/include -I ./THex/Include -I ."/>
       </C32>
       <C32-AR>
         <property key="additional-options-chop-files" value="false"/>
@@ -277,7 +153,7 @@
         <property key="allocate-dinit" value="false"/>
         <property key="code-dinit" value="false"/>
         <property key="ebase-addr" value=""/>
-        <property key="enable-check-sections" value="true"/>
+        <property key="enable-check-sections" value="false"/>
         <property key="exclude-floating-point-library" value="false"/>
         <property key="exclude-standard-libraries" value="false"/>
         <property key="extra-lib-directories" value=""/>
@@ -289,7 +165,7 @@
         <property key="fill-flash-options-seq" value=""/>
         <property key="fill-flash-options-what" value="0"/>
         <property key="generate-16-bit-code" value="false"/>
-        <property key="generate-cross-reference-file" value="true"/>
+        <property key="generate-cross-reference-file" value="false"/>
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="heap-size" value=""/>
         <property key="input-libraries" value=""/>
@@ -327,7 +203,7 @@
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="isolate-each-function" value="false"/>
         <property key="make-warnings-into-errors" value="false"/>
-        <property key="optimization-level" value="-Os"/>
+        <property key="optimization-level" value=""/>
         <property key="place-data-into-section" value="false"/>
         <property key="post-instruction-scheduling" value="default"/>
         <property key="pre-instruction-scheduling" value="default"/>
@@ -410,8 +286,8 @@
         <property key="memories.programmemory.ranges" value="1d000000-1d03ffff"/>
         <property key="poweroptions.powerenable" value="false"/>
         <property key="programmerToGoFilePath"
-                  value="D:/OneDrive/MPLab Projects/UD3_Fibernet.X/debug/default/UD3_Fibernet_ptg"/>
-        <property key="programmerToGoImageName" value="UD3_Fibernet_ptg"/>
+                  value="D:/OneDrive/MPLab Projects/PIC32_SD_BL.X/debug/default/PIC32_SD_BL_ptg"/>
+        <property key="programmerToGoImageName" value="PIC32_SD_BL_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>
         <property key="programoptions.ledbrightness" value="5"/>

@@ -36,6 +36,14 @@ void FS_task(void * params){
                 UART_print("sd initialized\r\n");
                 f_mount(&fso, "", 0);
                 f_chdir("/");
+                
+                FIL file;
+                FRESULT res = f_open(&file, "/boot.hex", FA_READ);
+                if(res == FR_OK){
+                    f_close(&file);
+                    f_rename("/boot.hex", "/bootDone.hex");
+                }
+                
             }else{
                 UART_print("sd no initialized\r\n");
             }

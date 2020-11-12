@@ -6,6 +6,7 @@
 #include "System.h"
 #include "task.h"
 
+const char * SYS_BOOTCODES[] = {"BOOTLOADER_EXIT_NOSD", "BOOTLOADER_EXIT_SD_INIT_FAIL", "BOOTLOADER_EXIT_NO_BOOTFILE", "BOOTLOADER_EXIT_INVALID_BOOTFILE", "BOOTLOADER_EXIT_UPDATE_COMPLETE"};
 
 //a non scheduler dependent wait function. Used in exception handlers where no interrupts are enabled
 void SYS_waitCP0(uint16_t length){
@@ -17,8 +18,11 @@ void SYS_waitCP0(uint16_t length){
 
 uint32_t SYS_getCPULoadFine(TaskStatus_t * taskStats, uint32_t taskCount, uint32_t sysTime){
     uint32_t currTask = 0;
+    volatile TaskStatus_t * ct = &taskStats[0];
     for(;currTask < taskCount; currTask++){
-        if(strlen(taskStats[currTask].pcTaskName) == 4 && strcmp(taskStats[currTask].pcTaskName, "IDLE") == 0){
+        ct = &taskStats[currTask];
+        configASSERT(ct > 0xa0000000 && ct < 0xa0010000);
+        if(strncmp(taskStats[currTask].pcTaskName, "IDLE", configMAX_TASK_NAME_LEN) == 0){
             return configTICK_RATE_HZ - ((taskStats[currTask].ulRunTimeCounter) / (sysTime/configTICK_RATE_HZ));
         }
     }

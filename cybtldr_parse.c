@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include "cybtldr_parse.h"
+#include "FreeRTOS.h"
 
 /* Pointer to the *.cyacd file containing the data that is to be read */
 static FILE* dataFile;
@@ -80,7 +81,7 @@ int CyBtldr_ParseHeader(unsigned int bufSize, unsigned char* buffer, unsigned lo
     const unsigned int LENGTH_CHKSUM = LENGTH_ID + 1; //1-checksum type
 
     unsigned short rowSize;
-    unsigned char rowData[MAX_BUFFER_SIZE];
+    unsigned char* rowData = pvPortMalloc(MAX_BUFFER_SIZE);
 
     int err = CyBtldr_FromAscii(bufSize, buffer, &rowSize, rowData);
 
@@ -96,7 +97,7 @@ int CyBtldr_ParseHeader(unsigned int bufSize, unsigned char* buffer, unsigned lo
         else
             err = CYRET_ERR_LENGTH;
     }
-
+    vPortFree(rowData);
     return err;
 }
 
@@ -107,7 +108,7 @@ int CyBtldr_ParseRowData(unsigned int bufSize, unsigned char* buffer, unsigned c
 
     unsigned int i;
     unsigned short hexSize = 0;
-    unsigned char hexData[MAX_BUFFER_SIZE];
+    unsigned char* hexData = pvPortMalloc(MAX_BUFFER_SIZE);
     int err = CYRET_SUCCESS;
 
     if (bufSize <= MIN_SIZE)
@@ -133,7 +134,7 @@ int CyBtldr_ParseRowData(unsigned int bufSize, unsigned char* buffer, unsigned c
     }
     else
         err = CYRET_ERR_CMD;
-
+    vPortFree(hexData);
     return err;
 }
 /*

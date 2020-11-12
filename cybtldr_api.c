@@ -7,6 +7,7 @@
 
 #include "cybtldr_command.h"
 #include "cybtldr_api.h"
+#include "FreeRTOS.h"
 
 /* The highest number of memory arrays for any device. This includes flash and EEPROM arrays */
 #define MAX_DEV_ARRAYS    0x80
@@ -39,8 +40,8 @@ int CyBtldr_ValidateRow(unsigned char arrayId, unsigned short rowNum)
     unsigned long outSize;
     unsigned short minRow = 0;
     unsigned short maxRow = 0;
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned char status = CYRET_SUCCESS;
     int err = CYRET_SUCCESS;
 
@@ -74,7 +75,8 @@ int CyBtldr_ValidateRow(unsigned char arrayId, unsigned short rowNum)
     }
     else
         err = CYRET_ERR_ARRAY;
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
@@ -87,8 +89,8 @@ int CyBtldr_StartBootloadOperation(CyBtldr_CommunicationsData* comm, unsigned lo
     unsigned long inSize = 0;
     unsigned long outSize = 0;
     unsigned long siliconId = 0;
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned char siliconRev = 0;
     unsigned char status = CYRET_SUCCESS;
     int err;
@@ -118,7 +120,8 @@ int CyBtldr_StartBootloadOperation(CyBtldr_CommunicationsData* comm, unsigned lo
         else if ((*blVer & BOOTLOADER_VERSION_MASK) != SUPPORTED_BOOTLOADER)
             err = CYRET_ERR_VERSION;
     }
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
@@ -126,8 +129,8 @@ int CyBtldr_GetApplicationStatus(unsigned char appID, unsigned char* isValid, un
 {
     unsigned long inSize = 0;
     unsigned long outSize = 0;
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned char status = CYRET_SUCCESS;
     int err;
 
@@ -142,7 +145,8 @@ int CyBtldr_GetApplicationStatus(unsigned char appID, unsigned char* isValid, un
         if (CYRET_SUCCESS != status)
             err = status | CYRET_ERR_BTLDR_MASK;
     }
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
@@ -150,8 +154,8 @@ int CyBtldr_SetApplicationStatus(unsigned char appID)
 {
     unsigned long inSize = 0;
     unsigned long outSize = 0;
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned char status = CYRET_SUCCESS;
     int err;
 
@@ -166,7 +170,8 @@ int CyBtldr_SetApplicationStatus(unsigned char appID)
         if (CYRET_SUCCESS != status)
             err = status | CYRET_ERR_BTLDR_MASK;
     }
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
@@ -174,7 +179,7 @@ int CyBtldr_EndBootloadOperation(void)
 {
     unsigned long inSize;
     unsigned long outSize;
-    unsigned char inBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
 
     int err = CyBtldr_CreateExitBootLoaderCmd(inBuf, &inSize, &outSize);
     if (CYRET_SUCCESS == err)
@@ -188,7 +193,7 @@ int CyBtldr_EndBootloadOperation(void)
             err |= CYRET_ERR_COMM_MASK;
     }
     g_comm = NULL;
-
+    vPortFree(inBuf);
     return err;
 }
 
@@ -196,8 +201,8 @@ int CyBtldr_ProgramRow(unsigned char arrayID, unsigned short rowNum, unsigned ch
 {
     const int TRANSFER_HEADER_SIZE = 11;
 
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned long inSize;
     unsigned long outSize;
     unsigned long offset = 0;
@@ -236,14 +241,15 @@ int CyBtldr_ProgramRow(unsigned char arrayID, unsigned short rowNum, unsigned ch
         if (CYRET_SUCCESS != status)
             err = status | CYRET_ERR_BTLDR_MASK;
     }
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
 int CyBtldr_EraseRow(unsigned char arrayID, unsigned short rowNum)
 {
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned long inSize = 0;
     unsigned long outSize = 0;
     unsigned char status = CYRET_SUCCESS;
@@ -259,14 +265,15 @@ int CyBtldr_EraseRow(unsigned char arrayID, unsigned short rowNum)
         err = CyBtldr_ParseEraseRowCmdResult(outBuf, outSize, &status);
     if (CYRET_SUCCESS != status)
         err = status | CYRET_ERR_BTLDR_MASK;
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
 int CyBtldr_VerifyRow(unsigned char arrayID, unsigned short rowNum, unsigned char checksum)
 {
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned long inSize = 0;
     unsigned long outSize = 0;
     unsigned char rowChecksum = 0;
@@ -285,14 +292,15 @@ int CyBtldr_VerifyRow(unsigned char arrayID, unsigned short rowNum, unsigned cha
         err = status | CYRET_ERR_BTLDR_MASK;
     if ((CYRET_SUCCESS == err) && (rowChecksum != checksum))
         err = CYRET_ERR_CHECKSUM;
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }
 
 int CyBtldr_VerifyApplication(void)
 {
-    unsigned char inBuf[MAX_COMMAND_SIZE];
-    unsigned char outBuf[MAX_COMMAND_SIZE];
+    unsigned char* inBuf = pvPortMalloc(MAX_COMMAND_SIZE);
+    unsigned char* outBuf = pvPortMalloc(MAX_COMMAND_SIZE);
     unsigned long inSize = 0;
     unsigned long outSize = 0;
     unsigned char checksumValid = 0;
@@ -307,6 +315,7 @@ int CyBtldr_VerifyApplication(void)
         err = status | CYRET_ERR_BTLDR_MASK;
     if ((CYRET_SUCCESS == err) && (!checksumValid))
         err = CYRET_ERR_CHECKSUM;
-
+    vPortFree(inBuf);
+    vPortFree(outBuf);
     return err;
 }

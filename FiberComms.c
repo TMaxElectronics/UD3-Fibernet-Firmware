@@ -75,7 +75,7 @@ void COMMS_init(){
     streamRx = xStreamBufferCreate(STREAM_SIZE,1);
     term = TERM_createNewHandle(UART_termPrint, 0, 1, &TERM_cmdListHead, 0, "root");
     
-    xTaskCreate(Term_task, "Term", configMINIMAL_STACK_SIZE + 1500, term, tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(Term_task, "Term", configMINIMAL_STACK_SIZE + 500, term, tskIDLE_PRIORITY + 2, NULL);
 }
 
 void COMMS_statsHandler(void * params){

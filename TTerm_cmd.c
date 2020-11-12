@@ -181,7 +181,7 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
         return TERM_CMD_EXIT_SUCCESS;
     }
     FIL log;
-    res = f_open(&log,"/boot.log",FA_WRITE | FA_CREATE_ALWAYS);
+    res = f_open(&log,"/UD3_flash.log",FA_WRITE | FA_CREATE_ALWAYS);
     if(res != FR_OK){
         ttprintf("Error creating log\r\n");
         return TERM_CMD_EXIT_SUCCESS;
@@ -264,7 +264,9 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
         case CYRET_ERR_ROW:
             f_printf(&log, "The flash row is not valid\r\n");
             break;
-            
+        case CYRET_SUCCESS:
+            f_printf(&log, "Finished with no errors\r\n");
+            break;
         default:
             f_printf(&log, "Unknown error: %u\r\n", err);
             break;

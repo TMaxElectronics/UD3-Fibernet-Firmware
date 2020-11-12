@@ -77,10 +77,6 @@ int CloseConnection(void)
 int WriteData(uint8_t* wrData, int byteCnt)
 {
     UART_queBuffer(wrData, byteCnt, 0);
-    while(UART_queEmpty()==0){
-        vTaskDelay(5);
-    }
-    vTaskDelay(10);
 	return(CYRET_SUCCESS);
 }
 

@@ -26,7 +26,7 @@
 extern struct min_context * COMMS_UDP;
 extern struct min_context * COMMS_UART;
 
-extern StreamBufferHandle_t terminal;
+extern StreamBufferHandle_t streamRx;
 
 typedef enum{
     GET_INFO = 1,   

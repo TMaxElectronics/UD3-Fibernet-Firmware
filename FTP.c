@@ -9,6 +9,7 @@
 #include "System.h"
 #include "FS.h"
 #include "FiberComms.h"
+#include "TTerm_AC.h"
 
 #define FTP_SERVER_PORT 21
 #define FTP_DATA_PORT 20
@@ -16,6 +17,8 @@
 #define FTP_PERMISSION_ROOT 0xaa
 #define FTP_PERMISSION_ANONYMOUS 0xee
 #define FTP_PERMISSION_NONE 0
+
+#define GOLDEN_UD3_IMAGE "image.cyacd"
 
 
 TermCommandDescriptor FTP_cmdListHead = {.nextCmd = 0};
@@ -624,6 +627,7 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     FRESULT res;
     FIL file;
     int32_t numRead;
+    uint8_t start_flash=pdFALSE;
     char * buffer = pvPortMalloc(ipconfigTCP_MSS);
     
     FTP_CLIENT_HANDLE * client = (FTP_CLIENT_HANDLE *) handle->port;
@@ -683,12 +687,21 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     
     if(res == FR_OK){
         ttprintf("226 and thats it\r\n");
+        if(strcmp(&filePath[strlen(filePath)-strlen(GOLDEN_UD3_IMAGE)], GOLDEN_UD3_IMAGE)==0){
+            start_flash=pdTRUE;
+        }
     }else{
         ttprintf("550 sorry I messed something up (%d)\r\n", res);
     }
     
     //clean up
-    f_close(&file);  
+    f_close(&file); 
+    if(start_flash==pdTRUE){
+        xStreamBufferSend(streamRx, "\rboot ", strlen("\rboot "),2);
+        xStreamBufferSend(streamRx, filePath, strlen(filePath),2);
+        xStreamBufferSend(streamRx, "\r", 1,2);
+    }
+
     FTP_closeTranferSocket(client);
     
     vPortFree(buffer);

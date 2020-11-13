@@ -41,7 +41,7 @@
 #define SD_INIT_MAXATTEMPS 10
 #define BL_IMAGE_PATH "/boot.hex"
 #define BL_MEMSTART 0x9d000000
-#define BL_MEMEND 0x9D03B000
+#define BL_MEMEND 0x9D03C000
 #define PAGE_SIZE 1024
 
 FATFS fso;
@@ -82,6 +82,13 @@ void main(void) {
     if(!FS_isCardPresent()){
         BL_startApplication(BOOTLOADER_EXIT_NOSD);
     }
+    
+    //disable all interrupts
+    unsigned int val;                           //enable interrups
+    asm volatile("mfc0   %0,$12" : "=r"(val));
+    val &= ~0b1;
+    asm volatile("mtc0   %0,$12" : "+r"(val));
+    INTCONbits.MVEC = 0;
     
     //init SD card pins
     TRISACLR = _TRISA_TRISA2_MASK | _TRISA_TRISA3_MASK | _TRISA_TRISA4_MASK;

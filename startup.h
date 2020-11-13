@@ -24,3 +24,4 @@ extern unsigned deviceReady;
 
 void startServices();
 unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port);
+uint8_t CMD_getBLState(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);

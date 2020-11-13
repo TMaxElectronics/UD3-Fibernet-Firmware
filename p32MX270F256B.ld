@@ -83,7 +83,7 @@ OPTIONAL("libmchp_peripheral_32MX270F256B.a")
  *   xc32-gcc src.c -Wl,--defsym=_ebase_address=0x9D001000
  *************************************************************************/
 PROVIDE(_vector_spacing = 0x0001);
-PROVIDE(_ebase_address = 0x9D03F000);
+PROVIDE(_ebase_address = 0x9D03B000);
 
 /*************************************************************************
  * Memory Address Equates
@@ -117,8 +117,8 @@ _GEN_EXCPT_ADDR                = _ebase_address + 0x180;
 
 MEMORY
 {
-  kseg0_program_mem     (rx)  : ORIGIN = 0x9D000BF0, LENGTH = 0x3A410
-  exception_mem               : ORIGIN = 0x9D03F000, LENGTH = 0x1000
+  kseg0_program_mem     (rx)  : ORIGIN = 0x9D001000, LENGTH = 0x3A000
+  exception_mem               : ORIGIN = 0x9D03B000, LENGTH = 0x1000
   debug_exec_mem              : ORIGIN = 0x9FC00490, LENGTH = 0x760
   kseg0_boot_mem              : ORIGIN = 0x9D000490, LENGTH = 0x0
   kseg1_boot_mem              : ORIGIN = 0xBD000000, LENGTH = 0x490

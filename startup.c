@@ -44,9 +44,7 @@ void startServices(){
     prvSetupHardware();
     COMMS_init();
     
-    if(BL_result <= BOOTLOADER_EXIT_UPDATE_COMPLETE){
-        UART_print("\r\nBL_EXITCODE=%s\r\n", SYS_BOOTCODES[BL_result]);
-    }
+    TERM_addCommand(CMD_getBLState, "getBLState", "shows the last bootloader exit code", 0, &TERM_cmdListHead);
     
     //create the FS task. (checks for SD card connection/removal)
     xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
@@ -54,6 +52,8 @@ void startServices(){
     
     xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
 }
+
+
 
 //as long as the network is not ready, we won't process any data for the transport protocol, so we call this handler instead
 unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port){
@@ -195,4 +195,22 @@ static void prvSetupHardware(){
     UART_init(460800, &RPA3R, 0b0001);
 
     LED_init();
+}
+
+uint8_t CMD_getBLState(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            ttprintf("shows the status given to us by the bootloader");
+            return TERM_CMD_EXIT_SUCCESS;
+        }
+    }
+    
+    if(BL_result <= BOOTLOADER_EXIT_UPDATE_COMPLETE){
+        ttprintf("BL_EXITCODE=%s\r\n", SYS_BOOTCODES[BL_result]);
+    }else{
+        ttprintf("BL_EXITCODE=%d (invalid)\r\n", BL_result);
+    }
+    
+    return TERM_CMD_EXIT_SUCCESS;
 }

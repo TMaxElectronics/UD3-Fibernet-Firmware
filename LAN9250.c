@@ -160,8 +160,9 @@ static void ETH_run( void *pvParameters ){
                 COMMS_pushAlarm(ALARM_PRIO_WARN, "LAN9250 rx FiFo overflow! Packet FiFo was reset ", intStatus);
                 ETH_forceRXDiscard();
                 
+                COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 rx fifo overrun", ALARM_NO_VALUE);
                 //set a software breakpoint if this is a debug build, so we can explore the contents of registers and stuff
-                //configASSERT(0);
+                configASSERT(0);
                 
                 intClear |= LAN9250_INTERRUPT_RX_DROPPED_FRAME;
             }
@@ -243,6 +244,7 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     //allocate a buffer for the new packet
     NetworkBufferDescriptor_t * ret = pxGetNetworkBufferWithDescriptor(s->packetSize, 0);
     if(ret == NULL){ 
+        COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 rx buffer failed", ALARM_NO_VALUE);
         UART_printDebug("RX buffer allocation failed!\r\n");
         return NULL;
     }
@@ -332,11 +334,15 @@ unsigned ETH_waitForTXSpace(uint16_t length){
 BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     if(data == 0 || length == 0) return pdFALSE;
     
-    if(!xSemaphoreTake(ETH_commsSem, 1000)) return pdFALSE; //SPI comms never became available
+    if(!xSemaphoreTake(ETH_commsSem, 1000)){ 
+        return pdFALSE; //SPI comms never became available
+        COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 couldn't get semaphore for tx", ALARM_NO_VALUE);
+    }
     
     //return if no space is available
     if(!ETH_waitForTXSpace(length)){
         xSemaphoreGive(ETH_commsSem);
+        COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 never got tx fifo space", ALARM_NO_VALUE);
         return pdFALSE;
     }
     //TODO make sure that we never return here as we might drop frames if that happens

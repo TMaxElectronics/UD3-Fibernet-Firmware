@@ -21,6 +21,7 @@
 #include "FS.h"
 #include "FTP.h"
 #include "System.h"
+#include "THex/include/THex.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -45,6 +46,7 @@ void startServices(){
     COMMS_init();
     
     TERM_addCommand(CMD_getBLState, "getBLState", "shows the last bootloader exit code", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_verify, "verify", "verifies a pic bootfile", 0, &TERM_cmdListHead);
     
     //create the FS task. (checks for SD card connection/removal)
     xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
@@ -213,4 +215,68 @@ uint8_t CMD_getBLState(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args)
     }
     
     return TERM_CMD_EXIT_SUCCESS;
+}
+
+uint8_t CMD_verify(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    uint8_t scannedFiles = 0;
+    uint8_t validFiles = 0;
+    uint8_t invalidFiles = 0;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            ttprintf("verifies a pic boot file\r\nUsage:\r\n\tverify [filename]");
+            return TERM_CMD_EXIT_SUCCESS;
+        }else{
+            FIL file;
+            FRESULT res = f_open(&file, args[currArg], FA_READ);
+            if(res == FR_OK){
+                unsigned res = BL_verifyFile(&file, handle);
+                ttprintf("\"%s\" is %s", args[currArg], res ? "valid" : "invalid");
+                f_close(&file);
+            }else{
+                ttprintf("\"%s\" could not be found", args[currArg]);
+            }
+        }
+    }
+    
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
+unsigned BL_verifyFile(FIL * file, TERMINAL_HANDLE * handle){
+    unsigned ret = 1;
+    char * buff = pvPortMalloc(64);
+    THexFileInfo * fileInfo = pvPortMalloc(sizeof(THexFileInfo));
+    uint8_t * dBuff = pvPortMalloc(32);
+    
+    uint32_t fileLength = f_size(file);
+    uint32_t lengthRead = 0;
+    uint32_t totalRead = 0;
+    uint8_t perc = 0;
+    uint8_t percTenth;
+    uint8_t lastPerc = 0;
+    TERM_sendVT100Code(handle, _VT100_CURSOR_DISABLE, 0);
+    
+    while(f_gets(buff, 64, file) != 0){
+        THexResult_t res = THEX_parseString(fileInfo, buff, 0, 0);
+        if(res == THEX_EOF) break;
+        
+        totalRead += strlen(buff);
+        perc = (totalRead * 100) / fileLength;
+        if(perc != lastPerc){
+            lastPerc = perc;
+            percTenth = perc / 10;
+            ttprintf("scanning <%s%.*s%s%.*s%s> (%d%%)\r", TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_GREEN), percTenth, SYS_fullBar, TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_RED), 10-percTenth, SYS_emptyBar, TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_WHITE), perc);
+        }
+        
+        if(res != THEX_OK && res < 0x1000){ 
+            ret = 0;
+        }
+    }
+    
+    TERM_sendVT100Code(handle, _VT100_CURSOR_ENABLE, 0);
+    TERM_sendVT100Code(handle, _VT100_ERASE_LINE, 0);
+    
+    vPortFree(buff);
+    vPortFree(fileInfo);
+    return ret;
 }

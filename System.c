@@ -6,6 +6,8 @@
 #include "System.h"
 #include "task.h"
 
+const char SYS_fullBar[] = "=======================================================";
+const char SYS_emptyBar[] = "-------------------------------------------------------";
 const char * SYS_BOOTCODES[] = {"BOOTLOADER_EXIT_NOSD", "BOOTLOADER_EXIT_SD_INIT_FAIL", "BOOTLOADER_EXIT_NO_BOOTFILE", "BOOTLOADER_EXIT_INVALID_BOOTFILE", "BOOTLOADER_EXIT_UPDATE_COMPLETE"};
 
 //a non scheduler dependent wait function. Used in exception handlers where no interrupts are enabled

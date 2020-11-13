@@ -88,21 +88,6 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
                 ttprintf("missing ACL element value for option \"-aa\"\r\n");
                 returnCode = TERM_CMD_EXIT_ERROR;
             }
-        }else if(strcmp(args[currArg], "-th") == 0){
-            if(++currArg < argCount){
-                FIL file;
-                FRESULT res = f_open(&file, args[currArg], FA_READ);
-                if(res == FR_OK){
-                    ttprintf("File is %s\r\n", BL_verifyFile(&file) ? "valid" : "invalid");
-                    returnCode = TERM_CMD_EXIT_SUCCESS;
-                }else{
-                    ttprintf("File could not be found\r\n");
-                    returnCode = TERM_CMD_EXIT_ERROR;
-                }
-            }else{
-                ttprintf("Missing file name\r\n");
-                returnCode = TERM_CMD_EXIT_ERROR;
-            }
         }
     }
     if(returnCode != 0) return returnCode;
@@ -141,27 +126,6 @@ uint8_t TERM_testCommandAutoCompleter(TERMINAL_HANDLE * handle, void * params){
         
     vPortFree(buff);
     return handle->autocompleteBufferLength;
-}
-
-unsigned BL_verifyFile(FIL * file){
-    unsigned ret = 1;
-    char * buff = pvPortMalloc(2048);
-    THexFileInfo * fileInfo = pvPortMalloc(sizeof(THexFileInfo));
-    uint8_t * dBuff = pvPortMalloc(32);
-    uint32_t lengthRead = 0;
-    
-    while(f_gets(buff, 2048, file) != 0){
-        THexResult_t res = THEX_parseString(fileInfo, buff, &lengthRead, dBuff);
-        if(res == THEX_EOF) break;
-        
-        if(res != THEX_OK && res < 0x1000){ 
-            ret = 0;
-        }
-    }
-    
-    vPortFree(buff);
-    vPortFree(fileInfo);
-    return ret;
 }
 
 uint8_t CMD_reset(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){

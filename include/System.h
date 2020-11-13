@@ -5,6 +5,9 @@
 #include "task.h"
 
 extern const char * SYS_BOOTCODES[];
+extern const char SYS_fullBar[];
+extern const char SYS_emptyBar[];
+
 enum BOOTLOADER_CODE{
     BOOTLOADER_EXIT_NOSD,
     BOOTLOADER_EXIT_SD_INIT_FAIL,

@@ -8,7 +8,6 @@
 
 AC_LIST_HEAD * head;
 
-unsigned BL_verifyFile(FIL * file);
 uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 uint8_t TERM_testCommandAutoCompleter(TERMINAL_HANDLE * handle, void * params);
 uint8_t CMD_help(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);

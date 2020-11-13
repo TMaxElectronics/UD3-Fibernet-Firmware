@@ -155,6 +155,7 @@ struct min_context {
     uint8_t * rx_forward_buffer;                    // buffer holding the entire frame, if it is one we need to forward
     uint16_t tx_data_position;                      // current transmit buffer position
     uint8_t * tx_data_buffer;                    // buffer holding the data to transmit, allowing an entire frame to be queued for transmission at once
+    uint16_t tx_data_buffer_size;
 };
 
 #ifdef TRANSPORT_PROTOCOL
@@ -193,7 +194,7 @@ uint16_t min_tx_space(void * port);
 void min_tx_byte(void * port, uint8_t byte);
 
 // CALLBACK. Indcates when frame transmission is finished; useful for buffering bytes into a single serial call.
-void min_tx_start(void * port);
+void min_tx_start(void * port, uint16_t on_wire_len);
 void min_tx_finished(void * port);
 
 // Initialize a MIN context ready for receiving bytes from a serial link

@@ -197,7 +197,7 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 	unsigned char siliconRev;
 	unsigned char packetChkSumType;
     unsigned long blVer=0;
-
+      
     min_send_frame(COMMS_UART, 13,"\x00\x01" "loader",sizeof("\x00\x01" "loader"));
     min_send_frame(COMMS_UART, 0,"\x03\r\nbootloader\r\n",sizeof("\r\nbootloader\r\n"));
     
@@ -277,7 +277,6 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     vPortFree(rowData);
     f_close(&fp);
     f_close(&log);
-
     UART_flush();
     UART_bootloader = pdFALSE;
     

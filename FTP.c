@@ -18,9 +18,6 @@
 #define FTP_PERMISSION_ANONYMOUS 0xee
 #define FTP_PERMISSION_NONE 0
 
-#define GOLDEN_UD3_IMAGE "image.cyacd"
-
-
 TermCommandDescriptor FTP_cmdListHead = {.nextCmd = 0};
 unsigned FTP_cmdsAdded = 0;
 static const TickType_t xReceiveTimeOut = pdMS_TO_TICKS(10000);
@@ -42,8 +39,6 @@ typedef struct{
     char * cwdPath;
     
 }FTP_CLIENT_HANDLE;
-
-TERMINAL_HANDLE * ftp_term;
 
 static void print(void * port, char * format, ...);
 static void FTP_clientTask(void *pvParameters);
@@ -69,6 +64,7 @@ static uint8_t FTP_RMD(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args)
 static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 static uint8_t FTP_RETR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 static uint8_t FTP_DELE(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
+static uint8_t FTP_FLASH(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 
 void FTP_task(void * params){
     //setup the server socket and start listening
@@ -108,6 +104,7 @@ void FTP_task(void * params){
         TERM_addCommand(FTP_RMD,        "RMD",  0, 0, &FTP_cmdListHead);
         TERM_addCommand(FTP_STOR,       "STOR", 0, 0, &FTP_cmdListHead);
         TERM_addCommand(FTP_DELE,       "DELE", 0, 0, &FTP_cmdListHead);
+        TERM_addCommand(FTP_FLASH,     "FLASH", 0, 0, &FTP_cmdListHead);
     }
 
 	while(1){
@@ -128,9 +125,8 @@ void FTP_task(void * params){
             
             //create the terminal handle with the FTP_CLIENT_HANDLE as the port, and disable text echo
             TERMINAL_HANDLE * term = TERM_createNewHandle(print, (void *) newClient, 0, &FTP_cmdListHead, FTP_errorPrinter, "FTP");
-            ftp_term = term;
             //create the task that will take care of the new client. Needs a lot of stack because of FatFs :(
-            xTaskCreate(FTP_clientTask, "FTP Client", configMINIMAL_STACK_SIZE + 300, (void *) term, tskIDLE_PRIORITY + 1, NULL);
+            xTaskCreate(FTP_clientTask, "FTP Client", configMINIMAL_STACK_SIZE + 500, (void *) term, tskIDLE_PRIORITY + 1, NULL);
         }
 	}
 }
@@ -614,6 +610,19 @@ static uint8_t FTP_RETR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     return TERM_CMD_EXIT_SUCCESS;
 }
 
+static uint8_t FTP_FLASH(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    if(argCount == 0){
+        ttprintf("504 NO\r\n");
+        return TERM_CMD_EXIT_ERROR;
+    }
+    
+    CMD_boot(handle, &argCount, args);
+    
+    ttprintf("211 Finished\r\n");
+    
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
 /*
  * FTP STOR
  * write a file
@@ -687,20 +696,12 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     
     if(res == FR_OK){
         ttprintf("226 and thats it\r\n");
-        if(strcmp(&filePath[strlen(filePath)-strlen(GOLDEN_UD3_IMAGE)], GOLDEN_UD3_IMAGE)==0){
-            start_flash=pdTRUE;
-        }
     }else{
         ttprintf("550 sorry I messed something up (%d)\r\n", res);
     }
     
     //clean up
     f_close(&file); 
-    if(start_flash==pdTRUE){
-        xStreamBufferSend(streamRx, "\rboot ", strlen("\rboot "),2);
-        xStreamBufferSend(streamRx, filePath, strlen(filePath),2);
-        xStreamBufferSend(streamRx, "\r", 1,2);
-    }
 
     FTP_closeTranferSocket(client);
     

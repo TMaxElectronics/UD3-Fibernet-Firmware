@@ -4,4 +4,3 @@
 
 void FTP_task(void * params);
 
-extern TERMINAL_HANDLE * ftp_term;

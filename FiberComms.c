@@ -260,38 +260,32 @@ uint16_t min_tx_space(void * port){
 }
 
 void min_tx_byte(void * port, uint8_t byte){
-    if(port == COMMS_UART){
-        COMMS_UART->tx_data_buffer[COMMS_UART->tx_data_position] = byte;
-        COMMS_UART->tx_data_position++;
-    }else{
-        COMMS_UDP->tx_data_buffer[COMMS_UART->tx_data_position] = byte;
-        COMMS_UDP->tx_data_position++;
+    struct min_context * ctx = port;
+    if(ctx->tx_data_buffer == NULL) return;
+    if(ctx->tx_data_position<ctx->tx_data_buffer_size){
+        ctx->tx_data_buffer[ctx->tx_data_position] = byte;
+        ctx->tx_data_position++;
     }
 }
 
-void min_tx_start(void * port){
-    if(port == COMMS_UART){
-        if(COMMS_UART->tx_data_buffer) return;
-        COMMS_UART->tx_data_buffer = pvPortMalloc(300);
-    }else{
-        if(COMMS_UDP->tx_data_buffer) return;
-        COMMS_UDP->tx_data_buffer = pvPortMalloc(300);
-    }
+void min_tx_start(void * port, uint16_t on_wire_len){
+    struct min_context * ctx = port;
+    if(ctx->tx_data_buffer) return;
+    ctx->tx_data_buffer = pvPortMalloc(on_wire_len);
+    ctx->tx_data_buffer_size = on_wire_len;
 }
 
 void min_tx_finished(void * port){
+    struct min_context * ctx = port;
+    if(ctx->tx_data_buffer == NULL) return;
     if(port == COMMS_UART){
-        if(COMMS_UART->tx_data_buffer == NULL) return;
-        UART_queBuffer(COMMS_UART->tx_data_buffer, COMMS_UART->tx_data_position, 1);
-        COMMS_UART->tx_data_position = 0;
-        COMMS_UART->tx_data_buffer = 0;
+        UART_queBuffer(ctx->tx_data_buffer, ctx->tx_data_position, 1);
     }else{
-        if(COMMS_UDP->tx_data_buffer == NULL) return;
-        COMMS_sendDataToLastClient(COMMS_UDP->tx_data_buffer, COMMS_UDP->tx_data_position);
-        vPortFree(COMMS_UDP->tx_data_buffer);
-        COMMS_UDP->tx_data_position = 0;
-        COMMS_UDP->tx_data_buffer = 0;
+        COMMS_sendDataToLastClient(ctx->tx_data_buffer, ctx->tx_data_position);
+        vPortFree(ctx->tx_data_buffer);
     }
+    ctx->tx_data_position = 0;
+    ctx->tx_data_buffer = 0;
 }
 
 void COMMS_pushEvent(Event evt){

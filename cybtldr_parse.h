@@ -49,45 +49,6 @@ unsigned char CyBtldr_FromHex(char value);
 *******************************************************************************/
 int CyBtldr_FromAscii(unsigned int bufSize, unsigned char* buffer, unsigned short* rowSize, unsigned char* rowData);
 
-/*******************************************************************************
-* Function Name: CyBtldr_ReadLine
-********************************************************************************
-* Summary:
-*   Reads a single line from the open data file.  This function will remove
-*   any Windows, Linux, or Unix line endings from the data.
-*
-* Parameters:
-*   size - The number of bytes of data read from the line and stored in buffer
-*   file - The preallocated buffer, with MAX_BUFFER_SIZE bytes, to store the 
-*          read data in.
-*
-* Returns:
-*   CYRET_SUCCESS  - The file was opened successfully.
-*   CYRET_ERR_FILE - An error occurred opening the provided file.
-*   CYRET_ERR_EOF  - The end of the file has been reached
-*
-*******************************************************************************/
-EXTERN int CyBtldr_ReadLine(unsigned int* size, char* buffer);
-
-/*******************************************************************************
-* Function Name: CyBtldr_OpenDataFile
-********************************************************************************
-* Summary:
-*   Opens the provided file for reading.  Once open, it is expected that the
-*   first call will be to ParseHeader() to read the first line of data.  After
-*   that, successive calls to ParseRowData() are possible to read each line
-*   of data, one at a time, from the file.  Once all data has been read from
-*   the file, a call to CloseDataFile() should be made to release resources.
-*
-* Parameters:
-*   file - The full canonical path to the *.cyacd file to open
-*
-* Returns:
-*   CYRET_SUCCESS  - The file was opened successfully.
-*   CYRET_ERR_FILE - An error occurred opening the provided file.
-*
-*******************************************************************************/
-EXTERN int CyBtldr_OpenDataFile(const char* file);
 
 /*******************************************************************************
 * Function Name: CyBtldr_ParseHeader
@@ -136,21 +97,5 @@ EXTERN int CyBtldr_ParseHeader(unsigned int bufSize, unsigned char* buffer, unsi
 *
 *******************************************************************************/
 EXTERN int CyBtldr_ParseRowData(unsigned int bufSize, unsigned char* buffer, unsigned char* arrayId, unsigned short* rowNum, unsigned char* rowData, unsigned short* size, unsigned char* checksum);
-
-/*******************************************************************************
-* Function Name: CyBtldr_CloseDataFile
-********************************************************************************
-* Summary:
-*   Closes the data file pointer.
-*
-* Parameters:
-*   void.
-*
-* Returns:
-*   CYRET_SUCCESS  - The file was opened successfully.
-*   CYRET_ERR_FILE - An error occured opening the provided file.
-*
-*******************************************************************************/
-EXTERN int CyBtldr_CloseDataFile(void);
 
 #endif

@@ -21,12 +21,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#define TETRIS_GA_WIDTH 10
-#define TETRIS_GA_HEIGHT 20
-
-#define TETRIS_CM_XTERM 1
-#define TETRIS_CM_VT100 2
-
 #if PIC32 == 1
 #include <xc.h>
 #endif  
@@ -133,6 +127,8 @@ uint8_t CMD_reset(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     return TERM_CMD_EXIT_SUCCESS;
 }
 
+
+#define BUFFER_SIZE 600
 uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     if(argCount==0){
         ttprintf("No file specified\r\n");
@@ -168,10 +164,10 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     vTaskDelay(pdMS_TO_TICKS(2000));
     
     UART_bootloader = pdTRUE;
-    UART_flush0();
-    uint8_t* buffer = pvPortMalloc(600);
-    unsigned char* rowData = pvPortMalloc(288);
-    f_gets(buffer,600,&fp);
+    UART_flush();
+    uint8_t* buffer = pvPortMalloc(BUFFER_SIZE);
+    unsigned char* rowData = pvPortMalloc(BUFFER_SIZE/2);
+    f_gets(buffer,BUFFER_SIZE,&fp);
     lineLen = strlen(buffer);
     err = CyBtldr_ParseHeader(lineLen ,(unsigned char *)buffer , &siliconID , &siliconRev ,&packetChkSumType);
     CyBtldr_SetCheckSumType((CyBtldr_ChecksumType)packetChkSumType);

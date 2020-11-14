@@ -214,11 +214,9 @@ void UART_receiveTask(void *pvParameters){
         vTaskDelay(pdMS_TO_TICKS(2));
     }
 }
-void UART_flush0(){
-    lastScanPosition = DCH3DPTR;
-}
 void UART_flush(){
-    lastScanPosition = DCH3DPTR-1;
+    memset(UART_rxBuffer,0, UART_BUFFERSIZE);
+    lastScanPosition = DCH3DPTR;
 }
 
 //support functions:

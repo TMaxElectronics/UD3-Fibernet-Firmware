@@ -24,7 +24,6 @@ void UART_termPrint(void * port, char * format, ...);
 void UART_printDebug(char * format, ...);
 void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend);
 uint32_t UART_queEmpty();
-void UART_flush0();
 void UART_flush();
 void UART_sendBytes(uint8_t * data, uint32_t length, unsigned freeAfterSend);
 

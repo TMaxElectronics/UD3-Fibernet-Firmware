@@ -9,8 +9,6 @@
 #include "cybtldr_parse.h"
 #include "FreeRTOS.h"
 
-/* Pointer to the *.cyacd file containing the data that is to be read */
-static FILE* dataFile;
 
 unsigned char CyBtldr_FromHex(char value)
 {
@@ -41,39 +39,6 @@ int CyBtldr_FromAscii(unsigned int bufSize, unsigned char* buffer, unsigned shor
 
     return err;
 }
-/*
-int CyBtldr_ReadLine(unsigned int* size, char* buffer)
-{
-    int err = CYRET_SUCCESS;
-    unsigned int len = 0;
-
-    if (NULL != dataFile && !feof(dataFile))
-    {
-        if (NULL != fgets(buffer, MAX_BUFFER_SIZE, dataFile))
-        {
-            len = strlen(buffer);
-
-            while (len > 0 && ('\n' == buffer[len - 1] || '\r' == buffer[len - 1]))
-                --len;
-        }
-        else
-            err = CYRET_ERR_EOF;
-    }
-    else
-        err = CYRET_ERR_FILE;
-
-    *size = len;
-    return err;
-}*/
-/*
-int CyBtldr_OpenDataFile(const char* file)
-{
-    dataFile = fopen(file, "r");
-
-    return (NULL == dataFile)
-        ? CYRET_ERR_FILE
-        : CYRET_SUCCESS;
-}*/
 
 int CyBtldr_ParseHeader(unsigned int bufSize, unsigned char* buffer, unsigned long* siliconId, unsigned char* siliconRev, unsigned char* chksum)
 {
@@ -108,25 +73,24 @@ int CyBtldr_ParseRowData(unsigned int bufSize, unsigned char* buffer, unsigned c
 
     unsigned int i;
     unsigned short hexSize = 0;
-    unsigned char* hexData = pvPortMalloc(MAX_BUFFER_SIZE);
     int err = CYRET_SUCCESS;
 
     if (bufSize <= MIN_SIZE)
         err = CYRET_ERR_LENGTH;
     else if (buffer[0] == ':')
     {
-        err = CyBtldr_FromAscii(bufSize - 1, &buffer[1], &hexSize, hexData);
+        err = CyBtldr_FromAscii(bufSize - 1, &buffer[1], &hexSize, rowData);
 
-        *arrayId = hexData[0];
-        *rowNum = (hexData[1] << 8) | (hexData[2]);
-        *size = (hexData[3] << 8) | (hexData[4]);
-        *checksum = (hexData[hexSize - 1]);
+        *arrayId = rowData[0];
+        *rowNum = (rowData[1] << 8) | (rowData[2]);
+        *size = (rowData[3] << 8) | (rowData[4]);
+        *checksum = (rowData[hexSize - 1]);
 
         if ((*size + MIN_SIZE) == hexSize)
         {
             for (i = 0; i < *size; i++)
             {
-                rowData[i] = (hexData[DATA_OFFSET + i]);
+                rowData[i] = (rowData[DATA_OFFSET + i]);
             }
         }
         else
@@ -134,19 +98,5 @@ int CyBtldr_ParseRowData(unsigned int bufSize, unsigned char* buffer, unsigned c
     }
     else
         err = CYRET_ERR_CMD;
-    vPortFree(hexData);
     return err;
 }
-/*
-int CyBtldr_CloseDataFile(void)
-{
-    int err = 0;
-    if (NULL != dataFile)
-    {
-        err = fclose(dataFile);
-        dataFile = NULL;
-    }
-    return (0 == err)
-        ? CYRET_SUCCESS
-        : CYRET_ERR_FILE;
-}*/

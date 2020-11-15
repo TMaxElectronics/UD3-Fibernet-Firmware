@@ -161,7 +161,7 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     min_send_frame(COMMS_UART, 13,"\x00\x01" "loader",sizeof("\x00\x01" "loader"));
     min_send_frame(COMMS_UART, 0,"\x03\r\nbootloader\r\n",sizeof("\r\nbootloader\r\n"));
     
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    vTaskDelay(pdMS_TO_TICKS(3000));
     
     UART_bootloader = pdTRUE;
     UART_flush();
@@ -194,6 +194,7 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 			
 			/*Parse row data*/
 			err = CyBtldr_ParseRowData((unsigned int)lineLen,(unsigned char *)buffer, &arrayId, &rowNum, rowData, &rowSize, &checksum);
+            f_printf(&log, "Parse res: %u row: %u\r\n", err, rowNum);
 			if (CYRET_SUCCESS == err)
             {
 				/* Program Row */

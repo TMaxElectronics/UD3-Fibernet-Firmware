@@ -126,7 +126,7 @@
 #define LAN9250_TXCMD_A_LAST_DATA                   0x00002000
 
 #define DEF_MAC_ADDR 0xde,0xad,0xbe,0xef,0xfe,0xed
-#define DEF_IP_ADDRESS 192,168,0,100
+#define DEF_IP_ADDRESS 192,168,200,100
 #define DEF_NETMASK 255,255,255,0
 #define DEF_DNSIP 0,0,0,0
 #define DEF_GATEWAYIP 0,0,0,0

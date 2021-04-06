@@ -280,6 +280,7 @@ void COMMS_eventHook(Event evt){
     uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
     
     COMMS_pushEvent(evt);
+    char buffer[50];
     
     switch(evt){
         case ETH_INIT_FAIL:
@@ -301,8 +302,11 @@ void COMMS_eventHook(Event evt){
             break;
             
         case ETH_DHCP_SUCCESS:
+            
             FreeRTOS_GetAddressConfiguration( &ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress );
             FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
+            snprintf(buffer,sizeof(buffer),"DHCP Successful (IP=%s)", cBuffer);
+            COMMS_pushAlarm(ALARM_PRIO_INFO, buffer, ALARM_NO_VALUE);
             TERM_printDebug(term, "DHCP Successful (IP=%s)\r\n", cBuffer);
             break;
             

@@ -71,6 +71,8 @@ void COMMS_init(){
     TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_boot, "boot", "Bootloader", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_cat, "cat", "cat... meow!", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_echo, "echo", "echo echo", 0, &TERM_cmdListHead);
     
     streamRx = xStreamBufferCreate(STREAM_SIZE,1);
     term = TERM_createNewHandle(UART_termPrint, 0, 1, &TERM_cmdListHead, 0, "root");

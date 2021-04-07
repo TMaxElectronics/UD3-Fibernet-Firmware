@@ -119,7 +119,7 @@ static void on_wire_bytes(struct min_context *self, uint8_t id_control, uint8_t 
     self->tx_header_byte_countdown = 2U;
     crc32_init_context(&self->tx_checksum);
 
-    min_tx_start(self->port);
+    min_tx_start(self->port, ON_WIRE_SIZE(payload_len)+25); //+25 make room for stuff-bytes
 
     // Header is 3 bytes; because unstuffed will reset receiver immediately
     min_tx_byte(self->port, HEADER_BYTE);

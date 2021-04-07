@@ -1,4 +1,29 @@
+/*
+ * TTerm
+ *
+ * Copyright (c) 2020 Thorben Zethoff
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+    
+#if PIC32 == 1
 #include <xc.h>
+#endif  
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -19,7 +44,7 @@ void TERM_addCommandAC(TermCommandDescriptor * cmd, TermAutoCompHandler ACH, voi
 uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle){
     if(strnchr(handle->inputBuffer, ' ', handle->currBufferLength) != NULL){
         TermCommandDescriptor * cmd = TERM_findCMD(handle);
-        if(cmd != 0){
+        if(cmd != NULL){
             if(cmd->ACHandler == 0){
                 handle->currAutocompleteCount = 0;
                 handle->autocompleteStart = 0;
@@ -34,15 +59,15 @@ uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle){
         handle->autocompleteBufferLength = 0;
         return 0;
     }else{
-        handle->autocompleteBuffer = pvPortMalloc(TERM_cmdCount * sizeof(char *));
+        handle->autocompleteBuffer = pvPortMalloc(handle->cmdListHead->commandLength * sizeof(char *));
         handle->currAutocompleteCount = 0;
-        handle->autocompleteBufferLength = TERM_findMatchingCMDs(handle->inputBuffer, handle->currBufferLength, handle->autocompleteBuffer);
+        handle->autocompleteBufferLength = TERM_findMatchingCMDs(handle->inputBuffer, handle->currBufferLength, handle->autocompleteBuffer, handle->cmdListHead);
         handle->autocompleteStart = 0;
         return handle->autocompleteBufferLength;
     }
 }
 
-uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff){
+uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff, TermCommandDescriptor * cmdListHead){
     
     //TODO handle auto complete of parameters, for now we return if this is attempted
     if(strnchr(currInput, ' ', length) != NULL) return 0;
@@ -50,16 +75,19 @@ uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff){
     
     uint8_t currPos = 0;
     uint8_t commandsFound = 0;
-    for(;currPos < TERM_cmdCount; currPos++){
-        if(strncmp(currInput, TERM_cmdList[currPos]->command, length) == 0){
-            if(TERM_cmdList[currPos]->commandLength >= length){
-                buff[commandsFound] = TERM_cmdList[currPos]->command;
+    TermCommandDescriptor * currCMD = cmdListHead->nextCmd;
+    
+    for(;currPos < cmdListHead->commandLength; currPos++){
+        if(strncmp(currInput, currCMD->command, length) == 0){
+            if(currCMD->commandLength >= length){
+                buff[commandsFound] = (char*)currCMD->command;
                 commandsFound ++;
                 //UART_print("found %s (count is now %d)\r\n", TERM_cmdList[currPos]->command, commandsFound);
             }
         }else{
             if(commandsFound > 0) return commandsFound;
         }
+        currCMD = currCMD->nextCmd;
     }
     return commandsFound;
 }
@@ -242,6 +270,8 @@ void ACL_add(AC_LIST_HEAD * head, char * string){
     }
 }
 
+
+
 void ACL_remove(AC_LIST_HEAD * head, char * string){
     if(head->isConst || head->elementCount == 0) return;
     uint32_t currPos = 0;
@@ -253,7 +283,7 @@ void ACL_remove(AC_LIST_HEAD * head, char * string){
             *lastComp = currComp->next;
             
             //TODO make this portable
-            if(currComp->string > 0xa0000000 && currComp->string < 0xa000ffff){
+            if(ptr_is_in_ram(currComp->string)){
                 vPortFree(currComp->string);
             }
             
@@ -292,7 +322,7 @@ unsigned ACL_isSorted(char * a, char * b){
     }else{
         //it might happen that a command is added twice (or two identical ones are added), in which case we just say they are sorted correctly and print an error in the console
         //TODO implement an alarm here
-        UART_print("WARNING: Found identical commands: \"%S\" and \"%S\"\r\n", a, b);
+        //UART_print("WARNING: Found identical commands: \"%S\" and \"%S\"\r\n", a, b);
         return 1;
     }
 }

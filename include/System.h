@@ -4,6 +4,18 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+extern const char * SYS_BOOTCODES[];
+extern const char SYS_fullBar[];
+extern const char SYS_emptyBar[];
+
+enum BOOTLOADER_CODE{
+    BOOTLOADER_EXIT_NOSD,
+    BOOTLOADER_EXIT_SD_INIT_FAIL,
+    BOOTLOADER_EXIT_NO_BOOTFILE,
+    BOOTLOADER_EXIT_INVALID_BOOTFILE,
+    BOOTLOADER_EXIT_UPDATE_COMPLETE
+};
+
 //a non scheduler dependent wait function. Used in exception handlers where no interrupts are enabled
 void SYS_waitCP0(uint16_t length);
 

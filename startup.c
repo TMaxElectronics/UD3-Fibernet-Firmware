@@ -19,6 +19,9 @@
 #include "LAN9250.h"
 #include "FatFs/include/ff.h"
 #include "FS.h"
+#include "FTP.h"
+#include "System.h"
+#include "THex/include/THex.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -33,17 +36,26 @@ static void startupTask();
 static void crcReset();
 static uint32_t crcProc(uint8_t byte);
 static void prvSetupHardware();
+uint32_t BL_result;
 
 void startServices(){
+    BL_result = TMR2;
+    TMR2 = 0;
+    
     prvSetupHardware();
     COMMS_init();
     
+    TERM_addCommand(CMD_getBLState, "getBLState", "shows the last bootloader exit code", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_verify, "verify", "verifies a pic bootfile", 0, &TERM_cmdListHead);
+    
     //create the FS task. (checks for SD card connection/removal)
-    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE+250, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
     //TODO optimize stack usage and figure out why it needs to be this large
     
     xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
 }
+
+
 
 //as long as the network is not ready, we won't process any data for the transport protocol, so we call this handler instead
 unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port){
@@ -114,6 +126,8 @@ static void startupTask(void * params){
     FreeRTOS_IPInit(IP_ADDRESS, NETMASK, GATEWAYIP, DNSIP, MAC_ADDRESS);
     
     //create the listener tasks
+    
+    xTaskCreate(FTP_task, "ftp Task", configMINIMAL_STACK_SIZE + 125, NULL , tskIDLE_PRIORITY + 1, NULL);
     xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
     xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
     xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
@@ -183,4 +197,86 @@ static void prvSetupHardware(){
     UART_init(460800, &RPA3R, 0b0001);
 
     LED_init();
+}
+
+uint8_t CMD_getBLState(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            ttprintf("shows the status given to us by the bootloader");
+            return TERM_CMD_EXIT_SUCCESS;
+        }
+    }
+    
+    if(BL_result <= BOOTLOADER_EXIT_UPDATE_COMPLETE){
+        ttprintf("BL_EXITCODE=%s\r\n", SYS_BOOTCODES[BL_result]);
+    }else{
+        ttprintf("BL_EXITCODE=%d (invalid)\r\n", BL_result);
+    }
+    
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
+uint8_t CMD_verify(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    uint8_t scannedFiles = 0;
+    uint8_t validFiles = 0;
+    uint8_t invalidFiles = 0;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            ttprintf("verifies a pic boot file\r\nUsage:\r\n\tverify [filename]");
+            return TERM_CMD_EXIT_SUCCESS;
+        }else{
+            FIL file;
+            FRESULT res = f_open(&file, args[currArg], FA_READ);
+            if(res == FR_OK){
+                unsigned res = BL_verifyFile(&file, handle);
+                ttprintf("\"%s\" is %s", args[currArg], res ? "valid" : "invalid");
+                f_close(&file);
+            }else{
+                ttprintf("\"%s\" could not be found", args[currArg]);
+            }
+        }
+    }
+    
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
+unsigned BL_verifyFile(FIL * file, TERMINAL_HANDLE * handle){
+    unsigned ret = 1;
+    char * buff = pvPortMalloc(64);
+    THexFileInfo * fileInfo = pvPortMalloc(sizeof(THexFileInfo));
+    uint8_t * dBuff = pvPortMalloc(32);
+    
+    uint32_t fileLength = f_size(file);
+    uint32_t lengthRead = 0;
+    uint32_t totalRead = 0;
+    uint8_t perc = 0;
+    uint8_t percTenth;
+    uint8_t lastPerc = 0;
+    TERM_sendVT100Code(handle, _VT100_CURSOR_DISABLE, 0);
+    
+    while(f_gets(buff, 64, file) != 0){
+        THexResult_t res = THEX_parseString(fileInfo, buff, 0, 0);
+        if(res == THEX_EOF) break;
+        
+        totalRead += strlen(buff);
+        perc = (totalRead * 100) / fileLength;
+        if(perc != lastPerc){
+            lastPerc = perc;
+            percTenth = perc / 10;
+            ttprintf("scanning <%s%.*s%s%.*s%s> (%d%%)\r", TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_GREEN), percTenth, SYS_fullBar, TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_RED), 10-percTenth, SYS_emptyBar, TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_WHITE), perc);
+        }
+        
+        if(res != THEX_OK && res < 0x1000){ 
+            ret = 0;
+        }
+    }
+    
+    TERM_sendVT100Code(handle, _VT100_CURSOR_ENABLE, 0);
+    TERM_sendVT100Code(handle, _VT100_ERASE_LINE, 0);
+    
+    vPortFree(buff);
+    vPortFree(fileInfo);
+    return ret;
 }

@@ -1,15 +1,48 @@
+/*
+ * TTerm
+ *
+ * Copyright (c) 2020 Thorben Zethoff
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+#if PIC32 == 1
 #include <xc.h>
+#endif  
 #include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "TTerm.h"
 #include "TTerm_cmd.h"
-#include "include/System.h"
-#include "include/UART.h"
-#include "include/LAN9250.h"
-#include "FreeRTOS/Core/include/semphr.h"
+#include "semphr.h"
+#include "system.h"
+#include "THex.h"
+#include "UART.h"
+#include "FTP.h"
+#include "cybtldr_parse.h"
+#include "cybtldr_command.h"
+#include "communication_api.h"
+#include "cybtldr_api.h"
+#include "include/FiberComms.h"
+
 
 uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
@@ -19,8 +52,7 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
             ttprintf("This function is intended for testing. it will list all passed arguments\r\n");
             ttprintf("usage:\r\n\ttest [{option} {value}]\r\n\n\t-aa : adds an argument to the ACL\r\n\n\t-ra : removes an argument from the ACL\r\n\n\t-r  : returns with the given code");
             return TERM_CMD_EXIT_SUCCESS;
-        }
-        if(strcmp(args[currArg], "-r") == 0){
+        }else if(strcmp(args[currArg], "-r") == 0){
             if(argCount > currArg + 1){
                 returnCode = atoi(args[currArg + 1]);
                 ttprintf("returning %d (from string \"%s\")\r\n", returnCode, args[currArg + 1]);
@@ -30,8 +62,7 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
                 ttprintf("usage:\r\ntest -r [return code]\r\n");
                 return 0;
             }
-        }
-        if(strcmp(args[currArg], "-ra") == 0){
+        }else if(strcmp(args[currArg], "-ra") == 0){
             if(++currArg < argCount){
                 ACL_remove(head, args[currArg]);
                 ttprintf("removed \"%s\" from the ACL\r\n", args[currArg]);
@@ -40,8 +71,7 @@ uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char 
                 ttprintf("missing ACL element value for option \"-ra\"\r\n");
                 returnCode = TERM_CMD_EXIT_ERROR;
             }
-        }
-        if(strcmp(args[currArg], "-aa") == 0){
+        }else if(strcmp(args[currArg], "-aa") == 0){
             if(++currArg < argCount){
                 char * newString = pvPortMalloc(strlen(args[currArg])+1);
                 strcpy(newString, args[currArg]);
@@ -86,10 +116,132 @@ uint8_t TERM_testCommandAutoCompleter(TERMINAL_HANDLE * handle, void * params){
     handle->currAutocompleteCount = 0;
     handle->autocompleteBufferLength = TERM_doListAC(list, buff, len, handle->autocompleteBuffer);
 
-    UART_print("\r\ncompleting \"%s\" (len = %d, matching = %d) will delete until %d\r\n", buff, len, handle->autocompleteBufferLength, handle->autocompleteStart);
+    //UART_print("\r\ncompleting \"%s\" (len = %d, matching = %d) will delete until %d\r\n", buff, len, handle->autocompleteBufferLength, handle->autocompleteStart);
         
     vPortFree(buff);
     return handle->autocompleteBufferLength;
+}
+
+uint8_t CMD_reset(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    __pic32_software_reset();
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
+
+#define BUFFER_SIZE 600
+uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    if(argCount==0){
+        ttprintf("No file specified\r\n");
+        return TERM_CMD_EXIT_SUCCESS;
+    }
+    FIL fp;
+    FRESULT res = f_open(&fp,args[0],FA_READ);
+    if(res != FR_OK){
+        ttprintf("Error file open: %u\r\n", res);
+        return TERM_CMD_EXIT_SUCCESS;
+    }
+    FIL log;
+    res = f_open(&log,"/UD3_flash.log",FA_WRITE | FA_CREATE_ALWAYS);
+    if(res != FR_OK){
+        ttprintf("Error creating log\r\n");
+        return TERM_CMD_EXIT_SUCCESS;
+    }
+    uint32_t lineLen;
+    uint16_t err;
+    unsigned char arrayId; 
+	unsigned short rowNum;
+	unsigned short rowSize; 
+	unsigned char checksum ;
+	unsigned char checksum2;
+    unsigned long siliconID;
+	unsigned char siliconRev;
+	unsigned char packetChkSumType;
+    unsigned long blVer=0;
+      
+    min_send_frame(COMMS_UART, 13,"\x00\x01" "loader",sizeof("\x00\x01" "loader"));
+    min_send_frame(COMMS_UART, 0,"\x03\r\nbootloader\r\n",sizeof("\r\nbootloader\r\n"));
+    
+    vTaskDelay(pdMS_TO_TICKS(3000));
+    
+    UART_bootloader = pdTRUE;
+    UART_flush();
+    uint8_t* buffer = pvPortMalloc(BUFFER_SIZE);
+    unsigned char* rowData = pvPortMalloc(BUFFER_SIZE/2);
+    f_gets(buffer,BUFFER_SIZE,&fp);
+    lineLen = strlen(buffer);
+    err = CyBtldr_ParseHeader(lineLen ,(unsigned char *)buffer , &siliconID , &siliconRev ,&packetChkSumType);
+    CyBtldr_SetCheckSumType((CyBtldr_ChecksumType)packetChkSumType);
+    CyBtldr_CommunicationsData comm1;
+    comm1.OpenConnection = &OpenConnection;
+	comm1.CloseConnection = &CloseConnection;
+	comm1.ReadData = &ReadData;
+	comm1.WriteData =&WriteData;
+	comm1.MaxTransferSize =255;
+    
+    if(err==CYRET_SUCCESS){
+        f_printf(&log, "Opened CYACD, found silicon ID: %u, silicon rev: %u\r\n", siliconID, siliconRev);
+        err = CyBtldr_StartBootloadOperation(&comm1 ,siliconID, siliconRev ,&blVer);
+        f_printf(&log, "Opened connection res: %u blVer: %u\r\n", err, blVer);
+		while((err == CYRET_SUCCESS)&& ( f_gets(buffer,600,&fp) !=  0 ))
+		{
+            /* Get the string length for the line*/
+			lineLen =  strlen(buffer);
+            if(buffer[lineLen-2]==0x0d && buffer[lineLen-1]==0x0a){
+                buffer[lineLen-2]=0x00;
+                lineLen-=2;
+            }
+            
+			
+			/*Parse row data*/
+			err = CyBtldr_ParseRowData((unsigned int)lineLen,(unsigned char *)buffer, &arrayId, &rowNum, rowData, &rowSize, &checksum);
+            f_printf(&log, "Parse res: %u row: %u\r\n", err, rowNum);
+			if (CYRET_SUCCESS == err)
+            {
+				/* Program Row */
+				err = CyBtldr_ProgramRow(arrayId, rowNum, rowData, rowSize);
+				f_printf(&log, "Programm res: %u row: %u\r\n", err, rowNum);
+	            if (CYRET_SUCCESS == err)
+				{
+					/* Verify Row . Check whether the checksum received from bootloader matches
+					* the expected row checksum stored in cyacd file*/
+					checksum2 = (unsigned char)(checksum + arrayId + rowNum + (rowNum >> 8) + rowSize + (rowSize >> 8));
+					err = CyBtldr_VerifyRow(arrayId, rowNum, checksum2);
+				}
+            }
+		}
+		/* End Bootloader Operation */
+		CyBtldr_EndBootloadOperation();
+	}
+    switch(err){
+        case CYRET_ERR_DEVICE:
+            f_printf(&log, "The detected device does not match the desired device\r\n");
+            break;
+        case CYRET_ERR_VERSION:
+            f_printf(&log, "The detected bootloader version is not compatible\r\n");
+            break;
+        case CYRET_ERR_BTLDR:
+            f_printf(&log, "The bootloader experienced an error\r\n");
+            break;
+        case CYRET_ERR_ROW:
+            f_printf(&log, "The flash row is not valid\r\n");
+            break;
+        case CYRET_SUCCESS:
+            f_printf(&log, "Finished with no errors\r\n");
+            break;
+        default:
+            f_printf(&log, "Unknown error: %u\r\n", err);
+            break;
+            
+    }
+   
+    vPortFree(buffer);
+    vPortFree(rowData);
+    f_close(&fp);
+    f_close(&log);
+    UART_flush();
+    UART_bootloader = pdFALSE;
+    
+    return TERM_CMD_EXIT_SUCCESS;
 }
 
 uint8_t CMD_help(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
@@ -101,11 +253,12 @@ uint8_t CMD_help(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
             return TERM_CMD_EXIT_SUCCESS;
         }
     }
-    ttprintf("\r\nTTerm %s\r\n%d Commands available:\r\n\r\n", TERM_VERSION_STRING, TERM_cmdCount);
+    ttprintf("\r\nTTerm %s\r\n%d Commands available:\r\n\r\n", TERM_VERSION_STRING, handle->cmdListHead->commandLength);
     ttprintf("\x1b[%dC%s\r\x1b[%dC%s\r\n\r\n", 2, "Command:", 19, "Description:");
-    uint8_t currCmd = 0;
-    for(currCmd = 0; currCmd < TERM_cmdCount; currCmd++){
-        ttprintf("\x1b[%dC%s\r\x1b[%dC%s\r\n", 3, TERM_cmdList[currCmd]->command, 20, TERM_cmdList[currCmd]->commandDescription);
+    TermCommandDescriptor * currCmd = handle->cmdListHead->nextCmd;
+    while(currCmd != 0){
+        ttprintf("\x1b[%dC%s\r\x1b[%dC%s\r\n", 3, currCmd->command, 20, currCmd->commandDescription);
+        currCmd = currCmd->nextCmd;
     }
     return TERM_CMD_EXIT_SUCCESS;
 }
@@ -121,6 +274,7 @@ uint8_t CMD_cls(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     }
     
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
+    TERM_printBootMessage(handle);
     
     return TERM_CMD_EXIT_SUCCESS;
 }
@@ -138,7 +292,7 @@ uint8_t CMD_top(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     TermProgram * prog = pvPortMalloc(sizeof(TermProgram));
     prog->inputHandler = CMD_top_handleInput;
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-    returnCode = xTaskCreate(CMD_top_task, "top", configMINIMAL_STACK_SIZE, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
+    returnCode = xTaskCreate(CMD_top_task, "top", 200, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
     if(returnCode == TERM_CMD_EXIT_PROC_STARTED) TERM_attachProgramm(handle, prog);
     return returnCode;
 }
@@ -146,43 +300,42 @@ uint8_t CMD_top(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 void CMD_top_task(void *pvParameters){
     TERMINAL_HANDLE * handle = (TERMINAL_HANDLE*)pvParameters;
     while(1){
-        /*char * buff = pvPortMalloc(1024);
-        vTaskGetRunTimeStats(buff);
-        UART_print("\r\nTask stats: \r\n%s\r\n", buff);
-        vPortFree(buff);*/
         
         TaskStatus_t * taskStats;
         uint32_t taskCount = uxTaskGetNumberOfTasks();
         uint32_t sysTime;
                 
         taskStats = pvPortMalloc( taskCount * sizeof( TaskStatus_t ) );
-        taskCount = uxTaskGetSystemState(taskStats, taskCount, &sysTime);
+        if(taskStats){
+            taskCount = uxTaskGetSystemState(taskStats, taskCount, &sysTime);
+            
+            TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
         
-        TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-    
-        uint32_t cpuLoad = SYS_getCPULoadFine(taskStats, taskCount, sysTime);
-        ttprintf("%sbottom - %d\r\n%sTasks: \t%d\r\n%sCPU: \t%d,%d%%\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount(), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), taskCount, UART_getVT100Code(_VT100_ERASE_LINE_END, 0), cpuLoad / 10, cpuLoad % 10);
-        
-        uint32_t heapRemaining = xPortGetFreeHeapSize();
-        ttprintf("%sMem: \t%db total,\t %db free,\t %db used (%d%%)\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), configTOTAL_HEAP_SIZE, heapRemaining, configTOTAL_HEAP_SIZE - heapRemaining, ((configTOTAL_HEAP_SIZE - heapRemaining) * 100) / configTOTAL_HEAP_SIZE);
-        //taskStats[0].
-        ttprintf("%s%s%s", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
-        ttprintf("PID \r\x1b[%dCName \r\x1b[%dCstate \r\x1b[%dC%%Cpu \r\x1b[%dCtime  \r\x1b[%dCStack \r\x1b[%dCHeap\r\n", 6, 7 + configMAX_TASK_NAME_LEN, 20 + configMAX_TASK_NAME_LEN, 27 + configMAX_TASK_NAME_LEN, 38 + configMAX_TASK_NAME_LEN, 45 + configMAX_TASK_NAME_LEN);
-        ttprintf("%s", UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
-        
-        uint32_t currTask = 0;
-        for(;currTask < taskCount; currTask++){
-            if(strlen(taskStats[currTask].pcTaskName) != 4 || strcmp(taskStats[currTask].pcTaskName, "IDLE") != 0){
-                char name[configMAX_TASK_NAME_LEN+1];
-                strncpy(name, taskStats[currTask].pcTaskName, configMAX_TASK_NAME_LEN);
-                uint32_t load = (taskStats[currTask].ulRunTimeCounter) / (sysTime/1000);
-                ttprintf("%s%d\r\x1b[%dC%s\r\x1b[%dC%s\r\x1b[%dC%d,%d\r\x1b[%dC%d\r\x1b[%dC%u\r\x1b[%dC%d\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), taskStats[currTask].xTaskNumber, 6, name, 7 + configMAX_TASK_NAME_LEN
-                        , SYS_getTaskStateString(taskStats[currTask].eCurrentState), 20 + configMAX_TASK_NAME_LEN, load / 10, load % 10, 27 + configMAX_TASK_NAME_LEN, taskStats[currTask].ulRunTimeCounter
-                        , 38 + configMAX_TASK_NAME_LEN, taskStats[currTask].usStackHighWaterMark, 45 + configMAX_TASK_NAME_LEN, taskStats[currTask].usedHeap);
+            uint32_t cpuLoad = SYS_getCPULoadFine(taskStats, taskCount, sysTime);
+            ttprintf("%sbottom - %d\r\n%sTasks: \t%d\r\n%sCPU: \t%d,%d%%\r\n", TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount(), TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), taskCount, TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), cpuLoad / 10, cpuLoad % 10);
+            
+            uint32_t heapRemaining = xPortGetFreeHeapSize();
+            ttprintf("%sMem: \t%db total,\t %db free,\t %db used (%d%%)\r\n", TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), configTOTAL_HEAP_SIZE, heapRemaining, configTOTAL_HEAP_SIZE - heapRemaining, ((configTOTAL_HEAP_SIZE - heapRemaining) * 100) / configTOTAL_HEAP_SIZE);
+            //taskStats[0].
+            ttprintf("%s%s%s", TERM_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), TERM_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
+            ttprintf("PID \r\x1b[%dCName \r\x1b[%dCstate \r\x1b[%dC%%Cpu \r\x1b[%dCtime  \r\x1b[%dCStack \r\x1b[%dCHeap\r\n", 6, 7 + configMAX_TASK_NAME_LEN, 20 + configMAX_TASK_NAME_LEN, 27 + configMAX_TASK_NAME_LEN, 38 + configMAX_TASK_NAME_LEN, 45 + configMAX_TASK_NAME_LEN);
+            ttprintf("%s", TERM_getVT100Code(_VT100_RESET_ATTRIB, 0));
+            
+            uint32_t currTask = 0;
+            for(;currTask < taskCount; currTask++){
+                if(strlen(taskStats[currTask].pcTaskName) != 4 || strcmp(taskStats[currTask].pcTaskName, "IDLE") != 0){
+                    char name[configMAX_TASK_NAME_LEN+1];
+                    strncpy(name, taskStats[currTask].pcTaskName, configMAX_TASK_NAME_LEN);
+                    uint32_t load = (taskStats[currTask].ulRunTimeCounter) / (sysTime/1000);
+                    ttprintf("%s%d\r\x1b[%dC%s\r\x1b[%dC%s\r\x1b[%dC%d,%d\r\x1b[%dC%d\r\x1b[%dC%u\r\x1b[%dC%d\r\n", TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), taskStats[currTask].xTaskNumber, 6, name, 7 + configMAX_TASK_NAME_LEN
+                            , SYS_getTaskStateString(taskStats[currTask].eCurrentState), 20 + configMAX_TASK_NAME_LEN, load / 10, load % 10, 27 + configMAX_TASK_NAME_LEN, taskStats[currTask].ulRunTimeCounter
+                            , 38 + configMAX_TASK_NAME_LEN, taskStats[currTask].usStackHighWaterMark, 45 + configMAX_TASK_NAME_LEN, taskStats[currTask].usedHeap);
+                }
             }
+            vPortFree(taskStats);
+        }else{
+            ttprintf("Malloc failed\r\n");
         }
-        
-        vPortFree(taskStats);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

@@ -997,7 +997,7 @@ BaseType_t xReturn = 0;
 	else if( socketSOCKET_IS_BOUND( pxSocket) )
 	{
 		/* The socket is already bound. */
-		FreeRTOS_debug_printf( ( "vSocketBind: Socket already bound to %d\n", pxSocket->usLocalPort ) );
+		FreeRTOS_debug_printf( ( "vSocketBind: Socket already bound to %d\r\n", pxSocket->usLocalPort ) );
 		xReturn = -pdFREERTOS_ERRNO_EINVAL;
 	}
 	else
@@ -1120,7 +1120,7 @@ struct freertos_sockaddr * pxAddress = pxBindAddress;
 			if( ( ( xInternal == pdFALSE ) || ( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP ) ) &&
 				( pxListFindListItemWithValue( pxSocketList, ( TickType_t ) pxAddress->sin_port ) != NULL ) )
 			{
-				FreeRTOS_debug_printf( ( "vSocketBind: %sP port %d in use\n",
+				FreeRTOS_debug_printf( ( "vSocketBind: %sP port %d in use\r\n",
 					( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP ) ? "TC" : "UD",
 					FreeRTOS_ntohs( pxAddress->sin_port ) ) );
 				xReturn = -pdFREERTOS_ERRNO_EADDRINUSE;
@@ -1315,7 +1315,7 @@ NetworkBufferDescriptor_t *pxNetworkBuffer;
 	{
 		if( pxSocket->ucProtocol == ( uint8_t ) FREERTOS_IPPROTO_TCP )
 		{
-			FreeRTOS_debug_printf( ( "FreeRTOS_closesocket[%u to %lxip:%u]: buffers %lu socks %lu\n",
+			FreeRTOS_debug_printf( ( "FreeRTOS_closesocket[%u to %lxip:%u]: buffers %lu socks %lu\r\n",
 				pxSocket->usLocalPort,
 				pxSocket->u.xTCP.ulRemoteIP,
 				pxSocket->u.xTCP.usRemotePort,
@@ -1358,7 +1358,7 @@ NetworkBufferDescriptor_t *pxNetworkBuffer;
 				( pxOtherSocket->u.xTCP.usChildCount != 0U ) )
 			{
 				pxOtherSocket->u.xTCP.usChildCount--;
-				FreeRTOS_debug_printf( ( "Lost: Socket %u now has %u / %u child%s\n",
+				FreeRTOS_debug_printf( ( "Lost: Socket %u now has %u / %u child%s\r\n",
 					pxOtherSocket->usLocalPort,
 					pxOtherSocket->u.xTCP.usChildCount,
 					pxOtherSocket->u.xTCP.usBacklog,
@@ -1379,14 +1379,14 @@ BaseType_t xReturn;
 
 	if( pxSocket->ucProtocol != ( uint8_t ) FREERTOS_IPPROTO_TCP )
 	{
-		FreeRTOS_debug_printf( ( "Set SO_%sBUF: wrong socket type\n",
+		FreeRTOS_debug_printf( ( "Set SO_%sBUF: wrong socket type\r\n",
 			( lOptionName == FREERTOS_SO_SNDBUF ) ? "SND" : "RCV" ) );
 		xReturn = -pdFREERTOS_ERRNO_EINVAL;
 	}
 	else if( ( ( lOptionName == FREERTOS_SO_SNDBUF ) && ( pxSocket->u.xTCP.txStream != NULL ) ) ||
 			( ( lOptionName == FREERTOS_SO_RCVBUF ) && ( pxSocket->u.xTCP.rxStream != NULL ) ) )
 	{
-		FreeRTOS_debug_printf( ( "Set SO_%sBUF: buffer already created\n",
+		FreeRTOS_debug_printf( ( "Set SO_%sBUF: buffer already created\r\n",
 			( lOptionName == FREERTOS_SO_SNDBUF ) ? "SND" : "RCV" ) );
 		xReturn = -pdFREERTOS_ERRNO_EINVAL;
 	}
@@ -2275,7 +2275,7 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t *pxSocket )
 				pxSocket->u.xTCP.bits.bConnPrepared = pdFALSE;
 				pxSocket->u.xTCP.ucRepCount = 0U;
 
-				FreeRTOS_debug_printf( ( "FreeRTOS_connect: %u to %lxip:%u\n",
+				FreeRTOS_debug_printf( ( "FreeRTOS_connect: %u to %lxip:%u\r\n",
 					pxSocket->usLocalPort, FreeRTOS_ntohl( pxAddress->sin_addr ), FreeRTOS_ntohs( pxAddress->sin_port ) ) );
 
 				/* Port on remote machine. */
@@ -2957,7 +2957,7 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t *pxSocket )
 				{
 					if( ipconfigTCP_MAY_LOG_PORT( pxSocket->usLocalPort ) )
 					{
-						FreeRTOS_debug_printf( ( "FreeRTOS_send: %u -> %lxip:%d: no space\n",
+						FreeRTOS_debug_printf( ( "FreeRTOS_send: %u -> %lxip:%d: no space\r\n",
 							pxSocket->usLocalPort,
 							pxSocket->u.xTCP.ulRemoteIP,
 							pxSocket->u.xTCP.usRemotePort ) );
@@ -3292,7 +3292,7 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t *pxSocket )
 
 			if( xTCPWindowLoggingLevel != 0 )
 			{
-				FreeRTOS_debug_printf( ( "prvTCPCreateStream: %cxStream created %u bytes (total %u)\n", ( xIsInputStream != 0 ) ? 'R' : 'T', uxLength, uxSize ) );
+				FreeRTOS_debug_printf( ( "prvTCPCreateStream: %cxStream created %u bytes (total %u)\r\n", ( xIsInputStream != 0 ) ? 'R' : 'T', uxLength, uxSize ) );
 			}
 
 			if( xIsInputStream != 0 )
@@ -3362,7 +3362,7 @@ void vSocketWakeUpUser( FreeRTOS_Socket_t *pxSocket )
 			{
 				if( xResult != ( int32_t ) ulByteCount )
 				{
-					FreeRTOS_debug_printf( ( "lTCPAddRxdata: at %u: %d/%u bytes (tail %u head %u space %u front %u)\n",
+					FreeRTOS_debug_printf( ( "lTCPAddRxdata: at %u: %d/%u bytes (tail %u head %u space %u front %u)\r\n",
 						( UBaseType_t ) uxOffset,
 						( BaseType_t ) xResult,
 						( UBaseType_t ) ulByteCount,
@@ -3758,7 +3758,7 @@ BaseType_t FreeRTOS_udp_rx_size( Socket_t xSocket )
 					configASSERT( copied_len >= 0 );
 					configASSERT( copied_len < ( int32_t ) sizeof( ucChildText ) );
 				}
-				FreeRTOS_printf( ( "TCP %5d %-16lxip:%5d %d/%d %-13.13s %6lu %6u%s\n",
+				FreeRTOS_printf( ( "TCP %5d %-16lxip:%5d %d/%d %-13.13s %6lu %6u%s\r\n",
 					pxSocket->usLocalPort,		/* Local port on this machine */
 					pxSocket->u.xTCP.ulRemoteIP,	/* IP address of remote machine */
 					pxSocket->u.xTCP.usRemotePort,	/* Port on remote machine */
@@ -3776,12 +3776,12 @@ BaseType_t FreeRTOS_udp_rx_size( Socket_t xSocket )
 				 pxIterator  = listGET_NEXT( pxIterator ) )
 			{
 				/* Local port on this machine */
-				FreeRTOS_printf( ( "UDP Port %5u\n",
+				FreeRTOS_printf( ( "UDP Port %5u\r\n",
 					FreeRTOS_ntohs( listGET_LIST_ITEM_VALUE( pxIterator ) ) ) );
 				count++;
 			}
 
-			FreeRTOS_printf( ( "FreeRTOS_netstat: %lu sockets %lu < %lu < %ld buffers free\n",
+			FreeRTOS_printf( ( "FreeRTOS_netstat: %lu sockets %lu < %lu < %ld buffers free\r\n",
 				( UBaseType_t ) count,
 				( UBaseType_t ) uxMinimum,
 				( UBaseType_t ) uxCurrent,

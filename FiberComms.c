@@ -8,12 +8,11 @@
 
 #include <xc.h>
 #include <stdio.h>
-#include "FreeRTOS.h"
+#include "FiberComms.h"
 #include "FreeRTOS_Sockets.h"
 #include "FreeRTOS_IP.h"
 #include "FreeRTOS_DHCP.h"
 #include "FreeRTOS_Sockets.h"
-#include "FiberComms.h"
 #include "min.h"
 #include "LAN9250.h"
 #include "UART.h"
@@ -21,6 +20,9 @@
 #include "UD3_Wrapper.h"
 #include "TTerm.h"
 #include "startup.h"
+#include "TTerm_cmd.h"
+#include "FreeRTOS/Core/include/stream_buffer.h"
+
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;
@@ -30,6 +32,12 @@ uint32_t clientLength = sizeof(lastClient);
 Socket_t dataSocket;
 TERMINAL_HANDLE * term;
 uint8_t dhcpEnable = pdTRUE;
+
+StreamBufferHandle_t streamRx;
+
+#define STREAM_SIZE 255
+
+void Term_task(void *pvParameters);
 
 struct{
     uint32_t findPacketsTotal;
@@ -59,11 +67,15 @@ void COMMS_init(){
     min_init_context(COMMS_UDP, COMMS_UDP);
     min_init_context(COMMS_UART, COMMS_UART);
     
-    TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0);
-    TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0);
-    TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0);
+    TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0, &TERM_cmdListHead);
+    TERM_addCommand(CMD_boot, "boot", "Bootloader", 0, &TERM_cmdListHead);
     
-    term = TERM_createNewHandle(UART_print, "root");
+    streamRx = xStreamBufferCreate(STREAM_SIZE,1);
+    term = TERM_createNewHandle(UART_termPrint, 0, 1, &TERM_cmdListHead, 0, "root");
+    
+    xTaskCreate(Term_task, "Term", configMINIMAL_STACK_SIZE + 500, term, tskIDLE_PRIORITY + 2, NULL);
 }
 
 void COMMS_statsHandler(void * params){
@@ -71,19 +83,19 @@ void COMMS_statsHandler(void * params){
     while(1){
         ConnectionStats.rxDataRateLast = ConnectionStats.rxBytesLast * 2;
         ConnectionStats.rxBytesLast = 0;
-        ConnectionStats.rxDataRateAVG = ((ConnectionStats.rxDataRateAVG * 75) + (ConnectionStats.rxDataRateLast * 25)) / 100;
+        ConnectionStats.rxDataRateAVG = ((ConnectionStats.rxDataRateAVG * 97) + (ConnectionStats.rxDataRateLast * 3)) / 100;
         
         ConnectionStats.txDataRateLast = ConnectionStats.txBytesLast * 2;
         ConnectionStats.txBytesLast = 0;
-        ConnectionStats.txDataRateAVG = ((ConnectionStats.txDataRateAVG * 75) + (ConnectionStats.txDataRateLast * 25)) / 100;
+        ConnectionStats.txDataRateAVG = ((ConnectionStats.txDataRateAVG * 97) + (ConnectionStats.txDataRateLast * 3)) / 100;
         
         ConnectionStats.rxPacketRateLast = (ConnectionStats.rxPacketsTotal - ConnectionStats.rxPacketsLast) * 2;
         ConnectionStats.rxPacketsLast = ConnectionStats.rxPacketsTotal;
-        ConnectionStats.rxPacketRateAVG = ((ConnectionStats.rxPacketRateAVG * 75) + (ConnectionStats.rxPacketRateLast * 25)) / 100;
+        ConnectionStats.rxPacketRateAVG = ((ConnectionStats.rxPacketRateAVG * 90) + (ConnectionStats.rxPacketRateLast * 10)) / 100;
         
         ConnectionStats.txPacketRateLast = (ConnectionStats.txPacketsTotal - ConnectionStats.txPacketsLast) * 2;
         ConnectionStats.txPacketsLast = ConnectionStats.txPacketsTotal;
-        ConnectionStats.txPacketRateAVG = ((ConnectionStats.txPacketRateAVG * 75) + (ConnectionStats.txPacketRateLast * 25)) / 100;
+        ConnectionStats.txPacketRateAVG = ((ConnectionStats.txPacketRateAVG * 90) + (ConnectionStats.txPacketRateLast * 10)) / 100;
         
         vTaskDelay(pdMS_TO_TICKS(500));
     }
@@ -113,16 +125,18 @@ void COMMS_udpDataHandler(void * params){
             ConnectionStats.rxPacketsTotal++;
             ConnectionStats.rxBytesLast += receivedDataLength;
             
-            if(length <= MAX_PAYLOAD){
-                UART_queBuffer(udpData, receivedDataLength, 1);
-                LED_ethPacketReceivedHook();
-                udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
-            }else if(length == MIN_NON_TRANSPORT_FRAME){
-                //if it is a non transport min frame we have to deal with it properly
-                min_poll(COMMS_UDP, udpData, receivedDataLength);
-            }else{
-                //we have received an invalid min frame
-                UART_printDebug("Invalid MIN frame received\r\n");
+            if(UART_bootloader==pdFALSE){
+                if(length <= MAX_PAYLOAD){
+                    UART_queBuffer(udpData, receivedDataLength, 1);
+                    LED_ethPacketReceivedHook();
+                    udpData = pvPortMalloc(COMMS_UDP_BUFFER_SIZE);
+                }else if(length == MIN_NON_TRANSPORT_FRAME){
+                    //if it is a non transport min frame we have to deal with it properly
+                    min_poll(COMMS_UDP, udpData, receivedDataLength);
+                }else{
+                    //we have received an invalid min frame
+                    UART_printDebug("Invalid MIN frame received\r\n");
+                }
             }
         }
 	}
@@ -158,7 +172,7 @@ void COMMS_udpDiscoverHandler(void * params){
                 uint32_t ulIPAddress, ulNetMask, ulGatewayAddress, ulDNSServerAddress;
                 FreeRTOS_GetAddressConfiguration(&ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress);
                 FreeRTOS_inet_ntoa(ulIPAddress, IPAdrr);
-                uint16_t length = snprintf(response,FIND_MAX_RESPONSE_SIZE, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
+                uint16_t length = snprintf(response,FIND_MAX_RESPONSE_SIZE, "FIND=1;IP=%s;HWADDR=%02x:%02x:%02x:%02x:%02x:%02x;DeviceName=%s;SN=%s;deviceType=UD3;", IPAdrr, MACAdrr[0], MACAdrr[1], MACAdrr[2], MACAdrr[3], MACAdrr[4], MACAdrr[5], UD3_name, UD3_sn);
                 FreeRTOS_sendto(dataSocket, response, length, 0, &discoverClient, dClientLength);
                 vPortFree(response);
                 vPortFree(IPAdrr);
@@ -201,7 +215,7 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
         
         switch(min_id){
             case MIN_ID_DEBUG:
-                TERM_processBuffer(min_payload, len_payload, term);
+                xStreamBufferSend(streamRx, min_payload, len_payload,2);
                 break;
             case MIN_ID_EVENT:
                 if(len_payload == 0) break;
@@ -228,6 +242,15 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
     }
 }
 
+void Term_task(void *pvParameters){
+    TERMINAL_HANDLE * termPtr = pvParameters;
+    uint8_t c;
+    while(1){
+        xStreamBufferReceive(streamRx, &c,sizeof(c), portMAX_DELAY);
+        TERM_processBuffer(&c, sizeof(c), termPtr);
+    }
+}
+
 uint32_t min_time_ms(){
     return (xTaskGetTickCount() * portTICK_RATE_MS);
 }
@@ -237,38 +260,32 @@ uint16_t min_tx_space(void * port){
 }
 
 void min_tx_byte(void * port, uint8_t byte){
-    if(port == COMMS_UART){
-        COMMS_UART->tx_data_buffer[COMMS_UART->tx_data_position] = byte;
-        COMMS_UART->tx_data_position++;
-    }else{
-        COMMS_UDP->tx_data_buffer[COMMS_UART->tx_data_position] = byte;
-        COMMS_UDP->tx_data_position++;
+    struct min_context * ctx = port;
+    if(ctx->tx_data_buffer == NULL) return;
+    if(ctx->tx_data_position<ctx->tx_data_buffer_size){
+        ctx->tx_data_buffer[ctx->tx_data_position] = byte;
+        ctx->tx_data_position++;
     }
 }
 
-void min_tx_start(void * port){
-    if(port == COMMS_UART){
-        if(COMMS_UART->tx_data_buffer) return;
-        COMMS_UART->tx_data_buffer = pvPortMalloc(300);
-    }else{
-        if(COMMS_UDP->tx_data_buffer) return;
-        COMMS_UDP->tx_data_buffer = pvPortMalloc(300);
-    }
+void min_tx_start(void * port, uint16_t on_wire_len){
+    struct min_context * ctx = port;
+    if(ctx->tx_data_buffer) return;
+    ctx->tx_data_buffer = pvPortMalloc(on_wire_len);
+    ctx->tx_data_buffer_size = on_wire_len;
 }
 
 void min_tx_finished(void * port){
+    struct min_context * ctx = port;
+    if(ctx->tx_data_buffer == NULL) return;
     if(port == COMMS_UART){
-        if(COMMS_UART->tx_data_buffer == NULL) return;
-        UART_queBuffer(COMMS_UART->tx_data_buffer, COMMS_UART->tx_data_position, 1);
-        COMMS_UART->tx_data_position = 0;
-        COMMS_UART->tx_data_buffer = 0;
+        UART_queBuffer(ctx->tx_data_buffer, ctx->tx_data_position, 1);
     }else{
-        if(COMMS_UDP->tx_data_buffer == NULL) return;
-        COMMS_sendDataToLastClient(COMMS_UDP->tx_data_buffer, COMMS_UDP->tx_data_position);
-        vPortFree(COMMS_UDP->tx_data_buffer);
-        COMMS_UDP->tx_data_position = 0;
-        COMMS_UDP->tx_data_buffer = 0;
+        COMMS_sendDataToLastClient(ctx->tx_data_buffer, ctx->tx_data_position);
+        vPortFree(ctx->tx_data_buffer);
     }
+    ctx->tx_data_position = 0;
+    ctx->tx_data_buffer = 0;
 }
 
 void COMMS_pushEvent(Event evt){
@@ -324,6 +341,14 @@ void COMMS_eventHook(Event evt){
             TERM_printDebug(term, "SD card removed\r\n");
             break;
             
+        case FTP_CLIENT_CONNECTED:
+            TERM_printDebug(term, "FTP client connected\r\n");
+            break;
+            
+        case FTP_CLIENT_DISCONNECTED:
+            TERM_printDebug(term, "FTP client disconnected\r\n");
+            break;
+            
         default:
             UART_print("unknown Event received\r\n");
     }
@@ -345,13 +370,21 @@ void COMMS_pushAlarm(uint8_t level, char* message, int32_t value){
 }
 
 
-
+//WARNING: UNSAFE, NEEDS TO BE RE-CODED!
 void COMMS_dumpPacket(uint8_t * data, uint16_t length){
-    uint16_t currPos = 0;
+    return;
     UART_print("\r\nPacket dump:\r\n");
+    
+    char * buff = pvPortMalloc(length * 7);
+    uint16_t currPos = 0;
+    uint16_t nls = 0;
     for(;currPos < length; currPos++){
-        UART_print(" %02x%s%s", data[currPos], (((currPos % 8) == 0) && currPos != 0) ? " " : "", (((currPos % 16) == 0) && currPos != 0) ? "\r\n" : "");
+        sprintf(&buff[(currPos*5)+nls], "%s0x%02x ", data[currPos], (currPos % 16 == 0) ? "\r\n" : ((currPos % 8 == 0) ? " " : ""));
+        if(currPos % 16 == 0) nls += 2; else if(currPos % 8 == 0) nls += 1;
     }
+    min_send_frame(COMMS_UART, MIN_ID_DEBUG, buff, (currPos*5)+nls);
+    vPortFree(buff);
+    
     UART_print("\r\n---------\r\n");
 }
 
@@ -368,7 +401,7 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     TermProgram * prog = pvPortMalloc(sizeof(TermProgram));
     prog->inputHandler = CMD_ioTop_handleInput;
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-    returnCode = xTaskCreate(CMD_ioTop_task, "top", configMINIMAL_STACK_SIZE, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
+    returnCode = xTaskCreate(CMD_ioTop_task, "iotop", configMINIMAL_STACK_SIZE + 125, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
     if(returnCode == TERM_CMD_EXIT_PROC_STARTED) TERM_attachProgramm(handle, prog);
     return returnCode;
 }

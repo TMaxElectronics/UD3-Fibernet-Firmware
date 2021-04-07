@@ -4,6 +4,13 @@
     <logicalFolder name="HeaderFiles"
                    displayName="Header Files"
                    projectFiles="true">
+      <logicalFolder name="f5" displayName=".cybtldr" projectFiles="true">
+        <itemPath>cybtldr_api.h</itemPath>
+        <itemPath>cybtldr_command.h</itemPath>
+        <itemPath>cybtldr_parse.h</itemPath>
+        <itemPath>cybtldr_utils.h</itemPath>
+        <itemPath>communication_api.h</itemPath>
+      </logicalFolder>
       <logicalFolder name="f2" displayName=".FatFs &amp; SD Card" projectFiles="true">
         <itemPath>FatFs/include/diskio.h</itemPath>
         <itemPath>FatFs/include/ff.h</itemPath>
@@ -55,6 +62,10 @@
       </logicalFolder>
       <logicalFolder name="f3" displayName=".services" projectFiles="true">
         <itemPath>include/service.h</itemPath>
+        <itemPath>include/FTP.h</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f4" displayName=".THex" projectFiles="true">
+        <itemPath>THex/Include/THex.h</itemPath>
       </logicalFolder>
       <itemPath>include/ConfigPerformance.h</itemPath>
       <itemPath>include/LAN9250.h</itemPath>
@@ -76,10 +87,17 @@
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
                    projectFiles="true">
+      <itemPath>p32MX270F256B.ld</itemPath>
     </logicalFolder>
     <logicalFolder name="SourceFiles"
                    displayName="Source Files"
                    projectFiles="true">
+      <logicalFolder name="f5" displayName=".cybtldr" projectFiles="true">
+        <itemPath>cybtldr_api.c</itemPath>
+        <itemPath>cybtldr_command.c</itemPath>
+        <itemPath>cybtldr_parse.c</itemPath>
+        <itemPath>communication_api.c</itemPath>
+      </logicalFolder>
       <logicalFolder name="f2" displayName=".FatFs &amp; SD Card" projectFiles="true">
         <itemPath>FatFs/ff.c</itemPath>
         <itemPath>FatFs/ffsystem.c</itemPath>
@@ -113,6 +131,10 @@
       </logicalFolder>
       <logicalFolder name="f3" displayName=".services" projectFiles="true">
         <itemPath>service.c</itemPath>
+        <itemPath>FTP.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f4" displayName=".THex" projectFiles="true">
+        <itemPath>THex/THex.c</itemPath>
       </logicalFolder>
       <itemPath>ConfigPerformance.c</itemPath>
       <itemPath>LAN9250.c</itemPath>
@@ -165,6 +187,21 @@
         <archiverTool>
         </archiverTool>
         <loading>
+          <makeArtifact PL="PIC32_SD_BL.X"
+                        CT="1"
+                        CN="default"
+                        AC="true"
+                        BL="true"
+                        WD="PIC32_SD_BL.X"
+                        BC="${MAKE}  -f Makefile CONF=default"
+                        DBC="${MAKE}  -f Makefile CONF=default TYPE_IMAGE=DEBUG_RUN"
+                        CC="rm -rf &quot;build/default&quot; &quot;dist/default&quot;"
+                        OP="dist/default/production/PIC32_SD_BL.X.production.hex"
+                        DOP="dist/default/debug/PIC32_SD_BL.X.debug.elf"
+                        FL="dist/default/production/PIC32_SD_BL.X.production.hex"
+                        PD="dist/default/production/PIC32_SD_BL.X.production.elf"
+                        DD="dist/default/debug/PIC32_SD_BL.X.debug.elf">
+          </makeArtifact>
           <useAlternateLoadableFile>false</useAlternateLoadableFile>
           <parseOnProdLoad>false</parseOnProdLoad>
           <alternateLoadableFile></alternateLoadableFile>
@@ -206,7 +243,7 @@
         <property key="use-cci" value="false"/>
         <property key="use-iar" value="false"/>
         <property key="use-indirect-calls" value="false"/>
-        <appendMe value="-I ./include -I ./FreeRTOS/Core/include -I ./FreeRTOS/ -I ./FreeRTOS/TCPIP/include -I ./FatFs -I ./FatFs/include -I ./FreeRTOS/Core/portable/MPLAB/PIC32MX -I ./FreeRTOS/TCPIP/portable/Compiler/GCC"/>
+        <appendMe value="-I ./include -I ./FreeRTOS/Core/include -I ./FreeRTOS/ -I ./FreeRTOS/TCPIP/include -I ./FatFs -I ./FatFs/include -I ./THex/Include -I ./FreeRTOS/Core/portable/MPLAB/PIC32MX -I ./FreeRTOS/TCPIP/portable/Compiler/GCC"/>
       </C32>
       <C32-AR>
         <property key="additional-options-chop-files" value="false"/>
@@ -240,7 +277,7 @@
         <property key="allocate-dinit" value="false"/>
         <property key="code-dinit" value="false"/>
         <property key="ebase-addr" value=""/>
-        <property key="enable-check-sections" value="false"/>
+        <property key="enable-check-sections" value="true"/>
         <property key="exclude-floating-point-library" value="false"/>
         <property key="exclude-standard-libraries" value="false"/>
         <property key="extra-lib-directories" value=""/>
@@ -252,7 +289,7 @@
         <property key="fill-flash-options-seq" value=""/>
         <property key="fill-flash-options-what" value="0"/>
         <property key="generate-16-bit-code" value="false"/>
-        <property key="generate-cross-reference-file" value="false"/>
+        <property key="generate-cross-reference-file" value="true"/>
         <property key="generate-micro-compressed-code" value="false"/>
         <property key="heap-size" value=""/>
         <property key="input-libraries" value=""/>
@@ -372,8 +409,6 @@
         <property key="memories.programmemory" value="true"/>
         <property key="memories.programmemory.ranges" value="1d000000-1d03ffff"/>
         <property key="poweroptions.powerenable" value="false"/>
-        <property key="programmerToGoFilePath"
-                  value="D:/OneDrive/MPLab Projects/UD3_Fibernet.X/debug/default/UD3_Fibernet_ptg"/>
         <property key="programmerToGoImageName" value="UD3_Fibernet_ptg"/>
         <property key="programoptions.donoteraseauxmem" value="false"/>
         <property key="programoptions.eraseb4program" value="true"/>

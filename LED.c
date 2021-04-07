@@ -15,7 +15,7 @@
 #include "FreeRTOS/TCPIP/include/FreeRTOS_Sockets.h"
 #include "include/System.h"
 
-#define LED_BLINK_TIME 1
+#define LED_BLINK_TIME 10
 
 int32_t minLEDTime = 0;
 int32_t ethLEDTime = 0;
@@ -45,8 +45,13 @@ void LED_init(){
 //Handle led IO
 void LED_task(void * params){
     while(1){
-        if(ethError){
+
+        if(--minLEDTime < 0){
+            minLEDTime = 0;
             LATASET = _LATA_LATA2_MASK;
+        }
+        
+        if(ethError){
             LATBSET = _LATB_LATB2_MASK;
             
             LATBCLR = _LATB_LATB3_MASK;
@@ -60,11 +65,6 @@ void LED_task(void * params){
                 }
             }
 
-            if(--minLEDTime < 0){
-                minLEDTime = 0;
-                LATASET = _LATA_LATA2_MASK;
-            }
-
             if(--errLEDTime < 0){
                 errLEDTime = 0;
                 LATBSET = _LATB_LATB3_MASK;
@@ -73,7 +73,7 @@ void LED_task(void * params){
                 LATBSET = _LATB_LATB2_MASK;
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(40));
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 

@@ -11,7 +11,9 @@
             <header-extensions>h</header-extensions>
             <asminc-extensions/>
             <sourceEncoding>ISO-8859-1</sourceEncoding>
-            <make-dep-projects/>
+            <make-dep-projects>
+                <make-dep-project>PIC32_SD_BL.X</make-dep-project>
+            </make-dep-projects>
             <sourceRootList>
                 <sourceRootElem>../freeRTOS Demo/FreeRTOS/Demo/PIC32MX_MPLAB/RTOSDemo.X/FreeRTOS</sourceRootElem>
                 <sourceRootElem>.</sourceRootElem>

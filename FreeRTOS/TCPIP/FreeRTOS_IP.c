@@ -1276,7 +1276,7 @@ TickType_t uxUseTimeout = uxTimeout;
 			if( xReturn == pdFAIL )
 			{
 				/* A message should have been sent to the IP task, but wasn't. */
-				FreeRTOS_debug_printf( ( "xSendEventStructToIPTask: CAN NOT ADD %d\n", pxEvent->eEventType ) );
+				FreeRTOS_debug_printf( ( "xSendEventStructToIPTask: CAN NOT ADD %d\r\n", pxEvent->eEventType ) );
 				iptraceSTACK_TX_EVENT_LOST( pxEvent->eEventType );
 			}
 		}
@@ -1662,7 +1662,7 @@ eFrameProcessingResult_t eReturn = eProcessBuffer;
 
 							if( xCount < 5 )
 							{
-								FreeRTOS_printf( ( "prvAllowIPPacket: UDP packet from %xip without CRC dropped\n",
+								FreeRTOS_printf( ( "prvAllowIPPacket: UDP packet from %xip without CRC dropped\r\n",
 									FreeRTOS_ntohl( pxIPPacket->xIPHeader.ulSourceIPAddress ) ) );
 								xCount++;
 							}
@@ -2104,7 +2104,7 @@ uint8_t ucProtocol;
 
 		if( xResult != pdPASS )
 		{
-			FreeRTOS_printf( ( "xCheckSizeFields: location %ld\n", xLocation ) );
+			FreeRTOS_printf( ( "xCheckSizeFields: location %ld\r\n", xLocation ) );
 			
 			/* If FreeRTOS_printf is not defined, not using xLocation will be a violation of MISRA
 			 * rule 2.2 as the value assigned to xLocation will not be used. The below statement uses
@@ -2267,7 +2267,7 @@ BaseType_t location = 0;
 
 					if( xCount < 5 )
 					{
-						FreeRTOS_printf( ( "usGenerateProtocolChecksum: UDP packet from %xip without CRC dropped\n",
+						FreeRTOS_printf( ( "usGenerateProtocolChecksum: UDP packet from %xip without CRC dropped\r\n",
 							FreeRTOS_ntohl( pxIPPacket->xIPHeader.ulSourceIPAddress ) ) );
 						xCount++;
 					}
@@ -2298,7 +2298,7 @@ BaseType_t location = 0;
 		{
 			#if( ipconfigHAS_DEBUG_PRINTF != 0 )
 			{
-				FreeRTOS_debug_printf( ( "usGenerateProtocolChecksum[%s]: len invalid: %lu\n", pcType, ulLength ) );
+				FreeRTOS_debug_printf( ( "usGenerateProtocolChecksum[%s]: len invalid: %lu\r\n", pcType, ulLength ) );
 			}
 			#endif	/* ipconfigHAS_DEBUG_PRINTF != 0 */
 
@@ -2349,7 +2349,7 @@ BaseType_t location = 0;
 				{
 					if( xOutgoingPacket != pdFALSE )
 					{
-						FreeRTOS_debug_printf( ( "usGenerateProtocolChecksum[%s]: crc swap: %04X\n", pcType, usChecksum ) );
+						FreeRTOS_debug_printf( ( "usGenerateProtocolChecksum[%s]: crc swap: %04X\r\n", pcType, usChecksum ) );
 					}
 				}
 				#endif	/* ipconfigHAS_DEBUG_PRINTF != 0 */
@@ -2366,7 +2366,7 @@ BaseType_t location = 0;
 		#if( ipconfigHAS_DEBUG_PRINTF != 0 )
 		else if( ( xOutgoingPacket == pdFALSE ) && ( usChecksum != ipCORRECT_CRC ) )
 		{
-			FreeRTOS_debug_printf( ( "usGenerateProtocolChecksum[%s]: ID %04X: from %lxip to %lxip bad crc: %04X\n",
+			FreeRTOS_debug_printf( ( "usGenerateProtocolChecksum[%s]: ID %04X: from %lxip to %lxip bad crc: %04X\r\n",
 				pcType,
 				FreeRTOS_ntohs( pxIPPacket->xIPHeader.usIdentification ),
 				FreeRTOS_ntohl( pxIPPacket->xIPHeader.ulSourceIPAddress ),
@@ -2383,7 +2383,7 @@ BaseType_t location = 0;
 	if( ( usChecksum == ipUNHANDLED_PROTOCOL ) || 
 		( usChecksum == ipINVALID_LENGTH ) )
 	{
-		FreeRTOS_printf( ( "CRC error: %04x location %ld\n", usChecksum, location ) );
+		FreeRTOS_printf( ( "CRC error: %04x location %ld\r\n", usChecksum, location ) );
 		
 		/* If FreeRTOS_printf is not defined, not using 'location' will be a violation of MISRA
 		 * rule 2.2 as the value assigned to 'location' will not be used. The below statement uses
@@ -2572,7 +2572,7 @@ EthernetHeader_t *pxEthernetHeader;
 		{
 		BaseType_t xIndex;
 
-			FreeRTOS_printf( ( "vReturnEthernetFrame: length %u\n", ( unsigned ) pxNetworkBuffer->xDataLength ) );
+			FreeRTOS_printf( ( "vReturnEthernetFrame: length %u\r\n", ( unsigned ) pxNetworkBuffer->xDataLength ) );
 			for( xIndex = ( BaseType_t ) pxNetworkBuffer->xDataLength; xIndex < ( BaseType_t ) ipconfigETHERNET_MINIMUM_PACKET_BYTES; xIndex++ )
 			{
 				pxNetworkBuffer->pucEthernetBuffer[ xIndex ] = 0U;
@@ -2644,7 +2644,7 @@ EthernetHeader_t *pxEthernetHeader;
 			/* The logging produced below may be helpful
 			 * while tuning +TCP: see how many buffers are in use. */
 			uxLastMinBufferCount = uxCurrentBufferCount;
-			FreeRTOS_printf( ( "Network buffers: %lu lowest %lu\n",
+			FreeRTOS_printf( ( "Network buffers: %lu lowest %lu\r\n",
 							   uxGetNumberOfFreeNetworkBuffers(),
 							   uxCurrentBufferCount ) );
 		}
@@ -2663,7 +2663,7 @@ EthernetHeader_t *pxEthernetHeader;
 		else if( ( uxMinLastSize * ipMONITOR_PERCENTAGE_90 ) > ( uxMinSize * ipMONITOR_PERCENTAGE_100 ) )
 		{
 			uxMinLastSize = uxMinSize;
-			FreeRTOS_printf( ( "Heap: current %lu lowest %lu\n", xPortGetFreeHeapSize(), uxMinSize ) );
+			FreeRTOS_printf( ( "Heap: current %lu lowest %lu\r\n", xPortGetFreeHeapSize(), uxMinSize ) );
 		}
 		else
 		{
@@ -2682,7 +2682,7 @@ EthernetHeader_t *pxEthernetHeader;
 				/* The logging produced below may be helpful
 				 * while tuning +TCP: see how many buffers are in use. */
 				uxLastMinQueueSpace = uxCurrentCount;
-				FreeRTOS_printf( ( "Queue space: lowest %lu\n", uxCurrentCount ) );
+				FreeRTOS_printf( ( "Queue space: lowest %lu\r\n", uxCurrentCount ) );
 			}
 		}
 		#endif /* ipconfigCHECK_IP_QUEUE_SPACE */

@@ -31,7 +31,7 @@ void ETH_init(){
     xSemaphoreTake(ETH_commsSem, 0);
     xSemaphoreTake(ETH_commsWaitSem, 0);
     
-    TERM_addCommand(CMD_getMacState, "getMacState", "reads MAC information", 0);
+    TERM_addCommand(CMD_getMacState, "getMacState", "reads MAC information", 0, &TERM_cmdListHead);
     
     while(1){
         //wait until we deassert reset after powerup
@@ -96,7 +96,7 @@ void ETH_init(){
     ETH_setupDMA();
     
     //create RTOS task for polling the LAN's registers
-    xTaskCreate(ETH_run, "ethTask", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL );
+    xTaskCreate(ETH_run, "ethTask", configMINIMAL_STACK_SIZE + 50, NULL, tskIDLE_PRIORITY + 2, NULL );
     xSemaphoreGive(ETH_commsSem);
     xSemaphoreGive(ETH_commsWaitSem);
 }
@@ -160,6 +160,7 @@ static void ETH_run( void *pvParameters ){
                 COMMS_pushAlarm(ALARM_PRIO_WARN, "LAN9250 rx FiFo overflow! Packet FiFo was reset ", intStatus);
                 ETH_forceRXDiscard();
                 
+                COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 rx fifo overrun", ALARM_NO_VALUE);
                 //set a software breakpoint if this is a debug build, so we can explore the contents of registers and stuff
                 configASSERT(0);
                 
@@ -243,6 +244,7 @@ NetworkBufferDescriptor_t * ETH_readFrame(){
     //allocate a buffer for the new packet
     NetworkBufferDescriptor_t * ret = pxGetNetworkBufferWithDescriptor(s->packetSize, 0);
     if(ret == NULL){ 
+        COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 rx buffer failed", ALARM_NO_VALUE);
         UART_printDebug("RX buffer allocation failed!\r\n");
         return NULL;
     }
@@ -332,15 +334,23 @@ unsigned ETH_waitForTXSpace(uint16_t length){
 BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     if(data == 0 || length == 0) return pdFALSE;
     
-    if(!xSemaphoreTake(ETH_commsSem, 1000)) return pdFALSE; //SPI comms never became available
+    if(!xSemaphoreTake(ETH_commsSem, 1000)){ 
+        return pdFALSE; //SPI comms never became available
+        COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 couldn't get semaphore for tx", ALARM_NO_VALUE);
+    }
     
     //return if no space is available
     if(!ETH_waitForTXSpace(length)){
         xSemaphoreGive(ETH_commsSem);
+        COMMS_pushAlarm(ALARM_PRIO_CRITICAL, "LAN9250 never got tx fifo space", ALARM_NO_VALUE);
         return pdFALSE;
     }
     //TODO make sure that we never return here as we might drop frames if that happens
     
+    //TODO re-implement dma in a way that actually works..., 
+    //though It isn't cpu-cycle critical at all at the moment
+    
+    /*
     //set up the TX DMA channel to transfer [length] bytes from [data]
     DCH0SSA = KVA_TO_PA(data);
     DCH0SSIZ = length;
@@ -351,6 +361,7 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     
     //re enable the interrupt
     IEC1SET = _IEC1_DMA0IE_MASK;
+    */
     
     //write the two TX Commands
     ETH_writeReg(LAN9250_TX_DATA_FIFO, LAN9250_TXCMD_A_FIRST_DATA | LAN9250_TXCMD_A_LAST_DATA | length); 
@@ -361,9 +372,27 @@ BaseType_t ETH_writePacket(uint8_t * data, uint16_t length){
     SPI_send(ETH_spi, LAN9250_INSTR_REGWRITE_SINGLE);
     SPI_send(ETH_spi, LAN9250_TX_DATA_FIFO >> 8); SPI_send(ETH_spi, LAN9250_TX_DATA_FIFO & 0xff);    
     
-    //start the DMA transfer
+    uint16_t currByte = 0;
+    for(currByte = 0; currByte < length;currByte++){
+        SPI2BUF = data[currByte];
+        while(SPI2STAT & _SPI2STAT_SPIBUSY_MASK);
+    }
+    
+    //because the DMA didn't read out any data there will be an overrun condition here. turning the module off and on again clears that error
+    SPI2CONCLR = _SPI2CON_ON_MASK;
+    SPI2CONSET = _SPI2CON_ON_MASK;
+        
+    //the LAN only accepts communication in entire words, so we need to read any potential padding bytes
+    uint8_t remaining = 4 - (length % 4);
+    if(remaining != 4) while(remaining--) SPI_send(ETH_spi, 0xff);
+
+    ETH_CS = 1;
+    xSemaphoreGive(ETH_commsSem);
+    
+    /*//start the DMA transfer
     DCH0CONSET = _DCH0CON_CHEN_MASK;    
     DCH0ECONSET = _DCH0ECON_CFORCE_MASK;
+    */
     
     return pdTRUE;
 }

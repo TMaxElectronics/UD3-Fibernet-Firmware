@@ -27,6 +27,7 @@
 #include <xc.h>
 #include "diskio.h"
 #include "SPI.h"
+#include "FreeRTOS.h"
 
 /* Definitions for MMC/SDC command */
 #define CMD0   (0)			/* GO_IDLE_STATE */
@@ -70,22 +71,24 @@ static UINT CardType;
 #define rcvr_spi()		SPI_send(SD_spiHandle, 0xff)
 #define rcvr_spi_m(p)	*(p) = SPI_send(SD_spiHandle, 0xff);
 
+#define INIT_TIMEOUT pdMS_TO_TICKS(100)
+
 SPI_HANDLE * SD_spiHandle;
 
 /*-----------------------------------------------------------------------*/
 /* Wait for card ready                                                   */
 /*-----------------------------------------------------------------------*/
 
-static
-BYTE wait_ready (void){
-    return 0xff;
+static BYTE wait_ready (void){
+    if(CardType == 0) return 0xff;
 	BYTE res;
     
-	Timer2 = 500;	/* Wait for ready in timeout of 500ms */
+    TickType_t start = xTaskGetTickCount();
+    
 	rcvr_spi();
 	do
 		res = rcvr_spi();
-	while ((res != 0xFF) && Timer2);
+	while ((res != 0xFF) && ((xTaskGetTickCount() - start) < INIT_TIMEOUT));
 
 	return res;
 }
@@ -262,7 +265,8 @@ void disk_setSPIHandle(SPI_HANDLE * handle){
 
 DSTATUS disk_initialize (BYTE drv){
 	BYTE n, cmd, ty, ocr[4];
-
+    
+    CardType = 0;
 	power_on();							/* Force socket power on */
     FCLK_SLOW();
 	for (n = 80; n; n--) rcvr_spi();	/* 80 dummy clocks */

@@ -8,6 +8,8 @@
 #include "diskio.h"
 #include "ff.h"
 
+//#define DEBUG
+
 void FS_task(void * params){
     SPI_HANDLE * handle = SPI_createHandle(1);
     SPI_init(handle, &RPA4R, 0, 5, 400000);
@@ -87,7 +89,9 @@ char * FS_newCWD(char * oldPath, char * newPath){
     unsigned slashSkip = 0;
     
     if(*pathParts[currPart] != 0){  //the first position is a valid name -> append to current path
+        #ifdef DEBUG
         UART_print("copied old path (appending)\r\n");
+        #endif
         strncpy(temp, oldPath, FF_MAX_LFN);
         uint16_t len = strlen(temp);
         if(temp[len - 1] != '/'){
@@ -103,17 +107,25 @@ char * FS_newCWD(char * oldPath, char * newPath){
     
     for(; currPart < count; currPart++){
         if(*pathParts[currPart] == 0){
+            #ifdef DEBUG
             UART_print("skipped empty part\r\n", currPart, pathParts[currPart]);
+            #endif
         }else if(strcmp(pathParts[currPart], "..") == 0){
             FS_dirUp(temp);
             slashSkip = 1;
+            #ifdef DEBUG
             UART_print("Part %d: \"%s\" (go back one)\r\n", currPart, pathParts[currPart]);
+            #endif
         }else if(strcmp(pathParts[currPart], ".") == 0){
+            #ifdef DEBUG
             UART_print("Part %d: \"%s\" (skipped)\r\n", currPart, pathParts[currPart]);
+            #endif
         }else{
             sprintf(temp, "%s%s%s", temp, slashSkip ? "" : "/", pathParts[currPart]);
             slashSkip = 0;
+            #ifdef DEBUG
             UART_print("Part %d: \"%s\" (appended)\r\n", currPart, pathParts[currPart]);
+            #endif
         }
     }
     
@@ -121,7 +133,9 @@ char * FS_newCWD(char * oldPath, char * newPath){
     
     char * ret = pvPortMalloc(len + 1);
     strcpy(ret, temp);
+    #ifdef DEBUG
     UART_print("newPath = \"%s\"\r\n", ret);
+    #endif
     
     vPortFree(temp);
     vPortFree(pathParts);

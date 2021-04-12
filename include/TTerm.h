@@ -33,7 +33,6 @@
 #endif    
 
 #define EXTENDED_PRINTF 1
-#define TERM_DEVICE_NAME "UD3"
 #define TERM_VERSION_STRING "V1.0"
 
 #if PIC32 == 1 
@@ -110,7 +109,13 @@ enum color{
 #define TERM_CMD_CONTINUE 0x80
 
 #define TERM_ENABLE_STARTUP_TEXT
-//#define TERM_SUPPORT_CWD
+#define TERM_SUPPORT_CWD
+
+#ifdef TERM_SUPPORT_CWD
+    #define TERM_DEVICE_NAME handle->cwdPath
+#else
+    #define TERM_DEVICE_NAME "UD3"
+#endif
 
 #ifdef TERM_ENABLE_STARTUP_TEXT
 const extern char TERM_startupText1[];
@@ -186,7 +191,8 @@ struct __TERMINAL_HANDLE__{
     TermErrorPrinter errorPrinter;
 //TODO actually finish implementing this...
 #ifdef TERM_SUPPORT_CWD
-    DIR cwd;
+    //DIR cwd;
+    char * cwdPath;
 #endif
 };
 
@@ -231,6 +237,8 @@ uint8_t TERM_findLastArg(TERMINAL_HANDLE * handle, char * buff, uint8_t * lenBuf
 BaseType_t ptr_is_in_ram(void* ptr);
 uint8_t TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
 void TERM_LIST_add(TermCommandDescriptor * item, TermCommandDescriptor * head);
+
+#include "TTerm_cwd.h"
 
 #endif
 #endif

@@ -35,6 +35,7 @@
 #include "TTerm.h"
 #include "TTerm_cmd.h"
 #include "TTerm_AC.h"
+#include "TTerm_cwd.h"
 
 TermCommandDescriptor TERM_cmdListHead = {.nextCmd = 0, .commandLength = 0};
 unsigned TERM_baseCMDsAdded = 0;
@@ -63,6 +64,11 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, unsigned 
     }else{
         ret->errorPrinter = errorPrinter;
     }
+    
+    #ifdef TERM_SUPPORT_CWD
+    ret->cwdPath = pvPortMalloc(2);
+    strcpy(ret->cwdPath, "/");
+    #endif
 
     //if this is the first console we initialize we need to add the static commands
     if(!TERM_baseCMDsAdded){
@@ -72,6 +78,12 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, unsigned 
         TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0, &TERM_cmdListHead);
         TERM_addCommand(CMD_top, "top", "shows performance stats", 0, &TERM_cmdListHead);
         TERM_addCommand(CMD_reset, "reset", "resets the fibernet", 0, &TERM_cmdListHead);
+        
+        #ifdef TERM_SUPPORT_CWD
+        TERM_addCommand(CMD_ls, "ls", "List directory", 0, &TERM_cmdListHead);
+        TERM_addCommand(CMD_cd, "cd", "Change directory", 0, &TERM_cmdListHead);
+        TERM_addCommand(CMD_mkdir, "mkdir", "Make directory", 0, &TERM_cmdListHead);
+        #endif  
         
         TermCommandDescriptor * test = TERM_addCommand(CMD_testCommandHandler, "test", "tests stuff", 0, &TERM_cmdListHead);
         head = ACL_create();

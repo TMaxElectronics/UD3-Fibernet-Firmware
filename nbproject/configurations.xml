@@ -83,6 +83,7 @@
       <itemPath>startup.h</itemPath>
       <itemPath>include/FS.h</itemPath>
       <itemPath>TTerm_AC.h</itemPath>
+      <itemPath>include/TTerm_cwd.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -152,6 +153,7 @@
       <itemPath>startup.c</itemPath>
       <itemPath>FS.c</itemPath>
       <itemPath>TTerm_AC.c</itemPath>
+      <itemPath>TTerm_cwd.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"
@@ -179,6 +181,8 @@
       <packs>
         <pack name="PIC32MX_DFP" vendor="Microchip" version="1.1.215"/>
       </packs>
+      <ScriptingSettings>
+      </ScriptingSettings>
       <compileType>
         <linkerTool>
           <linkerLibItems>

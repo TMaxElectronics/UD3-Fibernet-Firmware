@@ -3,16 +3,21 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/THex/THex.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/p32MX270F256B.ld</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/TTerm.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/LAN9250.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/TTerm_cmd.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/startup.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/LED.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FS.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FiberComms.c</file>
-            <file>file:/D:/OneDrive/MPLab%20Projects/UD3_Fibernet.X/FreeRTOS/Core/tasks.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/include/LAN9250.h</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/FS.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/FiberComms.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/FatFs/ff.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/TTerm_cmd.h</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/include/TTerm.h</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/FatFs/include/ff.h</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/FTP.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/LED.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/TTerm_cmd.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/include/FS.h</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/UART.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/TTerm.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/startup.c</file>
+            <file>file:/C:/Git/UD3-Fibernet-Firmware/TTerm_cwd.c</file>
         </group>
     </open-files>
 </project-private>

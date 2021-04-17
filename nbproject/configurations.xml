@@ -67,6 +67,11 @@
       <logicalFolder name="f4" displayName=".THex" projectFiles="true">
         <itemPath>THex/Include/THex.h</itemPath>
       </logicalFolder>
+      <logicalFolder name="f6" displayName="apps" projectFiles="true">
+        <itemPath>apps/top.h</itemPath>
+        <itemPath>apps/iotop.h</itemPath>
+        <itemPath>apps/apps.h</itemPath>
+      </logicalFolder>
       <itemPath>include/ConfigPerformance.h</itemPath>
       <itemPath>include/LAN9250.h</itemPath>
       <itemPath>include/NetworkInterface.h</itemPath>
@@ -136,6 +141,11 @@
       </logicalFolder>
       <logicalFolder name="f4" displayName=".THex" projectFiles="true">
         <itemPath>THex/THex.c</itemPath>
+      </logicalFolder>
+      <logicalFolder name="f6" displayName="apps" projectFiles="true">
+        <itemPath>apps/top.c</itemPath>
+        <itemPath>apps/iotop.c</itemPath>
+        <itemPath>apps/apps.c</itemPath>
       </logicalFolder>
       <itemPath>ConfigPerformance.c</itemPath>
       <itemPath>LAN9250.c</itemPath>

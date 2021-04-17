@@ -43,6 +43,26 @@ typedef enum{
 }Event;
 
 typedef struct{
+    uint32_t findPacketsTotal;
+    
+    uint32_t rxPacketsTotal;
+    uint32_t rxPacketsLast;
+    uint32_t rxBytesLast;
+    uint32_t rxDataRateLast;
+    uint32_t rxDataRateAVG;
+    uint32_t rxPacketRateLast;
+    uint32_t rxPacketRateAVG;
+    
+    uint32_t txPacketsTotal;
+    uint32_t txPacketsLast;
+    uint32_t txBytesLast;
+    uint32_t txDataRateLast;
+    uint32_t txDataRateAVG;
+    uint32_t txPacketRateLast;
+    uint32_t txPacketRateAVG;
+} ConnStats;
+
+typedef struct{
     uint8_t level;
     int32_t value;
 }__attribute__((packed)) MIN_ALARM_PAYLOAD_DESCRIPTOR;

@@ -28,12 +28,17 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "stream_buffer.h"
 #if PIC32 == 1    
 #include "ff.h"
 #endif    
 
+
 #define EXTENDED_PRINTF 1
 #define TERM_VERSION_STRING "V1.0"
+#define TERM_PROG_BUFFER_SIZE 32
+
+#define CTRL_C 0x03
 
 #if PIC32 == 1 
     #define START_OF_FLASH  0xa0000000
@@ -153,6 +158,7 @@ typedef uint8_t (* TermAutoCompHandler)(TERMINAL_HANDLE * handle, void * params)
 typedef struct{
     TaskHandle_t task;
     TermCommandInputHandler inputHandler;
+    StreamBufferHandle_t inputStream;
 } TermProgram;
 
 struct __TermCommandDescriptor__{
@@ -230,6 +236,7 @@ void TERM_checkForCopy(TERMINAL_HANDLE * handle, COPYCHECK_MODE mode);
 void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...);
 void TERM_removeProgramm(TERMINAL_HANDLE * handle);
 void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog);
+void TERM_killProgramm(TERMINAL_HANDLE * handle);
 uint8_t TERM_doAutoComplete(TERMINAL_HANDLE * handle);
 uint8_t TERM_findMatchingCMDs(char * currInput, uint8_t length, char ** buff, TermCommandDescriptor * cmdListHead);
 TermCommandDescriptor * TERM_findCMD(TERMINAL_HANDLE * handle);

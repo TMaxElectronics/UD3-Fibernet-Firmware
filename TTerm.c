@@ -31,11 +31,14 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "stream_buffer.h"
 #include "UART.h"
 #include "TTerm.h"
 #include "TTerm_cmd.h"
 #include "TTerm_AC.h"
 #include "TTerm_cwd.h"
+
+#include "apps/apps.h"
 
 TermCommandDescriptor TERM_cmdListHead = {.nextCmd = 0, .commandLength = 0};
 unsigned TERM_baseCMDsAdded = 0;
@@ -76,8 +79,9 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, unsigned 
         
         TERM_addCommand(CMD_help, "help", "Displays this help message", 0, &TERM_cmdListHead);
         TERM_addCommand(CMD_cls, "cls", "Clears the screen", 0, &TERM_cmdListHead);
-        TERM_addCommand(CMD_top, "top", "shows performance stats", 0, &TERM_cmdListHead);
         TERM_addCommand(CMD_reset, "reset", "resets the fibernet", 0, &TERM_cmdListHead);
+        
+        REGISTER_apps(&TERM_cmdListHead);
         
         #ifdef TERM_SUPPORT_CWD
         TERM_addCommand(CMD_ls, "ls", "List directory", 0, &TERM_cmdListHead);
@@ -1023,10 +1027,22 @@ const char * TERM_getVT100Code(uint16_t cmd, uint8_t var){
 
 void TERM_attachProgramm(TERMINAL_HANDLE * handle, TermProgram * prog){
     handle->currProgram = prog;
+    handle->currProgram->inputStream = xStreamBufferCreate(TERM_PROG_BUFFER_SIZE,1);
 }
 
 void TERM_removeProgramm(TERMINAL_HANDLE * handle){
-    handle->currProgram = 0;
+    handle->currProgram = NULL;
+}
+
+void TERM_killProgramm(TERMINAL_HANDLE * handle){
+    TaskHandle_t task = handle->currProgram->task;
+    vStreamBufferDelete(handle->currProgram->inputStream);
+    vPortFree(handle->currProgram);
+    handle->currProgram = NULL;
+    vTaskDelete(task);
+    while(1){
+        vTaskDelay(100);
+    }
 }
 
 

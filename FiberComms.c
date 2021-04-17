@@ -22,7 +22,7 @@
 #include "startup.h"
 #include "TTerm_cmd.h"
 #include "FreeRTOS/Core/include/stream_buffer.h"
-
+#include "apps/apps.h"
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;
@@ -32,6 +32,7 @@ uint32_t clientLength = sizeof(lastClient);
 Socket_t dataSocket;
 TERMINAL_HANDLE * term;
 uint8_t dhcpEnable = pdTRUE;
+ConnStats ConnectionStats;
 
 StreamBufferHandle_t streamRx;
 
@@ -39,25 +40,6 @@ StreamBufferHandle_t streamRx;
 
 void Term_task(void *pvParameters);
 
-struct{
-    uint32_t findPacketsTotal;
-    
-    uint32_t rxPacketsTotal;
-    uint32_t rxPacketsLast;
-    uint32_t rxBytesLast;
-    uint32_t rxDataRateLast;
-    uint32_t rxDataRateAVG;
-    uint32_t rxPacketRateLast;
-    uint32_t rxPacketRateAVG;
-    
-    uint32_t txPacketsTotal;
-    uint32_t txPacketsLast;
-    uint32_t txBytesLast;
-    uint32_t txDataRateLast;
-    uint32_t txDataRateAVG;
-    uint32_t txPacketRateLast;
-    uint32_t txPacketRateAVG;
-} ConnectionStats;
 
 
 void COMMS_init(){
@@ -67,12 +49,13 @@ void COMMS_init(){
     min_init_context(COMMS_UDP, COMMS_UDP);
     min_init_context(COMMS_UART, COMMS_UART);
     
-    TERM_addCommand(CMD_ioTop, "iotop", "shows connection statistics", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_ifconfig, "ifconfig", "displays network interface parameters", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_testAlarm, "testAlarm", "sends an alarm to the UD3", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_boot, "boot", "Bootloader", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_cat, "cat", "cat... meow!", 0, &TERM_cmdListHead);
     TERM_addCommand(CMD_echo, "echo", "echo echo", 0, &TERM_cmdListHead);
+    
+    iotop_stat_ptr(&ConnectionStats);
     
     streamRx = xStreamBufferCreate(STREAM_SIZE,1);
     term = TERM_createNewHandle(UART_termPrint, 0, 1, &TERM_cmdListHead, 0, "root");
@@ -390,56 +373,6 @@ void COMMS_dumpPacket(uint8_t * data, uint16_t length){
     UART_print("\r\n---------\r\n");
 }
 
-uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
-    uint8_t currArg = 0;
-    uint8_t returnCode = TERM_CMD_EXIT_SUCCESS;
-    for(;currArg<argCount; currArg++){
-        if(strcmp(args[currArg], "-?") == 0){
-            ttprintf("shows packet throughput\r\n");
-            return TERM_CMD_EXIT_SUCCESS;
-        }
-    }
-    
-    TermProgram * prog = pvPortMalloc(sizeof(TermProgram));
-    prog->inputHandler = CMD_ioTop_handleInput;
-    TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-    returnCode = xTaskCreate(CMD_ioTop_task, "iotop", configMINIMAL_STACK_SIZE + 125, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
-    if(returnCode == TERM_CMD_EXIT_PROC_STARTED) TERM_attachProgramm(handle, prog);
-    return returnCode;
-}
-
-void CMD_ioTop_task(void *pvParameters){
-    TERMINAL_HANDLE * handle = (TERMINAL_HANDLE*)pvParameters;
-    while(1){
-        TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
-        ttprintf("%sioTop - %d\r\nAll datarates are in bytes/s and packets/s respectively\r\n", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), xTaskGetTickCount());
-        
-        ttprintf("%s%s%s", UART_getVT100Code(_VT100_BACKGROUND_COLOR, _VT100_WHITE), UART_getVT100Code(_VT100_ERASE_LINE_END, 0), UART_getVT100Code(_VT100_FOREGROUND_COLOR, _VT100_BLACK));
-        ttprintf("Connection \r\x1b[%dCDatarate last \r\x1b[%dCDatarate avg \r\x1b[%dCPacketrate last \r\x1b[%dCPacketrate avg \r\x1b[%dCTotal packet count\r\n", 11, 30, 49, 68, 87);
-        ttprintf("%s", UART_getVT100Code(_VT100_RESET_ATTRIB, 0));
-        
-        ttprintf("%sUDP (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.rxDataRateLast); 
-        ttprintf("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.rxDataRateAVG, 49, ConnectionStats.rxPacketRateLast, 68, ConnectionStats.rxPacketRateAVG, 87, ConnectionStats.rxPacketsTotal);
-        
-        ttprintf("%sUART (rx) \r\x1b[%dC%d", UART_getVT100Code(_VT100_ERASE_LINE_END, 0), 11, ConnectionStats.txDataRateLast); 
-        ttprintf("\r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d \r\x1b[%dC%d\r\n", 30, ConnectionStats.txDataRateAVG, 49, ConnectionStats.txPacketRateLast, 68, ConnectionStats.txPacketRateAVG, 87, ConnectionStats.txPacketsTotal);
-        
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
-
-uint8_t CMD_ioTop_handleInput(TERMINAL_HANDLE * handle, uint16_t c){
-    switch(c){
-        case 'q':
-        case 0x03:
-            vTaskDelete(handle->currProgram->task);
-            vPortFree(handle->currProgram);
-            TERM_removeProgramm(handle);
-            return TERM_CMD_EXIT_SUCCESS;
-        default:
-            return TERM_CMD_CONTINUE;
-    }
-}
 
 uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;

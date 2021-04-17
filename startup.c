@@ -52,7 +52,7 @@ void startServices(){
     xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
     //TODO optimize stack usage and figure out why it needs to be this large
     
-    xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE + 125, NULL , tskIDLE_PRIORITY + 2, NULL);
 }
 
 

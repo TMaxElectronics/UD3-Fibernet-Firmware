@@ -96,7 +96,7 @@ void ETH_init(){
     ETH_setupDMA();
     
     //create RTOS task for polling the LAN's registers
-    xTaskCreate(ETH_run, "ethTask", configMINIMAL_STACK_SIZE + 50, NULL, tskIDLE_PRIORITY + 2, NULL );
+    xTaskCreate(ETH_run, "ethTask", configMINIMAL_STACK_SIZE + 125, NULL, tskIDLE_PRIORITY + 2, NULL );
     xSemaphoreGive(ETH_commsSem);
     xSemaphoreGive(ETH_commsWaitSem);
 }

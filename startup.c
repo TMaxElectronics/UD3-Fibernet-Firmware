@@ -127,10 +127,10 @@ static void startupTask(void * params){
     
     //create the listener tasks
     
-    xTaskCreate(FTP_task, "ftp Task", configMINIMAL_STACK_SIZE + 125, NULL , tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 2, NULL);
-    xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(FTP_task, "ftp Task", configMINIMAL_STACK_SIZE + 50, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(COMMS_udpDataHandler, "udpRecv", configMINIMAL_STACK_SIZE + 50, NULL , tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(COMMS_udpDiscoverHandler, "udpDisc", configMINIMAL_STACK_SIZE + 50, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(COMMS_statsHandler, "paCcount", configMINIMAL_STACK_SIZE , NULL , tskIDLE_PRIORITY + 1, NULL);
     
     //inform the UD3
     COMMS_pushAlarm(ALARM_PRIO_INFO, "FiberNet networking started", ALARM_NO_VALUE);
@@ -194,7 +194,7 @@ static void prvSetupHardware(){
     T2CON = 0b1000000001111000;
     T3CON = 0b1000000001111000;
     
-    UART_init(460800, &RPA3R, 0b0001);
+    UART_init(1000000, &RPA3R, 0b0001);
 
     LED_init();
 }

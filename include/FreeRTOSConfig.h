@@ -50,7 +50,7 @@
 #define configCPU_CLOCK_HZ						( 48000000UL )
 #define configPERIPHERAL_CLOCK_HZ				( 48000000UL )
 #define configMAX_PRIORITIES					( 5UL )
-#define configMINIMAL_STACK_SIZE				( 125 )
+#define configMINIMAL_STACK_SIZE				( 150 )
 #define configISR_STACK_SIZE					( 250 )
 #define configTOTAL_HEAP_SIZE					( ( size_t ) 55000 )
 #define configMAX_TASK_NAME_LEN					( 16 )

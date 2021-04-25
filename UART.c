@@ -109,8 +109,8 @@ void UART_init(uint32_t baud, volatile uint32_t* TXPinReg, uint8_t RXPinReg){
     xSemaphoreGive(UART_txDMA); //is this actually necessary?
     
     //Serial Send / Receive Tasks
-    xTaskCreate(UART_sendTask, "SSendTsk", configMINIMAL_STACK_SIZE + 100, NULL, tskIDLE_PRIORITY + 4, NULL);
-    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE + 250, NULL, tskIDLE_PRIORITY + 2, NULL);//<-----250 alt
+    xTaskCreate(UART_sendTask, "SSendTsk", configMINIMAL_STACK_SIZE + 50, NULL, tskIDLE_PRIORITY + 4, NULL);
+    xTaskCreate(UART_receiveTask, "SRecvTsk", configMINIMAL_STACK_SIZE + 175, NULL, tskIDLE_PRIORITY + 2, NULL);//<-----250 alt
     
     //enable the UART module (we need the RX DMA running before this point to avoid an overflow in the time that we initialize other stuff)
     U2MODEbits.ON = 1;

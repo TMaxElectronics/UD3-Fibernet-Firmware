@@ -307,9 +307,15 @@ void COMMS_eventHook(Event evt){
             
             FreeRTOS_GetAddressConfiguration( &ulIPAddress, &ulNetMask, &ulGatewayAddress, &ulDNSServerAddress );
             FreeRTOS_inet_ntoa( ulIPAddress, cBuffer );
-            snprintf(buffer,sizeof(buffer),"DHCP Successful (IP=%s)", cBuffer);
+            char * string;
+            if(dhcpEnable){
+                string = "DHCP";
+            }else{
+                string = "IP";
+            }
+            snprintf(buffer,sizeof(buffer),"%s Successful (IP=%s)",string, cBuffer);
             COMMS_pushAlarm(ALARM_PRIO_INFO, buffer, ALARM_NO_VALUE);
-            TERM_printDebug(term, "DHCP Successful (IP=%s)\r\n", cBuffer);
+            TERM_printDebug(term, "%s Successful (IP=%s)\r\n",string, cBuffer);
             break;
             
         case ETH_DHCP_FAIL:
@@ -399,6 +405,14 @@ uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     return TERM_CMD_EXIT_SUCCESS;
 }
 
+void DHCP_enable(uint8_t active){
+    dhcpEnable = active;
+}
+
+uint8_t DHCP_enabled(){
+    return dhcpEnable;
+}
+
 eDHCPCallbackAnswer_t xApplicationDHCPHook( eDHCPCallbackPhase_t eDHCPPhase, uint32_t ulIPAddress ){
     
 eDHCPCallbackAnswer_t eReturn;
@@ -429,34 +443,11 @@ uint32_t ulStaticIPAddress, ulStaticNetMask;
       /* An offer has been received from the DHCP server, and the offered
       IP address is passed in the ulIPAddress parameter.  Convert the
       offered and statically allocated IP addresses to 32-bit values. */
-      ulStaticIPAddress = FreeRTOS_inet_addr_quick( IP_ADDRESS[0],
-                                                    IP_ADDRESS[1],
-                                                    IP_ADDRESS[2],
-                                                    IP_ADDRESS[3] );
-
-      ulStaticNetMask = FreeRTOS_inet_addr_quick( NETMASK[0],
-                                                  NETMASK[1],
-                                                  NETMASK[2],
-                                                  NETMASK[3] );
-
-      /* Mask the IP addresses to leave just the sub-domain octets. */
-      ulStaticIPAddress &= ulStaticNetMask;
-      ulIPAddress &= ulStaticNetMask;
-
-      /* Are the sub-domains the same? */
-      if( ulStaticIPAddress == ulIPAddress )
-      {
-        /* The sub-domains match, so the default IP address can be
-        used.  The DHCP process is stopped at this point. */
-        eReturn = eDHCPUseDefaults;
-      }
-      else
-      {
+      
         /* The sub-domains don?t match, so continue with the DHCP
         process so the offered IP address is used. */
         eReturn = eDHCPContinue;
-      }
-
+ 
       break;
 
     default :
@@ -468,6 +459,7 @@ uint32_t ulStaticIPAddress, ulStaticNetMask;
 
   return eReturn;
 }
+
 void help_ifconfig(TERMINAL_HANDLE * handle){
     ttprintf("\teth0 [ip]\r\n");
     ttprintf("\tnetmask [netmask]\r\n");

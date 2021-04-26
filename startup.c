@@ -22,6 +22,7 @@
 #include "FTP.h"
 #include "System.h"
 #include "THex/include/THex.h"
+#include "include/UART.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -52,7 +53,7 @@ void startServices(){
     xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
     //TODO optimize stack usage and figure out why it needs to be this large
     
-    xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE + 125, NULL , tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 2, NULL);
 }
 
 
@@ -111,9 +112,57 @@ unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_p
     return 1;
 }
 
+#define u32IP(addr) *(uint32_t*)addr
+
+static int handler(void* user, const char* section, const char* name, const char* value){
+    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+
+    if (MATCH("network", "dhcp")) {
+        if(strcmp(value,"false")==0){
+            DHCP_enable(pdFALSE);
+        }else{
+            DHCP_enable(pdTRUE);  
+        } 
+    } else if (MATCH("network", "ip")) {
+        if(DHCP_enabled()==0){
+            u32IP(IP_ADDRESS) = FreeRTOS_inet_addr(value);
+            FreeRTOS_SetIPAddress(u32IP(IP_ADDRESS));
+        }
+    } else if (MATCH("network", "netmask")) {
+        if(DHCP_enabled()==0){
+            u32IP(NETMASK) = FreeRTOS_inet_addr(value);
+            FreeRTOS_SetIPAddress(u32IP(NETMASK));
+        }
+    } else if (MATCH("network", "gateway")) {
+        if(DHCP_enabled()==0){
+            u32IP(GATEWAYIP) = FreeRTOS_inet_addr(value);
+            FreeRTOS_SetIPAddress(u32IP(GATEWAYIP));
+        }
+    } else if (MATCH("network", "dns")) {
+        if(DHCP_enabled()==0){
+            u32IP(DNSIP) = FreeRTOS_inet_addr(value);
+            FreeRTOS_SetIPAddress(u32IP(DNSIP));
+        }
+    } else if (MATCH("com", "baudrate")) {
+        UART_setBaud(atoi(value));
+    } 
+
+
+    return 1;
+}
+
+
+
 //wait for the UD3 to boot so we can get the id and calculate our mac address
 static void startupTask(void * params){
     COMMS_pushAlarm(ALARM_PRIO_INFO, "FiberNet is waiting for ID", ALARM_NO_VALUE);
+    
+    vTaskDelay(200);
+
+    if(ini_parse("config.ini", handler, NULL) !=0){
+        DHCP_enable(pdTRUE);
+    }
+    
     
     //wait for the startupMINHandler to receive the response to MIN_ID_EVENT, and continously send the request 
     while(1){
@@ -194,7 +243,7 @@ static void prvSetupHardware(){
     T2CON = 0b1000000001111000;
     T3CON = 0b1000000001111000;
     
-    UART_init(1000000, &RPA3R, 0b0001);
+    UART_init(460800, &RPA3R, 0b0001);
 
     LED_init();
 }

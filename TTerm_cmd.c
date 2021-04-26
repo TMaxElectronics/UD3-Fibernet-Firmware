@@ -43,7 +43,7 @@
 #include "communication_api.h"
 #include "cybtldr_api.h"
 #include "include/FiberComms.h"
-
+#include "include/ini.h"
 
 uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
@@ -276,6 +276,32 @@ uint8_t CMD_cls(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
     TERM_printBootMessage(handle);
+    
+    return TERM_CMD_EXIT_SUCCESS;
+}
+
+static int handler(void* user, const char* section, const char* name,
+                   const char* value)
+{
+    TERMINAL_HANDLE * handle = (TERMINAL_HANDLE*)user;
+    ttprintf("sec: %s name: %s value: %s", section, name, value);
+    
+    return 1;
+}
+
+uint8_t CMD_ini(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
+    uint8_t currArg = 0;
+    uint8_t returnCode = TERM_CMD_EXIT_SUCCESS;
+    for(;currArg<argCount; currArg++){
+        if(strcmp(args[currArg], "-?") == 0){
+            ttprintf("clears the screen\r\n");
+            return TERM_CMD_EXIT_SUCCESS;
+        }
+    }
+    
+   
+    
+        
     
     return TERM_CMD_EXIT_SUCCESS;
 }

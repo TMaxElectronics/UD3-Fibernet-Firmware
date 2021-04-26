@@ -83,5 +83,6 @@ uint8_t CMD_ioTop(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 void COMMS_statsHandler(void * params);
 uint8_t CMD_testAlarm(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 uint8_t CMD_ifconfig(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
-
+void DHCP_enable(uint8_t active);
+uint8_t DHCP_enabled();
 #endif

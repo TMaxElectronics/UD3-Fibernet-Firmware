@@ -89,6 +89,7 @@
       <itemPath>include/FS.h</itemPath>
       <itemPath>TTerm_AC.h</itemPath>
       <itemPath>include/TTerm_cwd.h</itemPath>
+      <itemPath>include/ini.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"
@@ -164,6 +165,7 @@
       <itemPath>FS.c</itemPath>
       <itemPath>TTerm_AC.c</itemPath>
       <itemPath>TTerm_cwd.c</itemPath>
+      <itemPath>ini.c</itemPath>
     </logicalFolder>
     <logicalFolder name="ExternalFiles"
                    displayName="Important Files"

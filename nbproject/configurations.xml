@@ -71,6 +71,7 @@
         <itemPath>apps/top.h</itemPath>
         <itemPath>apps/iotop.h</itemPath>
         <itemPath>apps/apps.h</itemPath>
+        <itemPath>apps/tte.h</itemPath>
       </logicalFolder>
       <itemPath>include/ConfigPerformance.h</itemPath>
       <itemPath>include/LAN9250.h</itemPath>
@@ -147,6 +148,7 @@
         <itemPath>apps/top.c</itemPath>
         <itemPath>apps/iotop.c</itemPath>
         <itemPath>apps/apps.c</itemPath>
+        <itemPath>apps/tte.c</itemPath>
       </logicalFolder>
       <itemPath>ConfigPerformance.c</itemPath>
       <itemPath>LAN9250.c</itemPath>

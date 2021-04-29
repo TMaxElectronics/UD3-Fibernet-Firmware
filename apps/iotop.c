@@ -45,15 +45,24 @@ uint8_t REGISTER_iotop(TermCommandDescriptor * desc){
 static uint8_t CMD_main(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;
     uint8_t returnCode = TERM_CMD_EXIT_SUCCESS;
-    for(;currArg<argCount; currArg++){
-        if(strcmp(args[currArg], "-?") == 0){
-            ttprintf(APP_DESCRIPTION "\r\n");
-            return TERM_CMD_EXIT_SUCCESS;
+    
+    char ** cpy_args;
+    argCount++;
+    if(argCount){
+        cpy_args = pvPortMalloc(sizeof(char*)*argCount);
+        cpy_args[0] = pvPortMalloc(sizeof(APP_NAME));
+        cpy_args[0]=memcpy(cpy_args[0], APP_NAME, sizeof(APP_NAME));
+        for(;currArg<argCount-1; currArg++){
+            uint16_t len = strlen(args[currArg])+1;
+            cpy_args[currArg+1] = pvPortMalloc(len);
+            memcpy(cpy_args[currArg+1], args[currArg], len);
         }
     }
     
     TermProgram * prog = pvPortMalloc(sizeof(TermProgram));
     prog->inputHandler = INPUT_handler;
+    prog->args = cpy_args;
+    prog->argCount = argCount;
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
     returnCode = xTaskCreate(TASK_main, APP_NAME, APP_STACK, handle, tskIDLE_PRIORITY + 1, &prog->task) ? TERM_CMD_EXIT_PROC_STARTED : TERM_CMD_EXIT_ERROR;
     if(returnCode == TERM_CMD_EXIT_PROC_STARTED) TERM_attachProgramm(handle, prog);

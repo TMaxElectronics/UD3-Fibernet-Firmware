@@ -60,16 +60,6 @@ int ini_parse(const char* filename, ini_handler handler, void* user);
    close the file when it's finished -- the caller must do that. */
 int ini_parse_file(FIL* file, ini_handler handler, void* user);
 
-/* Same as ini_parse(), but takes an ini_reader function pointer instead of
-   filename. Used for implementing custom or string-based I/O (see also
-   ini_parse_string). */
-int ini_parse_stream(FIL * file, void* stream, ini_handler handler,
-                     void* user);
-
-/* Same as ini_parse(), but takes a zero-terminated string with the INI data
-instead of a file. Useful for parsing INI data from a network socket or
-already in memory. */
-int ini_parse_string(const char* string, ini_handler handler, void* user);
 
 /* Nonzero to allow multi-line value parsing, in the style of Python's
    configparser. If allowed, ini_parse() will call the handler with the same
@@ -109,13 +99,6 @@ int ini_parse_string(const char* string, ini_handler handler, void* user);
    this must be 3 more than the longest line (due to '\r', '\n', and '\0'). */
 #ifndef INI_MAX_LINE
 #define INI_MAX_LINE 200
-#endif
-
-/* Nonzero to allow heap line buffer to grow via realloc(), zero for a
-   fixed-size buffer of INI_MAX_LINE bytes. Only applies if INI_USE_STACK is
-   zero. */
-#ifndef INI_ALLOW_REALLOC
-#define INI_ALLOW_REALLOC 0
 #endif
 
 /* Initial size in bytes for heap line buffer. Only applies if INI_USE_STACK

@@ -28,6 +28,8 @@
 
 #include "top.h"
 #include "iotop.h"
+#include "tte.h"
+
 
 uint8_t REGISTER_apps(TermCommandDescriptor * desc);
 

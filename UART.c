@@ -234,7 +234,7 @@ void UART_sendString(char *data, unsigned newLine){
     }
 }
 
-void UART_printDebug(char * format, ...){
+uint32_t UART_printDebug(char * format, ...){
     //surely the must be a better way to do this
 #ifdef UART_ALLOW_DEBUG
     va_list arg;
@@ -251,7 +251,7 @@ void UART_printDebug(char * format, ...){
 }
 
 //send data to the debug min ID
-void UART_print(char * format, ...){
+uint32_t UART_print(char * format, ...){
     va_list arg;
     va_start (arg, format);
     
@@ -265,10 +265,11 @@ void UART_print(char * format, ...){
     vPortFree(buff);
     
     va_end (arg);
+    return length;
 }
 
 //send data to the debug min ID
-void UART_termPrint(void * port, char * format, ...){
+uint32_t UART_termPrint(void * port, char * format, ...){
     va_list arg;
     va_start (arg, format);
     
@@ -282,6 +283,7 @@ void UART_termPrint(void * port, char * format, ...){
     vPortFree(buff);
     
     va_end (arg);
+    return length;
 }
 
 //write data into the transmit queue

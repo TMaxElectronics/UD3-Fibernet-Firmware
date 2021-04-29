@@ -40,7 +40,7 @@ typedef struct{
     
 }FTP_CLIENT_HANDLE;
 
-static void print(void * port, char * format, ...);
+static uint32_t print(void * port, char * format, ...);
 static void FTP_clientTask(void *pvParameters);
 static uint8_t FTP_errorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
 static void FTP_closeTranferSocket(FTP_CLIENT_HANDLE * client);
@@ -143,7 +143,7 @@ static uint8_t FTP_errorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode){
 }
 
 //TTerm compatible print function to send data to the client
-static void print(void * port, char * format, ...){
+static uint32_t print(void * port, char * format, ...){
     va_list arg;
     va_start(arg, format);
     
@@ -155,6 +155,7 @@ static void print(void * port, char * format, ...){
     vPortFree(buff);
     
     va_end(arg);
+    return length;
 }
 
 static void FTP_clientTask(void *pvParameters){

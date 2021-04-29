@@ -20,11 +20,12 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
-#include "apps.h"
 
-uint8_t REGISTER_apps(TermCommandDescriptor * desc){
-    
-    REGISTER_iotop(desc);
-    REGISTER_top(desc);
-    REGISTER_tte(desc);
-}
+#if !defined(app_tte_H)
+#define app_tte_H
+
+#include "TTerm.h"
+
+uint8_t REGISTER_tte(TermCommandDescriptor * desc);
+
+#endif

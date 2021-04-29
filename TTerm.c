@@ -1037,6 +1037,16 @@ void TERM_removeProgramm(TERMINAL_HANDLE * handle){
 }
 
 void TERM_killProgramm(TERMINAL_HANDLE * handle){
+    uint8_t currArg = 0;
+    uint8_t argCount = handle->currProgram->argCount;
+    char ** args = handle->currProgram->args;
+    for(;currArg<argCount; currArg++){
+        vPortFree(args[currArg]);
+    }
+    
+    TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
+    TERM_printBootMessage(handle);
+    
     TaskHandle_t task = handle->currProgram->task;
     vStreamBufferDelete(handle->currProgram->inputStream);
     vPortFree(handle->currProgram);

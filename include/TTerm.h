@@ -149,7 +149,7 @@ typedef uint8_t (* TermCommandInputHandler)(TERMINAL_HANDLE * handle, uint16_t c
 typedef uint8_t (* TermErrorPrinter)(TERMINAL_HANDLE * handle, uint32_t retCode);
 
 #if EXTENDED_PRINTF == 1
-typedef void (* TermPrintHandler)(void * port, char * format, ...);
+typedef uint32_t (* TermPrintHandler)(void * port, char * format, ...);
 #else
 typedef void (* TermPrintHandler)(char * format, ...);
 #endif
@@ -159,6 +159,8 @@ typedef struct{
     TaskHandle_t task;
     TermCommandInputHandler inputHandler;
     StreamBufferHandle_t inputStream;
+    char ** args;
+    uint8_t argCount;
 } TermProgram;
 
 struct __TermCommandDescriptor__{

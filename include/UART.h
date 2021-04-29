@@ -19,9 +19,9 @@ void UART_sendChar(char data);
 void UART_sendTask( void *pvParameters );
 void UART_receiveTask( void *pvParameters );
 
-void UART_print(char * format, ...);
-void UART_termPrint(void * port, char * format, ...);
-void UART_printDebug(char * format, ...);
+uint32_t UART_print(char * format, ...);
+uint32_t UART_termPrint(void * port, char * format, ...);
+uint32_t UART_printDebug(char * format, ...);
 void UART_queBuffer(uint8_t * data, uint32_t length, unsigned freeAfterSend);
 uint32_t UART_queEmpty();
 void UART_flush();

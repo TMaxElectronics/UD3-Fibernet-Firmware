@@ -27,12 +27,10 @@ https://github.com/benhoyt/inih
 #include <stddef.h>
 void* ini_malloc(size_t size);
 void ini_free(void* ptr);
-void* ini_realloc(void* ptr, size_t size);
 #else
 #include <stdlib.h>
 #define ini_malloc pvPortMalloc
 #define ini_free vPortFree
-#define ini_realloc realloc
 #endif
 #endif
 
@@ -95,10 +93,9 @@ static char* strncpy0(char* dest, const char* src, size_t size)
 }
 
 /* See documentation in header file. */
-int ini_parse_stream(FIL * file, void* stream, ini_handler handler,
-                     void* user)
+int ini_parse_file(FIL* file, ini_handler handler, void* user)
 {
-    /* Uses a fair bit of stack (use heap instead if you need to) */
+/* Uses a fair bit of stack (use heap instead if you need to) */
 #if INI_USE_STACK
     char line[INI_MAX_LINE];
     int max_line = INI_MAX_LINE;
@@ -106,10 +103,7 @@ int ini_parse_stream(FIL * file, void* stream, ini_handler handler,
     char* line;
     size_t max_line = INI_INITIAL_ALLOC;
 #endif
-#if INI_ALLOW_REALLOC && !INI_USE_STACK
-    char* new_line;
-    size_t offset;
-#endif
+
     char section[MAX_SECTION] = "";
     char prev_name[MAX_NAME] = "";
 
@@ -135,25 +129,6 @@ int ini_parse_stream(FIL * file, void* stream, ini_handler handler,
 
     /* Scan through stream line by line */
     while (f_gets(line,INI_MAX_LINE,file) != NULL) {
-#if INI_ALLOW_REALLOC && !INI_USE_STACK
-        offset = strlen(line);
-        while (offset == max_line - 1 && line[offset - 1] != '\n') {
-            max_line *= 2;
-            if (max_line > INI_MAX_LINE)
-                max_line = INI_MAX_LINE;
-            new_line = ini_realloc(line, max_line);
-            if (!new_line) {
-                ini_free(line);
-                return -2;
-            }
-            line = new_line;
-            if (reader(line + offset, (int)(max_line - offset), stream) == NULL)
-                break;
-            if (max_line >= INI_MAX_LINE)
-                break;
-            offset += strlen(line + offset);
-        }
-#endif
 
         lineno++;
 
@@ -242,12 +217,6 @@ int ini_parse_stream(FIL * file, void* stream, ini_handler handler,
 }
 
 /* See documentation in header file. */
-int ini_parse_file(FIL* file, ini_handler handler, void* user)
-{
-    return ini_parse_stream(file, file, handler, user);
-}
-
-/* See documentation in header file. */
 int ini_parse(const char* filename, ini_handler handler, void* user)
 {
     FIL file;
@@ -262,31 +231,4 @@ int ini_parse(const char* filename, ini_handler handler, void* user)
     error = ini_parse_file(&file, handler, user);
     f_close(&file);
     return error;
-}
-
-/* An ini_reader function to read the next line from a string buffer. This
-   is the fgets() equivalent used by ini_parse_string(). */
-static char* ini_reader_string(char* str, int num, void* stream) {
-    ini_parse_string_ctx* ctx = (ini_parse_string_ctx*)stream;
-    const char* ctx_ptr = ctx->ptr;
-    size_t ctx_num_left = ctx->num_left;
-    char* strp = str;
-    char c;
-
-    if (ctx_num_left == 0 || num < 2)
-        return NULL;
-
-    while (num > 1 && ctx_num_left != 0) {
-        c = *ctx_ptr++;
-        ctx_num_left--;
-        *strp++ = c;
-        if (c == '\n')
-            break;
-        num--;
-    }
-
-    *strp = '\0';
-    ctx->ptr = ctx_ptr;
-    ctx->num_left = ctx_num_left;
-    return str;
 }

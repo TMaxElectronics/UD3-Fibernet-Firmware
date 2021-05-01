@@ -171,7 +171,7 @@ void *pvPortRealloc(void *mem, size_t newsize)
 // Max Undo/Redo Operations
 // Set to -1 for unlimited Undo
 // Set to 0 to disable Undo
-#define ACTIONS_LIST_MAX_SIZE 80
+#define ACTIONS_LIST_MAX_SIZE 10
 
 #define EXTENSION_C 0
 #define EXTENSION_JAVA 0
@@ -1800,6 +1800,7 @@ void editorDrawStatusBar(editor_config * ec, struct a_buf* ab) {
     char status[80], r_status[80];
     // Showing up to 20 characters of the filename, followed by the number of lines.
     int len = snprintf(status, sizeof(status), " Editing: %.20s %s", ec->file_name ? ec->file_name : "New file", ec->dirty ? "(modified)" : "");
+    len = len + snprintf(&status[len], sizeof(status)-len, " Free mem: %u", xPortGetFreeHeapSize());
     int col_size = ec->row && ec->cursor_y <= ec->num_rows - 1 ? col_size = ec->row[ec->cursor_y].size : 0;
     int r_len = snprintf(r_status, sizeof(r_status), "%d/%d lines  %d/%d cols ", ec->cursor_y + 1 > ec->num_rows ? ec->num_rows : ec->cursor_y + 1, ec->num_rows,
         ec->cursor_x + 1 > col_size ? col_size : ec->cursor_x + 1, col_size);

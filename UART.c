@@ -307,7 +307,7 @@ uint32_t UART_queEmpty(){
 }
 
 void UART_setBaud(uint64_t newBaud){
-    if(newBaud > 1000000){
+    if(newBaud > 250000){
         U2MODEbits.BRGH = 1;
         U2BRG = (configPERIPHERAL_CLOCK_HZ / (4 * newBaud)) - 1;
     }else{

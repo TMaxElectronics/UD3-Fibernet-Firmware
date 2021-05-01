@@ -62,6 +62,7 @@ void startServices(){
 unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port){
     switch(min_id){
         case 0xff:
+            vPortFree(min_payload);
             break;
             
         case MIN_ID_EVENT:
@@ -155,7 +156,6 @@ static int handler(void* user, const char* section, const char* name, const char
 
 //wait for the UD3 to boot so we can get the id and calculate our mac address
 static void startupTask(void * params){
-    COMMS_pushAlarm(ALARM_PRIO_INFO, "FiberNet is waiting for ID", ALARM_NO_VALUE);
     
     vTaskDelay(200);
 
@@ -163,6 +163,7 @@ static void startupTask(void * params){
         DHCP_enable(pdTRUE);
     }
     
+    COMMS_pushAlarm(ALARM_PRIO_INFO, "FiberNet is waiting for ID", ALARM_NO_VALUE);
     
     //wait for the startupMINHandler to receive the response to MIN_ID_EVENT, and continously send the request 
     while(1){

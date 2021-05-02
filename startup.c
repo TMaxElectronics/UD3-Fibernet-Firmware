@@ -50,7 +50,7 @@ void startServices(){
     TERM_addCommand(CMD_verify, "verify", "verifies a pic bootfile", 0, &TERM_cmdListHead);
     
     //create the FS task. (checks for SD card connection/removal)
-    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(FS_task, "fs Task", configMINIMAL_STACK_SIZE + 200, NULL , tskIDLE_PRIORITY + 1, NULL);
     //TODO optimize stack usage and figure out why it needs to be this large
     
     xTaskCreate(startupTask, "startTsk", configMINIMAL_STACK_SIZE + 400, NULL , tskIDLE_PRIORITY + 2, NULL);
@@ -69,6 +69,9 @@ unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_p
             if(len_payload == 0) break;
             switch(min_payload[0]){
                 case EVENT_GET_INFO:
+                    
+                    if(deviceReady) return;
+                    
                     crcReset();
                     EVENT_ID_RESPONSE * data = (EVENT_ID_RESPONSE *) min_payload;
                     

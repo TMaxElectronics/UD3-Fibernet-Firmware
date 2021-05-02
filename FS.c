@@ -15,7 +15,8 @@ void FS_task(void * params){
     SPI_init(handle, &RPA4R, 0, 5, 400000);
     disk_setSPIHandle(handle);
     
-    FATFS fso;
+    //FATFS fso;
+    FATFS * fso = pvPortMalloc(sizeof(FATFS));
     
     unsigned SDState = 0;
     unsigned SDintialized = 0;
@@ -38,7 +39,7 @@ void FS_task(void * params){
             if(disk_initialize(0) == 0){
                 SDintialized = 1;
                 UART_print("sd initialized\r\n");
-                f_mount(&fso, "", 0);
+                f_mount(fso, "", 0);
                 f_chdir("/");
                 
                 FIL file;

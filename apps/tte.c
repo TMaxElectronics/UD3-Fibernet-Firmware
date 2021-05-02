@@ -2305,5 +2305,5 @@ static void TASK_main(void *pvParameters){
 static uint8_t INPUT_handler(TERMINAL_HANDLE * handle, uint16_t c){
     if(handle->currProgram->inputStream==NULL) return TERM_CMD_EXIT_SUCCESS;
     xStreamBufferSend(handle->currProgram->inputStream,&c,2,portMAX_DELAY);
-    return TERM_CMD_EXIT_SUCCESS;
+    return TERM_CMD_CONTINUE;
 }

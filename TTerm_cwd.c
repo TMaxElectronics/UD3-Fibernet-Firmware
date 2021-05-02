@@ -25,7 +25,8 @@
 #include "FreeRTOS.h"
 #include "FS.h"
 #include <string.h>
-
+#include "FreeRTOS_Sockets.h"
+#include "FreeRTOS_IP.h"
 
 #define BUFFER_SIZE 255
 
@@ -41,27 +42,26 @@ uint8_t CMD_cat(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     }
     
     if(argCount==1){ 
-        FIL fp;
         char * filePath = FS_newCWD(handle->cwdPath, args[0]);
-        FRESULT res = f_open(&fp,filePath,FA_READ);
-        if(res != FR_OK){
-            ttprintf("Error file open: %u\r\n", res);
+        FIL* fp = f_open(filePath,FA_READ);
+        if(!fp){
+            ttprintf("Error file open\r\n");
             vPortFree(filePath);
             vPortFree(buffer);
             return TERM_CMD_EXIT_SUCCESS;
         }
-        while(f_gets(buffer,BUFFER_SIZE,&fp) !=  0 ){
+        while(f_gets(buffer,BUFFER_SIZE,fp) !=  0 ){
             ttprintf("%s", buffer);  
             vTaskDelay(10);
         }
-        f_close(&fp); 
+        f_close(fp); 
         vPortFree(buffer);
         vPortFree(filePath);
         
     } else if(argCount>2){
         uint8_t n_files = argCount-2;
         
-        FIL fp;
+        FIL* fp;
 
         BYTE mode;
         if(strcmp(args[argCount-2], ">")==0){
@@ -72,10 +72,10 @@ uint8_t CMD_cat(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
             ttprintf("Syntax error\r\n");
             vPortFree(buffer);
         }
-        FIL out;
+        FIL* out;
         char * filePath = FS_newCWD(handle->cwdPath, args[argCount-1]);
-        FRESULT res = f_open(&out,filePath,mode);
-        if(res != FR_OK){
+        out = f_open(filePath,mode);
+        if(!out){
             ttprintf("Error creating file\r\n");
             vPortFree(buffer); 
             vPortFree(filePath);
@@ -88,26 +88,26 @@ uint8_t CMD_cat(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
         uint8_t i;
         for(i=0;i<n_files;i++){
             char * readFilePath = FS_newCWD(handle->cwdPath, args[i]);
-            FRESULT res = f_open(&fp,readFilePath,FA_READ);
-            if(res != FR_OK){
-                ttprintf("Error file open: %u\r\n", res);
+            fp = f_open(readFilePath,FA_READ);
+            if(!fp){
+                ttprintf("Error file open\r\n");
                 vPortFree(buffer);
                 vPortFree(readFilePath);
                 return TERM_CMD_EXIT_SUCCESS;
             }
         
             do{
-                res_read = f_read(&fp, buffer, BUFFER_SIZE, &bytes_read);
-                res_write = f_write(&out, buffer, bytes_read, &bytes_write);
+                res_read = f_read(fp, buffer, BUFFER_SIZE, &bytes_read);
+                res_write = f_write(out, buffer, bytes_read, &bytes_write);
                 bytes_sum += bytes_write;
             }while(res_read == FR_OK && res_write == FR_OK && bytes_read);
             vPortFree(readFilePath);
-            f_close(&fp);
+            f_close(fp);
         }
         vPortFree(filePath);
         vPortFree(buffer);
         ttprintf("%u bytes written\r\n", bytes_sum);
-        f_close(&out); 
+        f_close(out); 
     }
     
     return TERM_CMD_EXIT_SUCCESS;
@@ -169,11 +169,11 @@ uint8_t CMD_echo(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
             ttprintf("Syntax error\r\n");
             return TERM_CMD_EXIT_SUCCESS;
         }
-        FIL out;
+        FIL* out;
         char * filePath = FS_newCWD(handle->cwdPath, args[argCount-1]);
 
-        FRESULT res = f_open(&out,filePath,mode);
-        if(res != FR_OK){
+        out = f_open(filePath,mode);
+        if(!out){
             vPortFree(filePath);
             ttprintf("Error creating file\r\n");
             return TERM_CMD_EXIT_SUCCESS;
@@ -181,10 +181,10 @@ uint8_t CMD_echo(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
         if(argCount==3){  
             conv_esc(args[0]);
             ttprintf(args[0]);
-            f_puts(args[0], &out);
+            f_puts(args[0], out);
         }
         
-        f_close(&out);
+        f_close(out);
         vPortFree(filePath);
     }
 

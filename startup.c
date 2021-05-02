@@ -280,12 +280,12 @@ uint8_t CMD_verify(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
             ttprintf("verifies a pic boot file\r\nUsage:\r\n\tverify [filename]");
             return TERM_CMD_EXIT_SUCCESS;
         }else{
-            FIL file;
-            FRESULT res = f_open(&file, args[currArg], FA_READ);
-            if(res == FR_OK){
-                unsigned res = BL_verifyFile(&file, handle);
+            
+            FIL* file = f_open(args[currArg], FA_READ);
+            if(file){
+                unsigned res = BL_verifyFile(file, handle);
                 ttprintf("\"%s\" is %s", args[currArg], res ? "valid" : "invalid");
-                f_close(&file);
+                f_close(file);
             }else{
                 ttprintf("\"%s\" could not be found", args[currArg]);
             }

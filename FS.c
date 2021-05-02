@@ -42,10 +42,10 @@ void FS_task(void * params){
                 f_mount(fso, "", 0);
                 f_chdir("/");
                 
-                FIL file;
-                FRESULT res = f_open(&file, "/boot.hex", FA_READ);
-                if(res == FR_OK){
-                    f_close(&file);
+                
+                FIL * file = f_open("/boot.hex", FA_READ);
+                if(file){
+                    f_close(file);
                     f_rename("/boot.hex", "/bootDone.hex");
                 }
                 

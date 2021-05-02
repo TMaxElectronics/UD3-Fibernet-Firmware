@@ -89,8 +89,7 @@ TERMINAL_HANDLE * TERM_createNewHandle(TermPrintHandler printFunction, unsigned 
         TERM_addCommand(CMD_mkdir, "mkdir", "Make directory", 0, &TERM_cmdListHead);
         #endif  
         
-        TERM_addCommand(CMD_ini, "ini", "ini", 0, &TERM_cmdListHead);
-        
+      
         TermCommandDescriptor * test = TERM_addCommand(CMD_testCommandHandler, "test", "tests stuff", 0, &TERM_cmdListHead);
         head = ACL_create();
         ACL_add(head, "-ra");
@@ -156,7 +155,7 @@ void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...){
 uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * handle){
     uint16_t currPos = 0;
     for(;currPos < length; currPos++){
-        //ttprintfEcho("checking 0x%02x\r\n", data[currPos]);
+        ttprintfEcho("checking 0x%02x\r\n", data[currPos]);
         if(handle->currEscSeqPos != 0xff){
             if(handle->currEscSeqPos == 0){
                 if(data[currPos] == '['){

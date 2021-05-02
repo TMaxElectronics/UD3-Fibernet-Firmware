@@ -87,6 +87,7 @@ enum vt100{
 #define _VT100_CURSOR_UP            0x1005
 #define _VT100_CURSOR_DOWN          0x1006
 #define _VT100_BACKWARDS_TAB        0x1007
+#define _VT100_KEY_DEL              0x1008
 
 enum color{
     _VT100_BLACK,

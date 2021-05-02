@@ -126,7 +126,7 @@ void FTP_task(void * params){
             //create the terminal handle with the FTP_CLIENT_HANDLE as the port, and disable text echo
             TERMINAL_HANDLE * term = TERM_createNewHandle(print, (void *) newClient, 0, &FTP_cmdListHead, FTP_errorPrinter, "FTP");
             //create the task that will take care of the new client. Needs a lot of stack because of FatFs :(
-            xTaskCreate(FTP_clientTask, "FTP Client", configMINIMAL_STACK_SIZE + 500, (void *) term, tskIDLE_PRIORITY + 1, NULL);
+            xTaskCreate(FTP_clientTask, "FTP Client", configMINIMAL_STACK_SIZE + 150, (void *) term, tskIDLE_PRIORITY + 1, NULL);
         }
 	}
 }
@@ -558,7 +558,6 @@ static uint8_t FTP_RETR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     }
     
     FRESULT res;
-    FIL file;
     UINT numRead;
     char * buffer = pvPortMalloc(ipconfigTCP_MSS);
     
@@ -574,12 +573,12 @@ static uint8_t FTP_RETR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     char * filePath = FS_newCWD(client->cwdPath, args[0]);
     
     //open it
-    res = f_open(&file, filePath, FA_READ);
-    if(res == FR_OK){
+    FIL* file = f_open(filePath, FA_READ);
+    if(file){
     
         //open the data socket
         if(!FTP_openTranferSocket(client)){
-            f_close(&file);  
+            f_close(file);  
             vPortFree(buffer);
             vPortFree(filePath);
             ttprintf("550 couldn't open data socket\r\n", res);
@@ -589,7 +588,7 @@ static uint8_t FTP_RETR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
         //stream the file's data to the client
         ttprintf("150 ok get ready\r\n");
         while(1){
-            res = f_read(&file, buffer, ipconfigTCP_MSS, &numRead); 
+            res = f_read(file, buffer, ipconfigTCP_MSS, &numRead); 
             if (res != FR_OK || numRead == 0) break;  
             BaseType_t sendRes = FreeRTOS_send(client->clientTX, buffer, numRead, 0);
             if(sendRes != numRead){
@@ -598,7 +597,7 @@ static uint8_t FTP_RETR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
         }
         
         //clean up
-        f_close(&file);  
+        f_close(file);  
         ttprintf("226 and thats it\r\n");
         FTP_closeTranferSocket(client);
     }else{
@@ -635,7 +634,6 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     }
     
     FRESULT res;
-    FIL file;
     int32_t numRead;
     uint8_t start_flash=pdFALSE;
     char * buffer = pvPortMalloc(ipconfigTCP_MSS);
@@ -652,10 +650,10 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     char * filePath = FS_newCWD(client->cwdPath, args[0]);
     
     //check if the file to be written already exists, if so, delete it
-    res = f_open(&file, filePath, FA_READ);
-    if(res == FR_OK){
+    FIL* file = f_open(filePath, FA_READ);
+    if(file){
         //File exists => kill it
-        f_close(&file);  
+        f_close(file);  
         res = f_unlink(filePath);
         if(res != FR_OK){
             vPortFree(buffer);
@@ -666,8 +664,8 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     }
     
     //open the file for writing
-    res = f_open(&file, filePath, FA_WRITE | FA_OPEN_ALWAYS);
-    if(res != FR_OK){
+    file = f_open(filePath, FA_WRITE | FA_OPEN_ALWAYS);
+    if(!file){
         vPortFree(buffer);
         vPortFree(filePath);
         ttprintf("550 can't create the file (%d)\r\n", res);
@@ -678,7 +676,7 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     
     //open the data socket
     if(!FTP_openTranferSocket(client)){
-        f_close(&file);  
+        f_close(file);  
         vPortFree(buffer);
         vPortFree(filePath);
         ttprintf("550 can't create the file (couldn't open data socket)\r\n", res);
@@ -690,7 +688,7 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
         numRead = FreeRTOS_recv(client->clientTX, buffer, ipconfigTCP_MSS, 0);
         if (numRead <= 0) break;  
         
-        res = f_write(&file, buffer, numRead, &numRead); 
+        res = f_write(file, buffer, numRead, &numRead); 
         
         if (res != FR_OK) break;
     }
@@ -702,7 +700,7 @@ static uint8_t FTP_STOR(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     }
     
     //clean up
-    f_close(&file); 
+    f_close(file); 
 
     FTP_closeTranferSocket(client);
     
@@ -829,7 +827,6 @@ static uint8_t FTP_DELE(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     }
     
     FRESULT res;
-    FIL file;
     
     FTP_CLIENT_HANDLE * client = (FTP_CLIENT_HANDLE *) handle->port;
     
@@ -842,13 +839,13 @@ static uint8_t FTP_DELE(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args
     char * filePath = FS_newCWD(client->cwdPath, args[0]);
     
     //check if the file exists
-    res = f_open(&file, filePath, FA_READ);
-    if(res != FR_OK){
+    FIL* file = f_open(filePath, FA_READ);
+    if(!file){
         vPortFree(filePath);
         ttprintf("550 that doesn't exist(%d)\r\n", res);
         return TERM_CMD_EXIT_SUCCESS;
     }
-    f_close(&file);
+    f_close(file);
     
     //and kill it
     res = f_unlink(filePath);

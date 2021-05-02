@@ -3542,8 +3542,7 @@ FRESULT f_mount (
 /* Open or Create a File                                                 */
 /*-----------------------------------------------------------------------*/
 
-FRESULT f_open (
-	FIL* fp,			/* Pointer to the blank file object */
+FIL * f_open (
 	const TCHAR* path,	/* Pointer to the file name */
 	BYTE mode			/* Access mode and file open mode flags */
 )
@@ -3557,8 +3556,8 @@ FRESULT f_open (
 #endif
 	DEF_NAMBUF
 
-
-	if (!fp) return FR_INVALID_OBJECT;
+    FIL * fp = pvPortMalloc(sizeof(FIL));
+	//if (!fp) return FR_INVALID_OBJECT;
 
 	/* Get logical drive number */
 	mode &= FF_FS_READONLY ? FA_READ : FA_READ | FA_WRITE | FA_CREATE_ALWAYS | FA_CREATE_NEW | FA_OPEN_ALWAYS | FA_OPEN_APPEND;
@@ -3720,9 +3719,12 @@ FRESULT f_open (
 		FREE_NAMBUF();
 	}
 
-	if (res != FR_OK) fp->obj.fs = 0;	/* Invalidate file object on error */
-
-	LEAVE_FF(fs, res);
+	if (res != FR_OK){
+        fp->obj.fs = 0;	/* Invalidate file object on error */
+        vPortFree(fp);
+        return NULL;
+    } 
+    return fp;
 }
 
 
@@ -4059,6 +4061,7 @@ FRESULT f_close (
 #endif
 		}
 	}
+    vPortFree(fp);
 	return res;
 }
 

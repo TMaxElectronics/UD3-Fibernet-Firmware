@@ -34,7 +34,7 @@
 #include "TTerm_cmd.h"
 #include "semphr.h"
 #include "stream_buffer.h"
-#include "system.h"
+//#include "system.h"
 #include "THex.h"
 #include "UART.h"
 #include "FTP.h"
@@ -135,15 +135,14 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
         ttprintf("No file specified\r\n");
         return TERM_CMD_EXIT_SUCCESS;
     }
-    FIL fp;
-    FRESULT res = f_open(&fp,args[0],FA_READ);
-    if(res != FR_OK){
+    FRESULT res;
+    FIL* fp = f_open(args[0],FA_READ);
+    if(!fp){
         ttprintf("Error file open: %u\r\n", res);
         return TERM_CMD_EXIT_SUCCESS;
     }
-    FIL log;
-    res = f_open(&log,"/UD3_flash.log",FA_WRITE | FA_CREATE_ALWAYS);
-    if(res != FR_OK){
+    FIL* log = f_open("/UD3_flash.log",FA_WRITE | FA_CREATE_ALWAYS);
+    if(!log){
         ttprintf("Error creating log\r\n");
         return TERM_CMD_EXIT_SUCCESS;
     }
@@ -168,7 +167,7 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     UART_flush();
     uint8_t* buffer = pvPortMalloc(BUFFER_SIZE);
     unsigned char* rowData = pvPortMalloc(BUFFER_SIZE/2);
-    f_gets(buffer,BUFFER_SIZE,&fp);
+    f_gets(buffer,BUFFER_SIZE,fp);
     lineLen = strlen(buffer);
     err = CyBtldr_ParseHeader(lineLen ,(unsigned char *)buffer , &siliconID , &siliconRev ,&packetChkSumType);
     CyBtldr_SetCheckSumType((CyBtldr_ChecksumType)packetChkSumType);
@@ -180,10 +179,10 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 	comm1.MaxTransferSize =255;
     
     if(err==CYRET_SUCCESS){
-        f_printf(&log, "Opened CYACD, found silicon ID: %u, silicon rev: %u\r\n", siliconID, siliconRev);
+        f_printf(log, "Opened CYACD, found silicon ID: %u, silicon rev: %u\r\n", siliconID, siliconRev);
         err = CyBtldr_StartBootloadOperation(&comm1 ,siliconID, siliconRev ,&blVer);
-        f_printf(&log, "Opened connection res: %u blVer: %u\r\n", err, blVer);
-		while((err == CYRET_SUCCESS)&& ( f_gets(buffer,600,&fp) !=  0 ))
+        f_printf(log, "Opened connection res: %u blVer: %u\r\n", err, blVer);
+		while((err == CYRET_SUCCESS)&& ( f_gets(buffer,600,fp) !=  0 ))
 		{
             /* Get the string length for the line*/
 			lineLen =  strlen(buffer);
@@ -195,12 +194,12 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 			
 			/*Parse row data*/
 			err = CyBtldr_ParseRowData((unsigned int)lineLen,(unsigned char *)buffer, &arrayId, &rowNum, rowData, &rowSize, &checksum);
-            f_printf(&log, "Parse res: %u row: %u\r\n", err, rowNum);
+            f_printf(log, "Parse res: %u row: %u\r\n", err, rowNum);
 			if (CYRET_SUCCESS == err)
             {
 				/* Program Row */
 				err = CyBtldr_ProgramRow(arrayId, rowNum, rowData, rowSize);
-				f_printf(&log, "Programm res: %u row: %u\r\n", err, rowNum);
+				f_printf(log, "Programm res: %u row: %u\r\n", err, rowNum);
 	            if (CYRET_SUCCESS == err)
 				{
 					/* Verify Row . Check whether the checksum received from bootloader matches
@@ -215,30 +214,30 @@ uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
 	}
     switch(err){
         case CYRET_ERR_DEVICE:
-            f_printf(&log, "The detected device does not match the desired device\r\n");
+            f_printf(log, "The detected device does not match the desired device\r\n");
             break;
         case CYRET_ERR_VERSION:
-            f_printf(&log, "The detected bootloader version is not compatible\r\n");
+            f_printf(log, "The detected bootloader version is not compatible\r\n");
             break;
         case CYRET_ERR_BTLDR:
-            f_printf(&log, "The bootloader experienced an error\r\n");
+            f_printf(log, "The bootloader experienced an error\r\n");
             break;
         case CYRET_ERR_ROW:
-            f_printf(&log, "The flash row is not valid\r\n");
+            f_printf(log, "The flash row is not valid\r\n");
             break;
         case CYRET_SUCCESS:
-            f_printf(&log, "Finished with no errors\r\n");
+            f_printf(log, "Finished with no errors\r\n");
             break;
         default:
-            f_printf(&log, "Unknown error: %u\r\n", err);
+            f_printf(log, "Unknown error: %u\r\n", err);
             break;
             
     }
    
     vPortFree(buffer);
     vPortFree(rowData);
-    f_close(&fp);
-    f_close(&log);
+    f_close(fp);
+    f_close(log);
     UART_flush();
     UART_bootloader = pdFALSE;
     
@@ -276,32 +275,6 @@ uint8_t CMD_cls(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     
     TERM_sendVT100Code(handle, _VT100_RESET, 0); TERM_sendVT100Code(handle, _VT100_CURSOR_POS1, 0);
     TERM_printBootMessage(handle);
-    
-    return TERM_CMD_EXIT_SUCCESS;
-}
-
-static int handler(void* user, const char* section, const char* name,
-                   const char* value)
-{
-    TERMINAL_HANDLE * handle = (TERMINAL_HANDLE*)user;
-    ttprintf("sec: %s name: %s value: %s", section, name, value);
-    
-    return 1;
-}
-
-uint8_t CMD_ini(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
-    uint8_t currArg = 0;
-    uint8_t returnCode = TERM_CMD_EXIT_SUCCESS;
-    for(;currArg<argCount; currArg++){
-        if(strcmp(args[currArg], "-?") == 0){
-            ttprintf("clears the screen\r\n");
-            return TERM_CMD_EXIT_SUCCESS;
-        }
-    }
-    
-   
-    
-        
     
     return TERM_CMD_EXIT_SUCCESS;
 }

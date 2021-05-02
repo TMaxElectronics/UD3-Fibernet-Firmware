@@ -29,7 +29,7 @@
 
 #define APP_NAME "tte"
 #define APP_DESCRIPTION "editor"
-#define APP_STACK 1024
+#define APP_STACK 512
 
 #define LINE_SIZE 200
 
@@ -1252,10 +1252,10 @@ void editorOpen(editor_config * ec, TERMINAL_HANDLE * handle, char* file_name) {
 
     // If the file dosen't exist, create it, otherwise just open it
     BYTE mode = fileExists(file_name) ? FA_READ : FA_WRITE | FA_CREATE_ALWAYS;
-    FIL file;
-    FRESULT res = f_open(&file,file_name,mode);
+    
+    FIL* file = f_open(file_name,mode);
 
-    if (res != FR_OK)
+    if (!file)
         die(handle, "Failed to open the file");
 
     char* line = NULL;
@@ -1265,16 +1265,19 @@ void editorOpen(editor_config * ec, TERMINAL_HANDLE * handle, char* file_name) {
     ssize_t line_len;
     line = pvPortMalloc(LINE_SIZE);
 
-    while (f_gets (line, LINE_SIZE, &file) != 0) {
+    while (f_gets (line, LINE_SIZE, file) != 0) {
         line_len = strlen(line);
         // We already know each row represents one line of text, there's no need
         // to keep carriage return and newline characters.
+        
+        if (line_len > 0 && (line[line_len - 1] == '\n' || line[line_len - 1] == '\r'))
+            line_len--;
         if (line_len > 0 && (line[line_len - 1] == '\n' || line[line_len - 1] == '\r'))
             line_len--;
         editorInsertRow(ec, ec->num_rows, line, line_len);
     }
     vPortFree(line);
-    f_close(&file);
+    f_close(file);
     ec->dirty = 0;
 }
 
@@ -1294,20 +1297,20 @@ void editorSave(editor_config * ec, TERMINAL_HANDLE * handle) {
     // We want to create if it doesn't already exist (O_CREAT flag), giving
     // 0644 permissions (the standard ones). O_RDWR stands for reading and
     // writing.
-    FIL out;
-    FRESULT res = f_open(&out,ec->file_name,FA_WRITE | FA_CREATE_ALWAYS);
-    if (res == FR_OK) {
+    
+    FIL* out = f_open(ec->file_name,FA_WRITE | FA_CREATE_ALWAYS);
+    if (out) {
         // Writing the file.
         uint bytes_written=0;
-        f_write(&out, buf, len, &bytes_written);
+        f_write(out, buf, len, &bytes_written);
         if (bytes_written == len) {
-            f_close(&out);
+            f_close(out);
             vPortFree(buf);
             ec->dirty = 0;
             editorSetStatusMessage(ec, "%d bytes written to disk", len);
             return;
         }
-        f_close(&out);
+        f_close(out);
     }
 
     vPortFree(buf);
@@ -2153,10 +2156,10 @@ void editorProcessKeypress(editor_config * ec, TERMINAL_HANDLE * handle) {
             break;
         case BACKSPACE:
         case CTRL_KEY('h'):
-        case DEL_KEY:
+        case _VT100_KEY_DEL:
             {
                 if(ec->cursor_x == 0 && ec->cursor_y == 0) break;
-                if (c == DEL_KEY)
+                if (c == _VT100_KEY_DEL)
                     editorMoveCursor(ec, ARROW_RIGHT);
                 editor_row* row = &ec->row[ec->cursor_y];
                 char* string = ec->cursor_x > 0 ? strndup(&row->chars[ec->cursor_x-1], 1) : NULL;

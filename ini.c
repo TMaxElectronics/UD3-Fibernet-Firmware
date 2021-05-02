@@ -219,16 +219,17 @@ int ini_parse_file(FIL* file, ini_handler handler, void* user)
 /* See documentation in header file. */
 int ini_parse(const char* filename, ini_handler handler, void* user)
 {
-    FIL file;
+    
+    
     int error;
     
-    FRESULT res = f_open(&file,filename,FA_READ);
+    FIL* file = f_open(filename,FA_READ);
     
-    if(res != FR_OK){
+    if(!file){
             return -1;
     }
     
-    error = ini_parse_file(&file, handler, user);
-    f_close(&file);
+    error = ini_parse_file(file, handler, user);
+    f_close(file);
     return error;
 }

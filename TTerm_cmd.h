@@ -16,7 +16,5 @@ uint8_t CMD_cls(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 uint8_t CMD_boot(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
 
 uint8_t CMD_reset(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
-uint8_t CMD_ini(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args);
-
 
 #endif

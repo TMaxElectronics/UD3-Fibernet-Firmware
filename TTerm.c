@@ -221,6 +221,19 @@ uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * ha
                         }
                     }else if(data[currPos] == 'Z'){                      //shift tab or ident request(at least from exp.; didn't find any official spec containing this)
                         TERM_handleInput(_VT100_BACKWARDS_TAB, handle);
+                        
+                    }else if(data[currPos] == '~'){                      //Tilde the end of a special key command (Esc[{keyID}~)
+                        if(handle->escSeqBuff[1] == 0x32){            //insert       
+                            TERM_handleInput(_VT100_KEY_INS, handle);
+                        }else if(handle->escSeqBuff[1] == 0x33){      //delete     
+                            TERM_handleInput(_VT100_KEY_DEL, handle);
+                        }else if(handle->escSeqBuff[1] == 0x35){      //page up      
+                            TERM_handleInput(_VT100_KEY_PAGE_UP, handle);
+                        }else if(handle->escSeqBuff[1] == 0x36){      //page down 
+                            TERM_handleInput(_VT100_KEY_PAGE_DOWN, handle);
+                        }else{
+                            TERM_handleInput(_VT100_INVALID, handle);
+                        }
                     }else{                      //others
                         handle->escSeqBuff[handle->currEscSeqPos+1] = 0;
                     }

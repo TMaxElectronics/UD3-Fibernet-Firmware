@@ -2131,17 +2131,17 @@ void editorProcessKeypress(editor_config * ec, TERMINAL_HANDLE * handle) {
         case _VT100_CURSOR_FORWARD:
             editorMoveCursor(ec, c);
             break;
-        case PAGE_UP:
-        case PAGE_DOWN:
+        case _VT100_KEY_PAGE_UP:
+        case _VT100_KEY_PAGE_DOWN:
             { // You can't declare variables directly inside a switch statement.
-                if (c == PAGE_UP)
+                if (c == _VT100_KEY_PAGE_UP)
                     ec->cursor_y = ec->row_offset;
-                else if (c == PAGE_DOWN)
+                else if (c == _VT100_KEY_PAGE_DOWN)
                     ec->cursor_y = ec->row_offset + ec->screen_rows - 1;
 
                 int times = ec->screen_rows;
                 while (times--)
-                    editorMoveCursor(ec, c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+                    editorMoveCursor(ec, c == _VT100_KEY_PAGE_UP ? _VT100_CURSOR_UP : _VT100_CURSOR_DOWN);
             }
             break;
         case _VT100_KEY_POS1:
@@ -2160,7 +2160,7 @@ void editorProcessKeypress(editor_config * ec, TERMINAL_HANDLE * handle) {
             {
                 if(ec->cursor_x == 0 && ec->cursor_y == 0) break;
                 if (c == _VT100_KEY_DEL)
-                    editorMoveCursor(ec, ARROW_RIGHT);
+                    editorMoveCursor(ec, _VT100_CURSOR_FORWARD);
                 editor_row* row = &ec->row[ec->cursor_y];
                 char* string = ec->cursor_x > 0 ? strndup(&row->chars[ec->cursor_x-1], 1) : NULL;
                 makeAction(ec, DelChar, string);

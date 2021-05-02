@@ -155,7 +155,7 @@ void TERM_printDebug(TERMINAL_HANDLE * handle, char * format, ...){
 uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * handle){
     uint16_t currPos = 0;
     for(;currPos < length; currPos++){
-        ttprintfEcho("checking 0x%02x\r\n", data[currPos]);
+        //ttprintfEcho("checking 0x%02x\r\n", data[currPos]);
         if(handle->currEscSeqPos != 0xff){
             if(handle->currEscSeqPos == 0){
                 if(data[currPos] == '['){
@@ -253,7 +253,7 @@ uint8_t TERM_processBuffer(uint8_t * data, uint16_t length, TERMINAL_HANDLE * ha
 }
 
 unsigned isACIILetter(char c){
-    return (c > 64 && c < 91) || (c > 96 && c < 122);
+    return (c > 64 && c < 91) || (c > 96 && c < 122) || c == '~';
 }
 
 void TERM_printBootMessage(TERMINAL_HANDLE * handle){

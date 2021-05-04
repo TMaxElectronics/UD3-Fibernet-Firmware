@@ -93,6 +93,7 @@ enum vt100{
 #define _VT100_KEY_PAGE_DOWN        0x100b
 #define _VT100_INVALID              0xffff
 
+#define _CODE_ESC 0x1b
 
 enum color{
     _VT100_BLACK,

@@ -44,6 +44,7 @@
 #include "cybtldr_api.h"
 #include "include/FiberComms.h"
 #include "include/ini.h"
+#include "min.h"
 
 uint8_t CMD_testCommandHandler(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
     uint8_t currArg = 0;

@@ -321,19 +321,19 @@ uint32_t UART_getBaud(){
     return (configPERIPHERAL_CLOCK_HZ/ (((U2MODEbits.BRGH) ? 4 : 16) * (U2BRG+1)));
 }
 
-inline unsigned UART_isOERR(){
+unsigned UART_isOERR(){
     return (U2STA & _U2STA_OERR_MASK) != 0;
 }
 
-inline unsigned UART_isFERR(){
+unsigned UART_isFERR(){
     return (U2STA & _U2STA_FERR_MASK) != 0;
 }
 
-inline void UART_clearOERR(){
+void UART_clearOERR(){
     U2STACLR = _U2STA_OERR_MASK;
 }
 
-inline void UART_clearFERR(){
+void UART_clearFERR(){
     U2STACLR = _U2STA_FERR_MASK;
 }
 

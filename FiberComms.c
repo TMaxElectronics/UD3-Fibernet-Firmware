@@ -23,6 +23,7 @@
 #include "TTerm_cmd.h"
 #include "FreeRTOS/Core/include/stream_buffer.h"
 #include "apps/apps.h"
+#include "LED.h"
 
 char FIND_queryString[] = "FINDReq=1;";
 struct min_context * COMMS_UDP;

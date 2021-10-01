@@ -20,6 +20,7 @@ https://github.com/benhoyt/inih
 #include <string.h>
 
 #include "include/ini.h"
+#include "FreeRTOS.h"
 
 
 #if !INI_USE_STACK

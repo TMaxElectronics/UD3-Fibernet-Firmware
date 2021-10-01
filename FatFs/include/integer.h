@@ -30,7 +30,7 @@ typedef unsigned short	WCHAR;
 /* These types must be 32-bit integer */
 typedef long			LONG;
 typedef unsigned long	ULONG;
-typedef unsigned long	DWORD;
+typedef uint32_t		DWORD;	/* 32-bit unsigned integer */
 
 #endif
 

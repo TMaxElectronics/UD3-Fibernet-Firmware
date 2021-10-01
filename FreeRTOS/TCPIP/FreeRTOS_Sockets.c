@@ -41,6 +41,8 @@
 #include "FreeRTOS_DNS.h"
 #include "NetworkBufferManagement.h"
 
+#include "UART.h"
+
 /* A tool to measure RAM usage. By default, it is disabled
 and it won't add any code.
 See also tools/tcp_mem_stats.md */

@@ -254,7 +254,9 @@ BaseType_t ptr_is_in_ram(void* ptr);
 uint8_t TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
 void TERM_LIST_add(TermCommandDescriptor * item, TermCommandDescriptor * head);
 
+#ifdef TERM_SUPPORT_CWD
 #include "TTerm_cwd.h"
+#endif   
 
 #endif
 #endif

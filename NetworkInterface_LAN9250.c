@@ -9,6 +9,8 @@
 #include "NetworkBufferManagement.h"
 
 #include "LAN9250.h"
+#include "UART.h"
+#include "LED.h"
 #include "include/FiberComms.h"
 
 unsigned debug = 0;
@@ -39,7 +41,7 @@ BaseType_t xGetPhyLinkStatus( void ){
 }
 
 void vLoggingPrintf( const char *pcFormatString, ... ){
-    UART_printDebug(pcFormatString);
+    UART_printDebug((char*)pcFormatString);
 }
 
 void vApplicationIPNetworkEventHook( eIPCallbackEvent_t eNetworkEvent ){

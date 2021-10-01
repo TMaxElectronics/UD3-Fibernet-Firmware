@@ -12,6 +12,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "FreeRTOS_Sockets.h"
 #include "min.h"
 #include "FiberComms.h"
 #include "min_id.h"
@@ -23,6 +24,9 @@
 #include "System.h"
 #include "THex/include/THex.h"
 #include "include/UART.h"
+#include "ini.h"
+#include "LED.h"
+#include "ConfigPerformance.h"
 
 uint8_t MAC_ADDRESS[6] = {DEF_MAC_ADDR};
 uint8_t IP_ADDRESS[4] = {DEF_IP_ADDRESS};
@@ -70,7 +74,7 @@ unsigned startupMINHandler(uint8_t min_id, uint8_t * min_payload, uint16_t len_p
             switch(min_payload[0]){
                 case EVENT_GET_INFO:
                     
-                    if(deviceReady) return;
+                    if(deviceReady) return 0;
                     
                     crcReset();
                     EVENT_ID_RESPONSE * data = (EVENT_ID_RESPONSE *) min_payload;
@@ -155,18 +159,27 @@ static int handler(void* user, const char* section, const char* name, const char
     return 1;
 }
 
-
+#define INI_N_TRYS 5
 
 //wait for the UD3 to boot so we can get the id and calculate our mac address
 static void startupTask(void * params){
     
     vTaskDelay(200);
-
-    if(ini_parse("config.ini", handler, NULL) !=0){
+    
+    int flag=0;
+    for(int i=0;i<INI_N_TRYS;i++){
+        flag = ini_parse("config.ini", handler, NULL);
+        if(flag==0){
+            break;
+        }
+        vTaskDelay(200);
+    }
+    if(flag != 0){
+        COMMS_pushAlarm(ALARM_PRIO_WARN, "FiberNet: No config file starting default", ALARM_NO_VALUE);
         DHCP_enable(pdTRUE);
     }
-    
-    COMMS_pushAlarm(ALARM_PRIO_INFO, "FiberNet is waiting for ID", ALARM_NO_VALUE);
+
+    COMMS_pushAlarm(ALARM_PRIO_INFO, "FiberNet: is waiting for ID", ALARM_NO_VALUE);
     
     //wait for the startupMINHandler to receive the response to MIN_ID_EVENT, and continously send the request 
     while(1){

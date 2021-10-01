@@ -10,6 +10,7 @@
 #include "FS.h"
 #include "FiberComms.h"
 #include "TTerm_AC.h"
+#include "TTerm_cmd.h"
 
 #define FTP_SERVER_PORT 21
 #define FTP_DATA_PORT 20
@@ -456,7 +457,7 @@ static uint16_t FTP_generateDirlistEntry(FILINFO * fno, char * dst){
 
 //opens the data socket to the client, with the parameters specified in the PORT command
 static unsigned FTP_openTranferSocket(FTP_CLIENT_HANDLE * client){
-    if(client->clientTX != 0) return; //socket is already open
+    if(client->clientTX != 0) return 0; //socket is already open
     struct freertos_sockaddr xSlavAddress;
     
     client->clientTX = FreeRTOS_socket(FREERTOS_AF_INET, FREERTOS_SOCK_STREAM, FREERTOS_IPPROTO_TCP);

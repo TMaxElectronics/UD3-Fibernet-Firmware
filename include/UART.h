@@ -27,10 +27,10 @@ uint32_t UART_queEmpty();
 void UART_flush();
 void UART_sendBytes(uint8_t * data, uint32_t length, unsigned freeAfterSend);
 
-inline unsigned UART_isOERR();
-inline unsigned UART_isFERR();
-inline void UART_clearOERR();
-inline void UART_clearFERR();
+unsigned UART_isOERR();
+unsigned UART_isFERR();
+void UART_clearOERR();
+void UART_clearFERR();
 
 const char * UART_getVT100Code(uint16_t cmd, uint8_t var);
 void UART_setBaud(uint64_t newBaud);

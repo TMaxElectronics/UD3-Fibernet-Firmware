@@ -20,3 +20,4 @@ enum BOOTLOADER_CODE{
 void SYS_waitCP0(uint16_t length);
 
 uint32_t SYS_getCPULoadFine(TaskStatus_t * taskStats, uint32_t taskCount, uint32_t sysTime);
+const char * SYS_getTaskStateString(eTaskState state);

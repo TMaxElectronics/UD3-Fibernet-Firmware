@@ -23,6 +23,7 @@
 
 #include "iotop.h"
 #include "string.h"
+#include "UART.h"
 
 #define APP_NAME "iotop"
 #define APP_DESCRIPTION "shows performance stats"

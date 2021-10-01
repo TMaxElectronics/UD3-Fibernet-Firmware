@@ -22,5 +22,6 @@ void LED_ethPacketReceivedHook();
 void LED_minPacketReceivedHook();
 void LED_errorFlashHook();
 void LED_ethDHCPStateChangeHook(unsigned newState);
+void LED_showCode(uint8_t * code);
 
 #endif

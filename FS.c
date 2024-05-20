@@ -27,10 +27,10 @@ void FS_task(void * params){
         if(currState != SDState){
             SDState = currState;
             if(SDState){        //sd card was just connected
-                COMMS_eventHook(FS_CARD_CONNECTED);
+                //COMMS_eventHook(FS_CARD_CONNECTED);
                 vTaskDelay(50);
             }else{              //sd card was just removed
-                COMMS_eventHook(FS_CARD_REMOVED);
+                //COMMS_eventHook(FS_CARD_REMOVED);
                 SDintialized = 0;
                 f_mount(NULL, "", 0);
             }
@@ -39,7 +39,7 @@ void FS_task(void * params){
         if(SDState && !SDintialized){
             if(disk_initialize(0) == 0){
                 SDintialized = 1;
-                UART_print("sd initialized\r\n");
+                //UART_print("sd initialized\r\n");
                 f_mount(fso, "", 0);
                 f_chdir("/");
                 
@@ -51,7 +51,7 @@ void FS_task(void * params){
                 }
                 
             }else{
-                UART_print("sd no initialized\r\n");
+                //UART_print("sd no initialized\r\n");
             }
         }
         

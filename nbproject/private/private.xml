@@ -3,12 +3,9 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/Git/UD3-Fibernet-Firmware/LAN9250.c</file>
-            <file>file:/C:/Git/UD3-Fibernet-Firmware/apps/tte.c</file>
-            <file>file:/C:/Git/UD3-Fibernet-Firmware/TTerm.c</file>
-            <file>file:/C:/Git/UD3-Fibernet-Firmware/NetworkInterface_LAN9250.c</file>
-            <file>file:/C:/Git/UD3-Fibernet-Firmware/FreeRTOS/Core/portable/MemMang/heap_4.c</file>
-            <file>file:/C:/Git/UD3-Fibernet-Firmware/SPI.c</file>
+            <file>file:/D:/Git/UD3-Fibernet-Firmware/FiberComms.c</file>
+            <file>file:/D:/Git/UD3-Fibernet-Firmware/main.c</file>
+            <file>file:/D:/Git/UD3-Fibernet-Firmware/startup.c</file>
         </group>
     </open-files>
 </project-private>

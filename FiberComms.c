@@ -180,6 +180,15 @@ uint16_t min_checkUDPFrame(uint8_t * data){
     return MIN_NON_TRANSPORT_FRAME;
 }
 
+void send_and_free(uint8_t * min_payload, uint16_t len_payload){
+    ConnectionStats.txPacketsTotal++;
+    ConnectionStats.txBytesLast += len_payload;
+    //we got a valid transport frame from the UD3, so we send it on to the PC
+    COMMS_sendDataToLastClient(min_payload, len_payload);
+    LED_minPacketReceivedHook();
+    vPortFree(min_payload); //the data is copied by the send function so we can free it here
+}
+
 //handle incoming MIN frames (except for transport frames from UDP as those are forwarded immediately)
 void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len_payload, void * port){
     if(!deviceReady) if(startupMINHandler(min_id, min_payload, len_payload, port)) return;
@@ -190,33 +199,14 @@ void min_application_handler(uint8_t min_id, uint8_t * min_payload, uint16_t len
             UART_queBuffer(min_payload, len_payload, 1);
             LED_ethPacketReceivedHook();
         }else if(port == COMMS_UART){
-            ConnectionStats.txPacketsTotal++;
-            ConnectionStats.txBytesLast += len_payload;
             //we got a valid transport frame from the UD3, so we send it on to the PC
-            COMMS_sendDataToLastClient(min_payload, len_payload);
-            LED_minPacketReceivedHook();
-            vPortFree(min_payload); //the data is copied by the send function so we can free it here
+            send_and_free(min_payload, len_payload);
         }
     }else{
         
         switch(min_id){
             case MIN_ID_DEBUG:
                 xStreamBufferSend(streamRx, min_payload, len_payload,2);
-                break;
-            case MIN_ID_EVENT:
-                if(len_payload == 0) break;
-                switch(min_payload[0]){
-                    case EVENT_GET_INFO:
-                        break;
-
-                    default:
-                        break;
-                }
-
-                break;
-        
-            case MIN_ID_ALARM:
-                
                 break;
             default:
                 if(port == COMMS_UDP){

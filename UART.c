@@ -212,7 +212,7 @@ void UART_receiveTask(void *pvParameters){
             UART_clearFERR();
             LED_errorFlashHook();
         }
-        vTaskDelay(pdMS_TO_TICKS(2));
+        vTaskDelay(1);
     }
 }
 void UART_flush(){

@@ -1052,6 +1052,7 @@ void editorDelRow(editor_config * ec, int at) {
     ec->dirty++;
 }
 
+
 // -1 down, 1 up
 void editorFlipRow(editor_config * ec, int dir) {
     editor_row c_row = ec->row[ec->cursor_y];
@@ -1274,7 +1275,13 @@ void editorOpen(editor_config * ec, TERMINAL_HANDLE * handle, char* file_name) {
             line_len--;
         if (line_len > 0 && (line[line_len - 1] == '\n' || line[line_len - 1] == '\r'))
             line_len--;
-        editorInsertRow(ec, ec->num_rows, line, line_len);
+        int32_t free = (int32_t)xPortGetFreeHeapSize() - (line_len+1 + (sizeof(editor_row) * (ec->num_rows + 1)));
+        if(free < 5000){
+            editorInsertRow(ec, ec->num_rows, "*****Out of memory****", sizeof("*****Out of memory****"));
+            break;
+        }else{
+            editorInsertRow(ec, ec->num_rows, line, line_len);
+        }
     }
     vPortFree(line);
     f_close(file);
@@ -2071,6 +2078,23 @@ void editorMoveCursor(editor_config * ec, uint16_t key) {
         ec->cursor_x = row_len;
 }
 
+void editorFreeAll(editor_config * ec){
+    
+    freeAlist(ec);
+    
+    uint32_t i=0;
+    while(ec->num_rows){
+        editorFreeRow(&ec->row[i]);
+        ec->num_rows--;
+        i++;
+    }
+    
+    vPortFree(ec->row);
+    vPortFree(ec->file_name);
+    vPortFree(ec->copied_char_buffer);
+    
+}
+
 void editorProcessKeypress(editor_config * ec, TERMINAL_HANDLE * handle) {
     static int quit_times = TTE_QUIT_TIMES;
 
@@ -2088,7 +2112,7 @@ void editorProcessKeypress(editor_config * ec, TERMINAL_HANDLE * handle) {
                 quit_times--;
                 return;
             }
-            freeAlist(ec);
+            editorFreeAll(ec);
             TERM_killProgramm(handle);
             break;
         case CTRL_KEY('s'):

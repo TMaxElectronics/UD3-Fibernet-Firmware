@@ -226,7 +226,7 @@ static void ETH_run( void *pvParameters ){
             ETH_clearIF(0xffffffff);    //clear all int flags
             
             xSemaphoreGive(ETH_commsSem);
-            vTaskDelay(pdMS_TO_TICKS(3));
+            vTaskDelay(1);
         }
     }
 }
@@ -408,7 +408,7 @@ unsigned ETH_rxDataAvailable(){
     return (ETH_readReg(LAN9250_INT_STAT) & LAN9250_INTERRUPT_RX_STATUS_LEVEL) != 0;
 }
 
-inline unsigned ETH_CheckLinkUp(){
+unsigned ETH_CheckLinkUp(){
     return linkState;
 }
 

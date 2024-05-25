@@ -93,6 +93,7 @@ enum vt100{
 #define _VT100_KEY_PAGE_DOWN        0x100b
 #define _VT100_INVALID              0xffff
 
+#define _CODE_ESC 0x1b
 
 enum color{
     _VT100_BLACK,
@@ -253,7 +254,9 @@ BaseType_t ptr_is_in_ram(void* ptr);
 uint8_t TERM_defaultErrorPrinter(TERMINAL_HANDLE * handle, uint32_t retCode);
 void TERM_LIST_add(TermCommandDescriptor * item, TermCommandDescriptor * head);
 
+#ifdef TERM_SUPPORT_CWD
 #include "TTerm_cwd.h"
+#endif   
 
 #endif
 #endif

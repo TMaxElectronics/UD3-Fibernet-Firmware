@@ -23,6 +23,7 @@
 
 #include "top.h"
 #include "string.h"
+#include "../include/System.h"
 
 #define APP_NAME "top"
 #define APP_DESCRIPTION "shows performance stats"
@@ -93,7 +94,7 @@ void TASK_main(void *pvParameters){
                 if(strlen(taskStats[currTask].pcTaskName) != 4 || strcmp(taskStats[currTask].pcTaskName, "IDLE") != 0){
                     char name[configMAX_TASK_NAME_LEN+1];
                     strncpy(name, taskStats[currTask].pcTaskName, configMAX_TASK_NAME_LEN);
-                    uint32_t load = (taskStats[currTask].ulRunTimeCounter) / (sysTime/1000);
+                    uint32_t load = (taskStats[currTask].ulRunTimeCounter) / (sysTime/configTICK_RATE_HZ);
                     ttprintf("%s%d\r\x1b[%dC%s\r\x1b[%dC%s\r\x1b[%dC%d,%d\r\x1b[%dC%d\r\x1b[%dC%u\r\x1b[%dC%d\r\n", TERM_getVT100Code(_VT100_ERASE_LINE_END, 0), taskStats[currTask].xTaskNumber, 6, name, 7 + configMAX_TASK_NAME_LEN
                             , SYS_getTaskStateString(taskStats[currTask].eCurrentState), 20 + configMAX_TASK_NAME_LEN, load / 10, load % 10, 27 + configMAX_TASK_NAME_LEN, taskStats[currTask].ulRunTimeCounter
                             , 38 + configMAX_TASK_NAME_LEN, taskStats[currTask].usStackHighWaterMark, 45 + configMAX_TASK_NAME_LEN, taskStats[currTask].usedHeap);
@@ -104,7 +105,7 @@ void TASK_main(void *pvParameters){
             ttprintf("Malloc failed\r\n");
         }
         
-        xStreamBufferReceive(handle->currProgram->inputStream,&c,sizeof(c),1000);
+        xStreamBufferReceive(handle->currProgram->inputStream,&c,sizeof(c),pdMS_TO_TICKS(1000));
     }while(c!=CTRL_C);
     TERM_killProgramm(handle);
 }

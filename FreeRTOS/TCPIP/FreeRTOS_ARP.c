@@ -45,7 +45,7 @@
 #endif /* ipconfigUSE_LLMNR */
 #include "NetworkBufferManagement.h"
 #include "NetworkInterface.h"
-
+#include "UART.h"
 
 /* When the age of an entry in the ARP table reaches this value (it counts down
 to zero, so this is an old entry) an ARP request will be sent to see if the

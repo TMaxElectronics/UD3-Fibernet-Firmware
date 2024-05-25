@@ -7,6 +7,7 @@
 #include "FS.h"
 #include "diskio.h"
 #include "ff.h"
+#include "UART.h"
 
 //#define DEBUG
 

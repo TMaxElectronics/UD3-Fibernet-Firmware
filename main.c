@@ -78,7 +78,7 @@ int main( void ){
 void vApplicationMallocFailedHook( void ){
 	taskDISABLE_INTERRUPTS();
     configASSERT(0);
-    LED_showCode(LED_mallocFailedCode);
+    LED_showCode((uint8_t*)LED_mallocFailedCode);
 }
 
 void vApplicationIdleHook( void ){
@@ -92,7 +92,7 @@ void vApplicationStackOverflowHook( TaskHandle_t pxTask, char *pcTaskName )
     
 	taskDISABLE_INTERRUPTS();
     configASSERT(0);
-    LED_showCode(LED_stackOverflowCode);
+    LED_showCode((uint8_t*)LED_stackOverflowCode);
 }
 
 void vApplicationTickHook( void ){
@@ -101,7 +101,7 @@ void vApplicationTickHook( void ){
 
 void _general_exception_handler( unsigned long ulCause, unsigned long ulStatus ){
     configASSERT(0);
-    LED_showCode(LED_generalExceptionCode);
+    LED_showCode((uint8_t*)LED_generalExceptionCode);
 }
 /*-----------------------------------------------------------*/
 
@@ -111,7 +111,7 @@ void vAssertCalled(const char * pcFile, unsigned long ulLine){
 
 	__asm volatile( "di" );
 	{
-        LED_showCode(LED_assertCode);
+        LED_showCode((uint8_t*)LED_assertCode);
 	}
 	__asm volatile( "ei" );
 }

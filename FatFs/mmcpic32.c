@@ -28,6 +28,7 @@
 #include "diskio.h"
 #include "SPI.h"
 #include "FreeRTOS.h"
+#include "task.h"
 
 /* Definitions for MMC/SDC command */
 #define CMD0   (0)			/* GO_IDLE_STATE */

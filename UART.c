@@ -243,7 +243,7 @@ uint32_t UART_printDebug(char * format, ...){
     
     uint8_t * buff = (uint8_t*) pvPortMalloc(256);
     uint32_t length = vsprintf(buff, format, arg);
-    min_send_frame(COMMS_UART, MIN_DEBUG, buff, length);
+    min_send_frame(COMMS_UART, MIN_ID_DEBUG, buff, length);
     vPortFree(buff);
     //if(!xQueueSend(UART_sendQueue, &buff, 10)) vPortFree(buff);
     

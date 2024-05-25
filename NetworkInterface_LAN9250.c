@@ -16,6 +16,7 @@ unsigned debug = 0;
 /* INTERNAL API FUNCTIONS. */
 BaseType_t xNetworkInterfaceInitialise( void ){
     ETH_init();
+    return pdPASS;
 }
 
 BaseType_t xNetworkInterfaceOutput( NetworkBufferDescriptor_t * const pxNetworkBuffer, BaseType_t xReleaseAfterSend ){

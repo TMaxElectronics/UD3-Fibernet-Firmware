@@ -170,7 +170,7 @@ static void FTP_clientTask(void *pvParameters){
 	uint8_t * rxBuffer = (uint8_t *) pvPortMalloc(ipconfigTCP_MSS);
 
     //tell the world that we have a new client
-    COMMS_eventHook(FTP_CLIENT_DISCONNECTED);
+    COMMS_eventHook(FTP_CLIENT_CONNECTED);
     
     //print the welcome message
     print((void*) client, "220 Hello There\r\n");
@@ -382,10 +382,10 @@ static uint8_t FTP_PORTCMD(TERMINAL_HANDLE * handle, uint8_t argCount, char ** a
  * prints a directory list
  */
 static uint8_t FTP_LIST(TERMINAL_HANDLE * handle, uint8_t argCount, char ** args){
-    if(argCount != 0){
+    /*if(argCount != 0){
         ttprintf("504 NO\r\n");
         return TERM_CMD_EXIT_ERROR;
-    }
+    }*/
     
     FRESULT res;
     DIR dir;
@@ -469,8 +469,17 @@ static unsigned FTP_openTranferSocket(FTP_CLIENT_HANDLE * client){
     
     FreeRTOS_bind(client->clientTX, &xSlavAddress, sizeof(xSlavAddress));
     
+    if(FreeRTOS_connect(client->clientTX, &client->clientAddr, sizeof(client->clientAddr)) == 0){
+        return pdTRUE;
+    }
     
-    return (FreeRTOS_connect(client->clientTX, &client->clientAddr, sizeof(client->clientAddr)) == 0);
+    //opening the port failed, clear all set data
+    
+    FreeRTOS_shutdown(client->clientTX, FREERTOS_SHUT_RDWR);
+    FreeRTOS_closesocket(client->clientTX);
+    
+    client->clientTX = 0;
+    return pdFALSE;
 }
 
 //closes the data socket, if one is opened

@@ -24,7 +24,7 @@ CLEAN_SUBPROJECTS=${CLEAN_SUBPROJECTS_${SUBPROJECTS}}
 
 
 # Project Name
-PROJECTNAME=UD3-Fibernet-Firmware
+PROJECTNAME=UD3_Fibernet.X
 
 # Active Configuration
 DEFAULTCONF=default

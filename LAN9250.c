@@ -61,11 +61,6 @@ void ETH_init(){
         }
         break;
     }
-           
-    COMMS_eventHook(ETH_INIT_DONE);
-    
-    //set the SPI clock to the maximum possible
-    SPI_setCLKFreq(ETH_spi, 24000000);
     
     //print debug information that tells us about the state of the chip
     UART_printDebug("SFP Chip ID & Revision number: 0x%08x\r\n", ETH_readReg(LAN9250_ID_REV));
@@ -73,6 +68,9 @@ void ETH_init(){
     
     //write config registers
     ETH_writeMacAddress(MAC_ADDRESS);
+    
+    //set the SPI clock to the maximum possible
+    SPI_setCLKFreq(ETH_spi, 24000000);
     
     ETH_setHWConf(5);
     ETH_setAutoFlowcontrol(0x6E, 0x37, 1);
@@ -90,7 +88,7 @@ void ETH_init(){
     PHY_setSpecialControlStatus(0, 0, 0, 1, 1, 0);
     PHY_enableInterrupts(1,0,0,0,1,0,0,0);
     ETH_writePhy(LAN9250_PHY_SPECIAL_CONTROL_STATUS, 0x0040); 
-    ETH_writeReg(LAN9250_LED_CTRL, 0b111);
+    ETH_writeReg(LAN9250_LED_CTRL, 0b00000000111);
     
     //setup dma for receive and transmit
     ETH_setupDMA();
@@ -99,6 +97,8 @@ void ETH_init(){
     xTaskCreate(ETH_run, "ethTask", configMINIMAL_STACK_SIZE + 125, NULL, tskIDLE_PRIORITY + 2, NULL );
     xSemaphoreGive(ETH_commsSem);
     xSemaphoreGive(ETH_commsWaitSem);
+           
+    COMMS_eventHook(ETH_INIT_DONE);
 }
 
 unsigned linkState = 0;
@@ -622,7 +622,7 @@ void ETH_clearIF(uint32_t flagsToClear){
 }
 
 void ETH_setInterruptConfiguration(uint8_t deAssertTime, unsigned enableInterrups, unsigned interruptPolarity, unsigned clockSource, unsigned bufferType){
-    uint32_t writeVal = 0xA0000111;//(deAssertTime << 24) | (enableInterrups << 8) | (interruptPolarity << 4) | (clockSource << 1) | bufferType;
+    uint32_t writeVal = (deAssertTime << 24) | (enableInterrups << 8) | (interruptPolarity << 4) | (clockSource << 1) | bufferType;//0xA0000111;//
     ETH_writeReg(LAN9250_IRQ_CFG, writeVal);
 }
 
@@ -659,10 +659,12 @@ void ETH_dumpRX(){
 
 void ETH_dumpTX(){
     uint16_t count = ETH_getTXStatusCount();
-    UART_printDebug("TX info=0x%08x (%d available)\r\n", ETH_readReg(LAN9250_TX_FIFO_INF), count);
+    //UART_printDebug("TX info=0x%08x (%d available)\r\n", ETH_readReg(LAN9250_TX_FIFO_INF), count);
+    ETH_readReg(LAN9250_TX_FIFO_INF);
     if(count < 0xfff){
         for(;count > 0; count --){
-            UART_printDebug("\t next status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_STAT_FIFO));
+            //UART_printDebug("\t next status: 0x%08x\r\n", ETH_readReg(LAN9250_TX_STAT_FIFO));
+            ETH_readReg(LAN9250_TX_STAT_FIFO);
         }
     }
 }

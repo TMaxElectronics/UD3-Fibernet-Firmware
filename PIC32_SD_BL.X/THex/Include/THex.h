@@ -1,4 +1,5 @@
 #include <xc.h>
+#include <stdint.h>
 
 typedef enum{
     THEX_OK,

@@ -54,3 +54,5 @@ dkms.conf
 build/
 debug/
 dist/
+PIC32_SD_BL.X/.generated_files/*
+.generated_files/*

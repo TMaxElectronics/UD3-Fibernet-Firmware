@@ -1,58 +1,40 @@
-# Prerequisites
 *.d
-
-# Object files
-*.o
-*.ko
+*.pre
+*.p1
+*.lst
+*.sym
 *.obj
-*.elf
-
-# Linker output
-*.ilk
+*.o
+*.sdb
+*.obj.dmp
+*.mk
 *.map
-*.exp
+*.properties
+*.production
+*.debug
+nbactions.xml
+nb-configuration.xml
+funclist
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-
-# Executables
-*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
-
-# Debug files
-*.dSYM/
-*.su
-*.idb
-*.pdb
-
-# Kernel Module Compile Results
-*.mod*
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-Mkfile.old
-dkms.conf
-
+html/
+nbproject/private/
+nbproject/Package-*.bash
 build/
-debug/
+nbbuild/
 dist/
-PIC32_SD_BL.X/.generated_files/*
-.generated_files/*
+nbdist/
+nbproject/Makefile-*
+disassembly/
+.generated_files/
+
+PIC32_SD_BL.X/html/
+PIC32_SD_BL.X/nbproject/private/
+PIC32_SD_BL.X/nbproject/Package-*.bash
+PIC32_SD_BL.X/build/
+PIC32_SD_BL.X/nbbuild/
+PIC32_SD_BL.X/dist/
+PIC32_SD_BL.X/nbdist/
+PIC32_SD_BL.X/nbproject/Makefile-*
+PIC32_SD_BL.X/disassembly/
+PIC32_SD_BL.X/.generated_files/
+

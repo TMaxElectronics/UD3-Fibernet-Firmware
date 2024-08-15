@@ -24,7 +24,7 @@
 #include <xc.h>
 #include <sys/kmem.h>
 
-#include "Include/THex.h"
+#include "include/THex.h"
 
 uint32_t THEX_parseString(THexFileInfo * currFile, char * string, uint32_t * chunkSize, uint8_t * dataBuffer){
     if(string[0] != ':') return THEX_INCOMPATIBLE_STRING;

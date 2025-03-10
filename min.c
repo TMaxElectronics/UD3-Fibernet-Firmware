@@ -481,6 +481,7 @@ static void rx_byte(struct min_context *self, uint8_t byte){
             return;
         }
         if(byte == STUFF_BYTE) {
+            if(self->rx_frame_id_control & 0x80) self->rx_forward_buffer[self->rx_data_position++] = byte;
             /* Discard this byte; carry on receiving on the next character */
             return;
         }
